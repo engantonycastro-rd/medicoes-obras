@@ -1,3 +1,4 @@
+import jsPDF from 'jspdf'
 import { Contrato, Obra, Medicao, Servico, LinhaMemoria, FotoMedicao } from '../types'
 import {
   calcPrecoComDesconto, calcPrecoComBDI, calcPrecoTotal,
@@ -17,12 +18,10 @@ export async function gerarMedicaoPDF(
   fotos?: FotoMedicao[],
   medicoesAnteriores?: { numero_extenso: string; valorPeriodo: number }[]
 ): Promise<void> {
-  const htmlMED  = gerarHTMLMED(contrato, obra, medicao, servicos, linhasPorServico, logoBase64, medicoesAnteriores)
-  const htmlMEM  = gerarHTMLMEM(contrato, obra, medicao, servicos, linhasPorServico)
-  const htmlFOTO = fotos && fotos.length > 0
-    ? gerarHTMLFotos(contrato, obra, medicao, fotos, logoBase64)
-    : ''
-  const html = montarDocumento(contrato, obra, medicao, htmlMED, htmlMEM, htmlFOTO)
+  // Abre HTML (MED + MEM) em nova aba para impressão
+  const htmlMED = gerarHTMLMED(contrato, obra, medicao, servicos, linhasPorServico, logoBase64, medicoesAnteriores)
+  const htmlMEM = gerarHTMLMEM(contrato, obra, medicao, servicos, linhasPorServico)
+  const html = montarDocumento(contrato, obra, medicao, htmlMED, htmlMEM)
 
   const blob = new Blob([html], { type: 'text/html; charset=utf-8' })
   const url  = URL.createObjectURL(blob)
@@ -32,11 +31,16 @@ export async function gerarMedicaoPDF(
       setTimeout(() => { win.print(); URL.revokeObjectURL(url) }, 800)
     })
   }
+
+  // Gera relatório fotográfico separado via jsPDF (mesmo padrão do RelatorioFotografico)
+  if (fotos && fotos.length > 0) {
+    await gerarFotosPDF(contrato, obra, medicao, fotos)
+  }
 }
 
 // ─── DOCUMENTO COMPLETO ───────────────────────────────────────────────────────
 
-function montarDocumento(contrato: Contrato, obra: Obra, medicao: Medicao, med: string, mem: string, foto = '') {
+function montarDocumento(contrato: Contrato, obra: Obra, medicao: Medicao, med: string, mem: string) {
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -124,7 +128,6 @@ function montarDocumento(contrato: Contrato, obra: Obra, medicao: Medicao, med: 
 ${med}
 <div class="page-break"></div>
 ${mem}
-${foto ? `<div class="page-break"></div>${foto}` : ''}
 </body>
 </html>`
 }
@@ -311,6 +314,8 @@ function gerarHTMLMEM(
 
   for (const srv of servicosOrd) {
     const linhas = (linhasPorServico.get(srv.id) || []).sort((a, b) => a.sub_item.localeCompare(b.sub_item))
+    // Só exibe serviços que têm ao menos uma linha de medição
+    if (linhas.length === 0) continue
     rows += `<tr class="tr-srv">
       <td class="ctr">${srv.item}</td>
       <td colspan="13" style="text-align:left">${srv.descricao} — ${srv.unidade}</td>
@@ -372,58 +377,208 @@ function gerarHTMLMEM(
 </table>`
 }
 
-// ─── ABA RELATÓRIO FOTOGRÁFICO ────────────────────────────────────────────────
+// ─── RELATÓRIO FOTOGRÁFICO via jsPDF (mesmo padrão do standalone) ─────────────
 
-function gerarHTMLFotos(
-  contrato: Contrato, obra: Obra, medicao: Medicao,
-  fotos: FotoMedicao[], logoBase64?: string | null
-): string {
-  const logoHtml = logoBase64
-    ? `<img src="${logoBase64}" alt="Logo"/>`
-    : `<span>${contrato.empresa_executora}</span>`
+async function toBase64FromSrc(src: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0)
+      resolve(canvas.toDataURL('image/jpeg', 0.85))
+    }
+    img.onerror = reject
+    img.src = src
+  })
+}
+
+export async function gerarFotosPDF(
+  contrato: Contrato,
+  obra: Obra,
+  medicao: Medicao,
+  fotos: FotoMedicao[]
+): Promise<void> {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+
+  const pageWidth  = 210
+  const pageHeight = 297
+  const marginX    = 14
+  const marginY    = 12
+  const contentW   = pageWidth - marginX * 2
+
+  const headerH      = 46
+  const sectionH     = 8
+  const captionH     = 6
+  const photoRowH    = 56
+  const rowGap       = 4
+  const colGap       = 4
+  const photoColW    = (contentW - colGap) / 2
 
   const dataFmt = medicao.data_medicao
     ? new Date(medicao.data_medicao + 'T00:00:00').toLocaleDateString('pt-BR') : '—'
 
-  // Monta cabeçalho idêntico ao MED
-  const cabecalho = `
-<div class="cabecalho">
-  <div class="cab-logo">${logoHtml}</div>
-  <div class="cab-centro">
-    <div class="cab-orgao">${contrato.orgao_nome}</div>
-    <div class="cab-subdiv">${contrato.orgao_subdivisao || ''}</div>
-    <div class="cab-obra">OBRA: ${obra.nome_obra} &nbsp;|&nbsp; LOCAL: ${obra.local_obra}</div>
-    <div class="cab-contrato">Contrato: ${obra.numero_contrato || '—'} &nbsp;|&nbsp; Empresa: ${contrato.empresa_executora}</div>
-  </div>
-  <div class="cab-dir">
-    <div class="cab-dir-num">${medicao.numero_extenso} MEDIÇÃO</div>
-    <div class="cab-dir-info">Data: ${dataFmt}</div>
-    <div class="cab-dir-info">RELATÓRIO FOTOGRÁFICO</div>
-  </div>
-</div>`
+  const imgDataList = await Promise.all(fotos.map(f => toBase64FromSrc(f.base64)))
 
-  // Agrupa fotos em pares (2 por linha) e páginas de 4 fotos
-  const FOTOS_POR_PAGINA = 4
-  let paginasHtml = ''
+  let currentY   = marginY
+  let photoIndex = 0
+  let isFirstPage = true
 
-  for (let i = 0; i < fotos.length; i += FOTOS_POR_PAGINA) {
-    const grupo = fotos.slice(i, i + FOTOS_POR_PAGINA)
-    const cards = grupo.map((f, j) => `
-      <div class="foto-card">
-        <div class="foto-num">Figura ${i + j + 1}</div>
-        <img class="foto-img" src="${f.base64}" alt="Figura ${i + j + 1}"/>
-        <div class="foto-leg">${f.legenda || ''}</div>
-      </div>`).join('')
+  const drawPageElements = () => {
+    // ── Header (mesmo do standalone) ──────────────────────────────────────────
+    const logoW = 28
+    doc.setDrawColor(60, 60, 60)
+    doc.setLineWidth(0.5)
+    doc.rect(marginX, currentY, contentW, headerH)
 
-    const isUltima = i + FOTOS_POR_PAGINA >= fotos.length
-    paginasHtml += `
-<div class="foto-page">
-  ${cabecalho}
-  <div class="foto-titulo" style="margin-top:3mm">REGISTRO FOTOGRÁFICO — ${obra.nome_obra}</div>
-  <div class="foto-grid">${cards}</div>
-</div>
-${isUltima ? '' : '<div class="page-break"></div>'}`
+    // Bloco laranja RD
+    doc.setFillColor(232, 80, 10)
+    doc.rect(marginX, currentY, logoW, headerH, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(14)
+    doc.setTextColor(255, 255, 255)
+    doc.text('RD', marginX + logoW / 2, currentY + 16, { align: 'center' })
+    doc.setFontSize(6)
+    doc.text('CONSTRUTORA', marginX + logoW / 2, currentY + 22, { align: 'center' })
+
+    doc.setDrawColor(60, 60, 60)
+    doc.line(marginX + logoW, currentY, marginX + logoW, currentY + headerH)
+
+    // Empresa info
+    doc.setTextColor(30, 30, 30)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.text(contrato.empresa_executora || 'RD SOLUÇÕES LTDA', pageWidth / 2, currentY + 7, { align: 'center' })
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    doc.text('CNPJ: 43.357.757/0001-40', pageWidth / 2, currentY + 12, { align: 'center' })
+    doc.text('RUA BELA VISTA, 874, JARDINS, SÃO GONÇALO DO AMARANTE/RN - CEP: 59293-576', pageWidth / 2, currentY + 16.5, { align: 'center' })
+    doc.text('email: rd_solucoes@outlook.com / tel.: (84) 99641-8124', pageWidth / 2, currentY + 21, { align: 'center' })
+
+    // Tabela obra/medição
+    const tableY = currentY + 25
+    const tableH = 9
+    const rowH   = tableH / 2
+    const colW   = contentW - logoW
+    const tx     = marginX + logoW
+
+    doc.setDrawColor(150, 150, 150)
+    doc.setLineWidth(0.3)
+    doc.rect(tx, tableY, colW, tableH)
+    doc.line(tx, tableY + rowH, tx + colW, tableY + rowH)
+
+    const obraLblW = 14, obraValW = colW - 14 - 16 - 22
+    doc.line(tx + obraLblW, tableY, tx + obraLblW, tableY + rowH)
+    doc.line(tx + obraLblW + obraValW, tableY, tx + obraLblW + obraValW, tableY + rowH)
+    doc.line(tx + obraLblW + obraValW + 16, tableY, tx + obraLblW + obraValW + 16, tableY + rowH)
+
+    const medLblW = 18, medValW = 16, exeLblW = 32, exeValW = colW - medLblW - medValW - exeLblW - 12 - 18
+    doc.line(tx + medLblW, tableY + rowH, tx + medLblW, tableY + tableH)
+    doc.line(tx + medLblW + medValW, tableY + rowH, tx + medLblW + medValW, tableY + tableH)
+    doc.line(tx + medLblW + medValW + exeLblW, tableY + rowH, tx + medLblW + medValW + exeLblW, tableY + tableH)
+    doc.line(tx + medLblW + medValW + exeLblW + exeValW, tableY + rowH, tx + medLblW + medValW + exeLblW + exeValW, tableY + tableH)
+    doc.line(tx + medLblW + medValW + exeLblW + exeValW + 12, tableY + rowH, tx + medLblW + medValW + exeLblW + exeValW + 12, tableY + tableH)
+
+    const y1 = tableY + rowH * 0.65
+    const y2 = tableY + rowH + rowH * 0.65
+    doc.setFontSize(6.5)
+    doc.setTextColor(30, 30, 30)
+
+    doc.setFont('helvetica', 'bold');  doc.text('OBRA:', tx + 1, y1)
+    doc.setFont('helvetica', 'normal'); doc.text((doc.splitTextToSize(obra.nome_obra, obraValW - 2)[0] || ''), tx + obraLblW + 1, y1)
+    doc.setFont('helvetica', 'bold');  doc.text('LOCAL:', tx + obraLblW + obraValW + 1, y1)
+    doc.setFont('helvetica', 'normal'); doc.text(obra.local_obra || '', tx + obraLblW + obraValW + 17, y1)
+
+    doc.setFont('helvetica', 'bold');  doc.text('MEDIÇÃO:', tx + 1, y2)
+    doc.setFont('helvetica', 'normal'); doc.text(medicao.numero_extenso, tx + medLblW + 1, y2)
+    doc.setFont('helvetica', 'bold');  doc.text('EMPRESA EXECUTORA', tx + medLblW + medValW + 1, y2)
+    doc.setFont('helvetica', 'normal'); doc.text(contrato.empresa_executora || 'RD SOLUÇÕES LTDA', tx + medLblW + medValW + exeLblW + 1, y2)
+    doc.setFont('helvetica', 'bold');  doc.text('DATA:', tx + medLblW + medValW + exeLblW + exeValW + 1, y2)
+    doc.setFont('helvetica', 'normal'); doc.text(dataFmt, tx + medLblW + medValW + exeLblW + exeValW + 13, y2)
+
+    currentY += headerH + 2
+
+    // ── Título da seção ────────────────────────────────────────────────────────
+    doc.setFillColor(44, 62, 107)
+    doc.rect(marginX, currentY, contentW, sectionH, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(255, 255, 255)
+    doc.text('REGISTRO FOTOGRÁFICO DOS SERVIÇOS EXECUTADOS:', pageWidth / 2, currentY + 5.5, { align: 'center' })
+    currentY += sectionH + 4
   }
 
-  return paginasHtml
+  while (photoIndex < fotos.length) {
+    if (isFirstPage) {
+      drawPageElements()
+      isFirstPage = false
+    } else {
+      doc.addPage()
+      currentY = marginY
+      drawPageElements()
+    }
+
+    const availableH  = pageHeight - currentY - marginY
+    const rowTotalH   = photoRowH + captionH + rowGap
+    const rowsPerPage = Math.max(1, Math.floor(availableH / rowTotalH))
+
+    for (let row = 0; row < rowsPerPage && photoIndex < fotos.length; row++) {
+      const rowY = currentY
+      for (let col = 0; col < 2 && photoIndex < fotos.length; col++) {
+        const foto    = fotos[photoIndex]
+        const imgData = imgDataList[photoIndex]
+        const figNum  = photoIndex + 1
+        const cellX   = marginX + col * (photoColW + colGap)
+
+        doc.setDrawColor(180, 180, 180)
+        doc.setLineWidth(0.3)
+        doc.rect(cellX, rowY, photoColW, photoRowH)
+
+        try {
+          doc.addImage(imgData, 'JPEG', cellX + 0.5, rowY + 0.5, photoColW - 1, photoRowH - 1, undefined, 'FAST')
+        } catch {
+          doc.setFillColor(220, 220, 220)
+          doc.rect(cellX + 0.5, rowY + 0.5, photoColW - 1, photoRowH - 1, 'F')
+        }
+
+        const capY = rowY + photoRowH
+        doc.setFillColor(250, 250, 250)
+        doc.rect(cellX, capY, photoColW, captionH, 'F')
+        doc.setDrawColor(180, 180, 180)
+        doc.rect(cellX, capY, photoColW, captionH)
+
+        const captionText = foto.legenda ? `Figura ${figNum}: ${foto.legenda}` : `Figura ${figNum}`
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(6.5)
+        doc.setTextColor(60, 60, 60)
+        doc.text(captionText, cellX + photoColW / 2, capY + captionH / 2 + 1.5, { align: 'center' })
+
+        photoIndex++
+      }
+      currentY += photoRowH + captionH + rowGap
+    }
+  }
+
+  // Numeração de páginas
+  const totalPages = doc.getNumberOfPages()
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    doc.setTextColor(150, 150, 150)
+    doc.text(`Página ${i} / ${totalPages}`, pageWidth - marginX, pageHeight - 6, { align: 'right' })
+  }
+
+  // Abre em nova aba e dispara impressão
+  const pdfBlob = doc.output('blob')
+  const pdfUrl  = URL.createObjectURL(pdfBlob)
+  const win = window.open(pdfUrl, '_blank')
+  if (win) {
+    win.addEventListener('load', () => {
+      setTimeout(() => { win.print(); URL.revokeObjectURL(pdfUrl) }, 800)
+    })
+  }
 }
