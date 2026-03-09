@@ -61,7 +61,7 @@ export function calcularTotalLinha(linha: Partial<LinhaMemoria>): number {
 
   if (validos.length === 0) return 0
 
-  const produto = validos.reduce((acc, v) => acc * (v as number), 1)
+  const produto = validos.reduce<number>((acc, v) => acc * (v as number), 1)
   const desconto = linha.desconto_dim ?? 0
 
   return produto - desconto

@@ -1,22 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import {
   Building2, FileText, ClipboardList, Settings,
-  LogOut, Menu, X, ChevronRight, HardHat
+  LogOut, Menu, X, ChevronRight, HardHat, Users, Crown
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { usePerfilStore } from '../../lib/perfilStore'
 import toast from 'react-hot-toast'
-
-const nav = [
-  { to: '/',           icon: Building2,     label: 'Contratos'   },
-  { to: '/servicos',   icon: ClipboardList, label: 'Serviços'    },
-  { to: '/medicoes',   icon: FileText,      label: 'Medições'    },
-  { to: '/configuracoes', icon: Settings,   label: 'Config.'     },
-]
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const { perfilAtual, fetchPerfilAtual } = usePerfilStore()
   const navigate = useNavigate()
+  const isAdmin = perfilAtual?.role === 'ADMIN'
+
+  useEffect(() => {
+    fetchPerfilAtual()
+  }, [])
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -24,13 +24,28 @@ export function AppLayout() {
     navigate('/login')
   }
 
+  const navBase = [
+    { to: '/',        icon: Building2,     label: 'Contratos'  },
+    { to: '/servicos',icon: ClipboardList, label: 'Serviços'   },
+    { to: '/medicoes',icon: FileText,      label: 'Medições'   },
+  ]
+
+  const navAdmin = [
+    { to: '/usuarios',    icon: Users,    label: 'Usuários'   },
+    { to: '/configuracoes', icon: Settings, label: 'Config.'  },
+  ]
+
+  const navEngenheiro = [
+    { to: '/configuracoes', icon: Settings, label: 'Config.'  },
+  ]
+
+  const nav = [...navBase, ...(isAdmin ? navAdmin : navEngenheiro)]
+
   return (
     <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
-      {/* ── Sidebar ───────────────────────────────────────────────────────── */}
-      <aside className={`
-        flex flex-col bg-slate-900 text-white transition-all duration-300 shrink-0
-        ${sidebarOpen ? 'w-56' : 'w-16'}
-      `}>
+      {/* ── Sidebar ───────────────────────────────────────────────────── */}
+      <aside className={`flex flex-col bg-slate-900 text-white transition-all duration-300 shrink-0 ${sidebarOpen ? 'w-56' : 'w-16'}`}>
+
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-700">
           <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center shrink-0">
@@ -38,11 +53,31 @@ export function AppLayout() {
           </div>
           {sidebarOpen && (
             <div className="leading-tight overflow-hidden">
-              <p className="font-bold text-sm tracking-tight text-white truncate">MediObras</p>
-              <p className="text-xs text-slate-400">Obras Públicas</p>
+              <p className="font-bold text-sm tracking-tight text-white truncate">RD - Medições</p>
+              <p className="text-xs text-slate-400">de Obras</p>
             </div>
           )}
         </div>
+
+        {/* Perfil do usuário */}
+        {sidebarOpen && perfilAtual && (
+          <div className="px-4 py-3 border-b border-slate-700">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-amber-500/20 rounded-full flex items-center justify-center shrink-0">
+                {isAdmin ? <Crown size={13} className="text-amber-400" /> : <HardHat size={13} className="text-blue-400" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-white truncate">{perfilAtual.nome || 'Usuário'}</p>
+                <p className="text-xs text-slate-400 truncate">{perfilAtual.email}</p>
+              </div>
+            </div>
+            <span className={`mt-2 inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+              isAdmin ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400'
+            }`}>
+              {isAdmin ? <><Crown size={9} /> Admin</> : <><HardHat size={9} /> Engenheiro</>}
+            </span>
+          </div>
+        )}
 
         {/* Nav */}
         <nav className="flex-1 px-2 py-4 space-y-1">
@@ -88,10 +123,17 @@ export function AppLayout() {
         </div>
       </aside>
 
-      {/* ── Main ─────────────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-auto">
-        <Outlet />
-      </main>
+      {/* ── Main ─────────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-auto flex flex-col">
+        <div className="flex-1 overflow-auto">
+          <Outlet />
+        </div>
+        <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-2 text-center">
+          <p className="text-xs text-slate-400">
+            Desenvolvido por <span className="font-medium text-slate-500">Engenheiro Adaylson Castro</span>
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

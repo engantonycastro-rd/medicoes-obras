@@ -1,10 +1,10 @@
 import { useEffect, useState, useRef } from 'react'
 import { Upload, Table, AlertCircle, CheckCircle2, FileSpreadsheet, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useStore } from '../../lib/store'
-import { ServicoImportado } from '../../types'
-import { importarOrcamento } from '../../utils/importOrcamento'
-import { formatCurrency, formatNumber, calcPrecoComDesconto, calcPrecoComBDI, calcPrecoTotal } from '../../utils/calculations'
+import { useStore } from '../lib/store'
+import { ServicoImportado } from '../types'
+import { importarOrcamento } from '../utils/importOrcamento'
+import { formatCurrency, formatNumber, calcPrecoComDesconto, calcPrecoComBDI, calcPrecoTotal } from '../utils/calculations'
 
 export function ServicosPage() {
   const { contratoAtivo, servicos, fetchServicos, salvarServicos } = useStore()

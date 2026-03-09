@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { HardHat, Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { supabase } from '../../lib/supabase'
+import { supabase } from '../lib/supabase'
 
 export function LoginPage() {
   const [email, setEmail] = useState('')
@@ -47,7 +47,7 @@ export function LoginPage() {
           <div className="w-16 h-16 bg-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/30">
             <HardHat size={32} className="text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">MediObras</h1>
+          <h1 className="text-3xl font-bold text-white tracking-tight">RD - Medições de Obras</h1>
           <p className="text-slate-400 mt-2 text-sm">Sistema de Medições de Obras Públicas</p>
         </div>
 
@@ -125,8 +125,8 @@ export function LoginPage() {
           </div>
         </div>
 
-        <p className="text-center text-xs text-slate-600 mt-6">
-          Dados protegidos com Row Level Security via Supabase
+        <p className="text-center text-xs text-slate-600 mt-4">
+          Desenvolvido por <span className="text-slate-500">Engenheiro Adaylson Castro</span>
         </p>
       </div>
     </div>

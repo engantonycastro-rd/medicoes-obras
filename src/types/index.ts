@@ -1,88 +1,68 @@
-// ─── ENUMS ────────────────────────────────────────────────────────────────────
-
 export type TipoContrato = 'ESTADO' | 'PREFEITURA'
 export type StatusMedicao = 'RASCUNHO' | 'ENVIADA' | 'APROVADA'
 export type StatusLinhaMemoria = 'A pagar' | 'Pago' | 'Não executado'
 export type FonteOrcamento = 'SINAPI' | 'ORSE' | 'SEINFRA' | 'CAERN' | 'Composições Próprias' | string
+export type RolePerfil = 'ADMIN' | 'ENGENHEIRO'
 
-// ─── CONTRATO ─────────────────────────────────────────────────────────────────
+export interface Perfil {
+  id: string
+  created_at: string
+  updated_at: string
+  email: string
+  nome: string | null
+  role: RolePerfil
+  ativo: boolean
+  criado_por: string | null
+}
 
 export interface Contrato {
   id: string
   created_at: string
   updated_at: string
-
-  // Identificação
   nome_obra: string
   local_obra: string
-  numero_contrato: string
+  numero_contrato: string | null
   tipo: TipoContrato
-
-  // Órgão contratante
-  orgao_nome: string           // ex: SEEC / Prefeitura de X
-  orgao_subdivisao?: string    // ex: SUBCOORDENADORIA DE MANUTENÇÃO
-
-  // Empresa
+  orgao_nome: string
+  orgao_subdivisao: string | null
   empresa_executora: string
-
-  // Financeiro
-  desconto_percentual: number  // ex: 0.0429
-  bdi_percentual: number       // ex: 0.30091
-  bdi_preco_unitario?: number  // ex: 1.2452 (para cálculo do preço c/ BDI no demonstrativo)
-  data_base_planilha: string   // ex: "SINAPI 01/2025"
-
-  // Prazos
-  data_ordem_servico: string
-  prazo_execucao_dias: number
-
-  // Controle
+  desconto_percentual: number
+  bdi_percentual: number
+  bdi_preco_unitario: number | null
+  data_base_planilha: string | null
+  data_ordem_servico: string | null
+  prazo_execucao_dias: number | null
   status: 'ATIVO' | 'CONCLUIDO' | 'SUSPENSO'
-  medicoes_count?: number
+  user_id: string
 }
-
-// ─── SERVIÇO (item do orçamento) ──────────────────────────────────────────────
 
 export interface Servico {
   id: string
   contrato_id: string
   created_at: string
-
-  // Identificação
-  item: string          // ex: "1.1", "2.3"
+  item: string
   fonte: FonteOrcamento
-  codigo: string        // ex: "103689", "COMP-ADM.1"
+  codigo: string
   descricao: string
   unidade: string
   quantidade: number
   preco_unitario: number
-
-  // Calculados (derivados, mas armazenados para performance)
-  preco_com_desconto?: number   // preco_unitario * (1 - desconto)
-  preco_com_bdi?: number        // preco_com_desconto * (1 + bdi)
-  preco_total?: number          // quantidade * preco_com_bdi
-
-  // Organização
-  is_grupo: boolean     // true = linha de grupo (ex: "1.0 SERVIÇOS PRELIMINARES")
-  grupo_item?: string   // item do grupo pai, ex: "1.0"
+  is_grupo: boolean
+  grupo_item: string | null
   ordem: number
 }
-
-// ─── MEDIÇÃO ──────────────────────────────────────────────────────────────────
 
 export interface Medicao {
   id: string
   contrato_id: string
   created_at: string
   updated_at: string
-
-  numero: number           // 1, 2, 3...
-  numero_extenso: string   // "1ª", "2ª"...
+  numero: number
+  numero_extenso: string
   data_medicao: string
   status: StatusMedicao
-  observacoes?: string
+  observacoes: string | null
 }
-
-// ─── LINHA DA MEMÓRIA DE CÁLCULO ──────────────────────────────────────────────
 
 export interface LinhaMemoria {
   id: string
@@ -90,53 +70,22 @@ export interface LinhaMemoria {
   servico_id: string
   created_at: string
   updated_at: string
-
-  // Sub-item (ex: "1.1.1", "1.1.2")
   sub_item: string
-  descricao_calculo: string  // descrição livre da linha de cálculo
-
-  // Campos dimensionais (todos opcionais — depende do tipo de serviço)
-  largura?: number
-  comprimento?: number
-  altura?: number
-  perimetro?: number
-  area?: number
-  volume?: number
-  kg?: number
-  outros?: number
-  desconto_dim?: number    // fator de desconto dimensional (ex: 0.9)
-  quantidade?: number      // multiplicador final
-
-  // Resultado
-  total: number            // calculado: produto dos campos preenchidos
+  descricao_calculo: string
+  largura: number | null
+  comprimento: number | null
+  altura: number | null
+  perimetro: number | null
+  area: number | null
+  volume: number | null
+  kg: number | null
+  outros: number | null
+  desconto_dim: number | null
+  quantidade: number | null
+  total: number
   status: StatusLinhaMemoria
-  observacao?: string
+  observacao: string | null
 }
-
-// ─── RESUMO POR SERVIÇO (computed de LinhaMemoria) ────────────────────────────
-
-export interface ResumoServico {
-  servico_id: string
-  item: string
-
-  // Quantidades
-  quantidade_prevista: number
-  quantidade_anterior_acumulada: number
-  quantidade_medida_periodo: number
-  quantidade_acumulada: number
-  quantidade_saldo: number
-
-  // Preços
-  preco_unitario_bdi: number
-  valor_anterior_acumulado: number
-  valor_periodo: number
-  valor_acumulado: number
-  valor_saldo: number
-  peso_percentual: number
-  saldo_percentual: number
-}
-
-// ─── IMPORT DE ORÇAMENTO ──────────────────────────────────────────────────────
 
 export interface ServicoImportado {
   item: string
@@ -147,16 +96,13 @@ export interface ServicoImportado {
   quantidade: number
   preco_unitario: number
   is_grupo: boolean
-  grupo_item?: string
+  grupo_item: string | null
   ordem: number
 }
 
-// ─── STORE STATE ──────────────────────────────────────────────────────────────
-
-export interface AppState {
-  contratos: Contrato[]
-  contratoAtivo: Contrato | null
-  medicaoAtiva: Medicao | null
-  loading: boolean
-  error: string | null
+export interface ResumoLinhasServico {
+  qtdAnterior: number
+  qtdPeriodo: number
+  qtdAcumulada: number
+  qtdSaldo: number
 }

@@ -5,13 +5,13 @@ import {
   Save, Download, CheckCircle2, Clock, XCircle, Calculator
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useStore } from '../../lib/store'
-import { Servico, LinhaMemoria, StatusLinhaMemoria } from '../../types'
+import { useStore } from '../lib/store'
+import { Servico, LinhaMemoria, StatusLinhaMemoria } from '../types'
 import {
   calcularTotalLinha, calcResumoServico, formatCurrency, formatNumber,
   calcPrecoComDesconto, calcPrecoComBDI,
-} from '../../utils/calculations'
-import { gerarMedicaoExcel } from '../../utils/excelExport'
+} from '../utils/calculations'
+import { gerarMedicaoExcel } from '../utils/excelExport'
 
 // ─── STATUS CONFIG ─────────────────────────────────────────────────────────────
 
@@ -340,7 +340,7 @@ function ServicoCard({
                   <th className="px-3 py-2 text-left font-medium text-slate-500 w-20">Sub-Item</th>
                   <th className="px-3 py-2 text-left font-medium text-slate-500 min-w-36">Descrição</th>
                   {CAMPOS.map(c => (
-                    <th key={c.key} className="px-2 py-2 text-right font-medium text-slate-400 w-20">
+                    <th key={String(c.key)} className="px-2 py-2 text-right font-medium text-slate-400 w-20">
                       {c.short}
                     </th>
                   ))}
@@ -509,7 +509,7 @@ function LinhaRow({ linha, onAtualizar, onDeletar }: LinhaRowProps) {
 
       {/* Campos dimensionais */}
       {CAMPOS.map(campo => (
-        <td key={campo.key} className="px-1 py-1.5">
+        <td key={String(campo.key)} className="px-1 py-1.5">
           <input
             type="number"
             step="any"

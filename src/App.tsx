@@ -2,28 +2,39 @@ import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { supabase } from './lib/supabase'
+import { usePerfilStore } from './lib/perfilStore'
 import { AppLayout } from './components/layout/AppLayout'
 import { LoginPage } from './pages/LoginPage'
 import { ContratosPage } from './pages/ContratosPage'
 import { ServicosPage } from './pages/ServicosPage'
 import { MedicoesPage } from './pages/MedicoesPage'
 import { MemoriaPage } from './pages/MemoriaPage'
+import { UsuariosPage } from './pages/UsuariosPage'
+import { AlertCircle } from 'lucide-react'
 
-// Re-exports para o AppLayout poder importar o modal
 export { ContratoModal } from './components/contracts/ContratoModal'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [authed, setAuthed] = useState(false)
+  const { perfilAtual, fetchPerfilAtual } = usePerfilStore()
+  const [bloqueado, setBloqueado] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setAuthed(!!data.session)
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (data.session) {
+        setAuthed(true)
+        const perfil = await fetchPerfilAtual()
+        if (!perfil || !perfil.ativo) {
+          setBloqueado(true)
+        }
+      }
       setLoading(false)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       setAuthed(!!session)
+      if (!session) setBloqueado(false)
     })
 
     return () => subscription.unsubscribe()
@@ -32,12 +43,38 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-slate-400 text-sm">Carregando...</div>
+        <div className="text-slate-400 text-sm animate-pulse">Carregando...</div>
       </div>
     )
   }
 
-  return authed ? <>{children}</> : <Navigate to="/login" replace />
+  if (!authed) return <Navigate to="/login" replace />
+
+  if (bloqueado) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-md w-full text-center">
+          <div className="w-14 h-14 bg-amber-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <AlertCircle size={28} className="text-amber-400" />
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">Acesso Pendente</h2>
+          <p className="text-slate-400 text-sm mb-6">
+            Seu cadastro foi recebido e está aguardando aprovação do administrador.
+            <br /><br />
+            Entre em contato com <strong className="text-white">setordeorcamentos@rdconstrutora.com</strong> para liberar seu acesso.
+          </p>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm transition-all"
+          >
+            Sair
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return <>{children}</>
 }
 
 export default function App() {
@@ -70,6 +107,7 @@ export default function App() {
           <Route path="servicos" element={<ServicosPage />} />
           <Route path="medicoes" element={<MedicoesPage />} />
           <Route path="memoria" element={<MemoriaPage />} />
+          <Route path="usuarios" element={<UsuariosPage />} />
           <Route path="configuracoes" element={<ConfigPage />} />
         </Route>
       </Routes>

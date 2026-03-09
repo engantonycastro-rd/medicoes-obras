@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Building2, ChevronRight, Search, FileSpreadsheet, Trash2, Pencil } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useStore } from '../../lib/store'
-import { Contrato } from '../../types'
-import { formatDate, formatCurrency } from '../../utils/calculations'
+import { useStore } from '../lib/store'
+import { Contrato } from '../types'
+import { formatDate, formatCurrency } from '../utils/calculations'
 import { ContratoModal } from '../components/contracts/ContratoModal'
 
 export function ContratosPage() {
