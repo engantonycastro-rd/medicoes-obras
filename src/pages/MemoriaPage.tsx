@@ -33,7 +33,7 @@ export function MemoriaPage() {
   const {
     contratoAtivo, obraAtiva, medicaoAtiva, servicos, linhasPorServico,
     fetchServicos, fetchLinhasMedicao, salvarLinha, atualizarLinha, deletarLinha,
-    logoSelecionada,
+    logoSelecionada, fotos, fetchFotos, fetchMedicoes,
   } = useStore()
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set())
   const [mostraFotos, setMostraFotos] = useState(false)
