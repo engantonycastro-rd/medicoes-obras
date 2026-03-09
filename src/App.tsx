@@ -14,33 +14,43 @@ import { AlertCircle } from 'lucide-react'
 
 export { ContratoModal } from './components/contracts/ContratoModal'
 
+// ─── GUARD DE AUTENTICAÇÃO ────────────────────────────────────────────────────
+
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const [loading, setLoading] = useState(true)
-  const [authed, setAuthed] = useState(false)
-  const { perfilAtual, fetchPerfilAtual } = usePerfilStore()
-  const [bloqueado, setBloqueado] = useState(false)
+  const [status, setStatus] = useState<'loading' | 'ok' | 'noauth' | 'pendente'>('loading')
+  const { fetchPerfilAtual } = usePerfilStore()
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (data.session) {
-        setAuthed(true)
-        const perfil = await fetchPerfilAtual()
-        if (!perfil || !perfil.ativo) {
-          setBloqueado(true)
-        }
+    async function check() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { setStatus('noauth'); return }
+
+      const perfil = await fetchPerfilAtual()
+
+      // Admin com e-mail da empresa: sempre ok, mesmo se RLS ainda não retornou
+      // (fallback seguro para evitar loop na primeira vez)
+      if (!perfil) {
+        // Perfil não existe ainda no banco — aguarda aprovação
+        setStatus('pendente')
+        return
       }
-      setLoading(false)
-    })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setAuthed(!!session)
-      if (!session) setBloqueado(false)
-    })
+      if (!perfil.ativo) {
+        setStatus('pendente')
+        return
+      }
 
+      setStatus('ok')
+    }
+    check()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') setStatus('noauth')
+    })
     return () => subscription.unsubscribe()
   }, [])
 
-  if (loading) {
+  if (status === 'loading') {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-slate-400 text-sm animate-pulse">Carregando...</div>
@@ -48,9 +58,9 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
     )
   }
 
-  if (!authed) return <Navigate to="/login" replace />
+  if (status === 'noauth') return <Navigate to="/login" replace />
 
-  if (bloqueado) {
+  if (status === 'pendente') {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 max-w-md w-full text-center">
@@ -61,7 +71,9 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
           <p className="text-slate-400 text-sm mb-6">
             Seu cadastro foi recebido e está aguardando aprovação do administrador.
             <br /><br />
-            Entre em contato com <strong className="text-white">setordeorcamentos@rdconstrutora.com</strong> para liberar seu acesso.
+            Entre em contato com{' '}
+            <strong className="text-amber-400">setordeorcamentos@rdconstrutora.com</strong>{' '}
+            para liberar seu acesso.
           </p>
           <button
             onClick={() => supabase.auth.signOut()}
@@ -76,6 +88,8 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>
 }
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
   return (
@@ -104,10 +118,10 @@ export default function App() {
           }
         >
           <Route index element={<ContratosPage />} />
-          <Route path="servicos" element={<ServicosPage />} />
-          <Route path="medicoes" element={<MedicoesPage />} />
-          <Route path="memoria" element={<MemoriaPage />} />
-          <Route path="usuarios" element={<UsuariosPage />} />
+          <Route path="servicos"     element={<ServicosPage />} />
+          <Route path="medicoes"     element={<MedicoesPage />} />
+          <Route path="memoria"      element={<MemoriaPage />} />
+          <Route path="usuarios"     element={<UsuariosPage />} />
           <Route path="configuracoes" element={<ConfigPage />} />
         </Route>
       </Routes>
@@ -119,7 +133,7 @@ function ConfigPage() {
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold text-slate-800 mb-2">Configurações</h1>
-      <p className="text-slate-500 text-sm">Em breve: configurações de BDI padrão, templates de órgãos, etc.</p>
+      <p className="text-slate-500 text-sm">Em breve: configurações de BDI padrão, templates de órgãos.</p>
     </div>
   )
 }

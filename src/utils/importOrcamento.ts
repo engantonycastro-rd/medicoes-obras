@@ -3,18 +3,18 @@ import { ServicoImportado } from '../types'
 import { isItemGrupo, getGrupoItem } from './calculations'
 
 /**
- * Importa um arquivo de orçamento (.xlsx/.xls) e extrai os serviços.
+ * Importa um arquivo de orçamento (.xlsx) e extrai os serviços.
  *
- * Suporta dois formatos:
- *  1. Formato SEEC: colunas ITEM | FONTE | CÓDIGO | DESCRIÇÃO | UNID | QTD | PREÇO UN
- *  2. Formato genérico: detectado automaticamente por heurística
+ * Suporta dois formatos detectados automaticamente:
+ *  Formato A (SEEC):   ITEM | FONTE | CÓDIGO | DESCRIÇÃO | UNID | QTD | PU
+ *  Formato B (FUNDASE/RD): ITEM | CÓDIGO | DESCRIÇÃO | FONTE | UND | QTD | PU | PT
  */
 export async function importarOrcamento(file: File): Promise<ServicoImportado[]> {
   const buffer = await file.arrayBuffer()
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(buffer)
 
-  // Tenta encontrar a aba principal (primeira com mais dados)
+  // Escolhe a aba com mais linhas
   let ws: ExcelJS.Worksheet | null = null
   let maxRows = 0
   wb.eachSheet(sheet => {
@@ -25,7 +25,6 @@ export async function importarOrcamento(file: File): Promise<ServicoImportado[]>
   })
 
   if (!ws) throw new Error('Planilha sem abas válidas')
-
   return parseServicos(ws as ExcelJS.Worksheet)
 }
 
@@ -37,13 +36,16 @@ interface ColMap {
   unidade: number
   quantidade: number
   preco_unitario: number
+  _headerRow: number
 }
+
+// ─── PARSER PRINCIPAL ─────────────────────────────────────────────────────────
 
 function parseServicos(ws: ExcelJS.Worksheet): ServicoImportado[] {
   const colMap = detectarColunas(ws)
   if (!colMap) {
     throw new Error(
-      'Não foi possível identificar as colunas obrigatórias (ITEM, DESCRIÇÃO, UNID, QUANTIDADE, PREÇO). ' +
+      'Não foi possível identificar as colunas obrigatórias (ITEM, DESCRIÇÃO, QTD, PREÇO). ' +
       'Verifique se o arquivo segue o modelo esperado.'
     )
   }
@@ -56,13 +58,14 @@ function parseServicos(ws: ExcelJS.Worksheet): ServicoImportado[] {
 
     const item      = getCellStr(row, colMap.item)
     const descricao = getCellStr(row, colMap.descricao)
-
-    // Ignora linhas sem item ou descrição
     if (!item || !descricao) return
 
     // Ignora linhas de totais
     const itemLower = item.toLowerCase()
     if (itemLower.includes('total') || itemLower.includes('valor')) return
+
+    // Item deve parecer numerado (ex: "1", "1.1", "2.3.1")
+    if (!/^\d+(\.\d+)*$/.test(item.trim())) return
 
     const fonte    = getCellStr(row, colMap.fonte) || 'SINAPI'
     const codigo   = getCellStr(row, colMap.codigo)
@@ -72,13 +75,13 @@ function parseServicos(ws: ExcelJS.Worksheet): ServicoImportado[] {
     const grupo    = isItemGrupo(item)
 
     servicos.push({
-      item,
-      fonte,
-      codigo: codigo || '',
+      item: item.trim(),
+      fonte: fonte.trim(),
+      codigo: codigo?.trim() || '',
       descricao: descricao.trim(),
-      unidade,
-      quantidade: qtd,
-      preco_unitario: precoUn,
+      unidade: unidade.trim(),
+      quantidade: grupo ? 0 : qtd,
+      preco_unitario: grupo ? 0 : precoUn,
       is_grupo: grupo,
       grupo_item: grupo ? undefined : getGrupoItem(item),
       ordem: ordem++,
@@ -89,61 +92,106 @@ function parseServicos(ws: ExcelJS.Worksheet): ServicoImportado[] {
 }
 
 // ─── DETECÇÃO DE COLUNAS ──────────────────────────────────────────────────────
+// IMPORTANTE: regras de match mais estritas para evitar falsos positivos
+// ex: "UNITÁRIO" contém "UN" mas NÃO é coluna de unidade.
 
-const KEYWORDS: Record<keyof ColMap | '_headerRow', string[]> = {
-  _headerRow: [],
-  item:           ['item'],
-  fonte:          ['fonte', 'referencia', 'referência', 'tabela'],
-  codigo:         ['código', 'codigo', 'cód', 'cod', 'código sinapi', 'código seinfra'],
-  descricao:      ['descrição', 'descricao', 'serviço', 'servico', 'especificação'],
-  unidade:        ['unid', 'und', 'un', 'unidade'],
-  quantidade:     ['quantidade', 'qtd', 'qtde', 'quant'],
-  preco_unitario: ['preço unitário', 'preco unitario', 'valor unitário', 'unit'],
+interface ColScore {
+  col: number
+  score: number
 }
 
-function detectarColunas(ws: ExcelJS.Worksheet): (ColMap & { _headerRow: number }) | null {
-  let headerRow = 0
-  let best: Partial<ColMap> = {}
-  let bestScore = 0
+const KEYWORDS: Record<keyof Omit<ColMap, '_headerRow'>, { exact: string[]; partial: string[] }> = {
+  item: {
+    exact:   ['item'],
+    partial: [],
+  },
+  fonte: {
+    exact:   ['fonte', 'referencia', 'referência', 'tabela', 'própria', 'propria'],
+    partial: ['fonte'],
+  },
+  codigo: {
+    exact:   ['código', 'codigo', 'cód', 'cod'],
+    partial: ['código', 'codigo'],
+  },
+  descricao: {
+    exact:   ['descrição', 'descricao', 'especificação', 'especificacao', 'serviço', 'servico'],
+    partial: ['descri'],
+  },
+  unidade: {
+    // Match EXATO — evita pegar "unitário"
+    exact:   ['unid', 'und', 'un', 'unidade', 'unid.'],
+    partial: [],
+  },
+  quantidade: {
+    exact:   ['quantidade', 'qtd', 'qtde', 'quant.', 'quant'],
+    partial: ['quantid', 'qtd'],
+  },
+  preco_unitario: {
+    exact:   ['preço unitário', 'preco unitario', 'valor unitário', 'valor unitario',
+              'pu', 'p.u.', 'preço unit.'],
+    partial: ['unitário', 'unitario'],
+  },
+}
+
+function detectarColunas(ws: ExcelJS.Worksheet): ColMap | null {
+  let melhorLinha = 0
+  let melhorMapa: Partial<Omit<ColMap, '_headerRow'>> = {}
+  let melhorPontos = 0
 
   ws.eachRow((row, rowIndex) => {
-    if (rowIndex > 30) return // só busca nas primeiras 30 linhas
+    if (rowIndex > 30) return
 
-    const candidate: Partial<ColMap> = {}
-    let score = 0
+    const candidato: Partial<Omit<ColMap, '_headerRow'>> = {}
+    let pontos = 0
 
-    row.eachCell((cell, colIndex) => {
-      const val = String(cell.value || '').toLowerCase().trim()
+    row.eachCell({ includeEmpty: false }, (cell, colIndex) => {
+      // Normaliza: minúsculas, remove quebras de linha e espaços duplos
+      const val = String(cell.value ?? '')
+        .toLowerCase()
+        .replace(/\n/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
 
-      Object.entries(KEYWORDS).forEach(([key, words]) => {
-        if (key === '_headerRow') return
-        if (words.some(w => val.includes(w))) {
-          candidate[key as keyof ColMap] = colIndex
-          score++
+      if (!val) return
+
+      for (const [key, rules] of Object.entries(KEYWORDS) as [keyof typeof KEYWORDS, typeof KEYWORDS[keyof typeof KEYWORDS]][]) {
+        // Já encontrou essa coluna com score melhor? Pula
+        if (candidato[key]) continue
+
+        // Match exato tem prioridade máxima
+        if (rules.exact.some(w => val === w)) {
+          candidato[key] = colIndex
+          pontos += 3
+          continue
         }
-      })
+
+        // Match parcial — mas NÃO para 'unidade' (evita "unitário")
+        if (key !== 'unidade' && rules.partial.some(w => val.includes(w))) {
+          candidato[key] = colIndex
+          pontos += 1
+        }
+      }
     })
 
-    if (score > bestScore) {
-      bestScore = score
-      best = candidate
-      headerRow = rowIndex
+    if (pontos > melhorPontos) {
+      melhorPontos = pontos
+      melhorMapa   = candidato
+      melhorLinha  = rowIndex
     }
   })
 
-  // Mínimo: item + descrição + quantidade + preço
-  const required: (keyof ColMap)[] = ['item', 'descricao', 'quantidade', 'preco_unitario']
-  if (!required.every(k => best[k])) return null
+  const required: (keyof Omit<ColMap, '_headerRow'>)[] = ['item', 'descricao', 'quantidade', 'preco_unitario']
+  if (!required.every(k => melhorMapa[k])) return null
 
   return {
-    _headerRow: headerRow,
-    item:           best.item!,
-    fonte:          best.fonte || 0,
-    codigo:         best.codigo || 0,
-    descricao:      best.descricao!,
-    unidade:        best.unidade || 0,
-    quantidade:     best.quantidade!,
-    preco_unitario: best.preco_unitario!,
+    _headerRow:     melhorLinha,
+    item:           melhorMapa.item!,
+    fonte:          melhorMapa.fonte    || 0,
+    codigo:         melhorMapa.codigo   || 0,
+    descricao:      melhorMapa.descricao!,
+    unidade:        melhorMapa.unidade  || 0,
+    quantidade:     melhorMapa.quantidade!,
+    preco_unitario: melhorMapa.preco_unitario!,
   }
 }
 
@@ -155,7 +203,7 @@ function getCellStr(row: ExcelJS.Row, col: number): string {
   const val  = cell.value
   if (val === null || val === undefined) return ''
   if (typeof val === 'object' && val !== null && 'richText' in (val as object)) {
-    return ((val as any).richText as Array<{text: string}>).map((rt) => rt.text).join('')
+    return ((val as any).richText as Array<{ text: string }>).map(rt => rt.text).join('')
   }
   return String(val).trim()
 }
