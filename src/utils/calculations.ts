@@ -123,7 +123,7 @@ export interface ValoresMedicao {
 export function calcValoresMedicao(
   servicos: Servico[],
   linhasPorServico: Map<string, LinhaMemoria[]>,
-  contrato: Contrato
+  contrato: Contrato | Obra
 ): ValoresMedicao {
   let totalOrcamento = 0
   let valorPeriodo = 0

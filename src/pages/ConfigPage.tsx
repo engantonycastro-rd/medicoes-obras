@@ -1,0 +1,175 @@
+import { useEffect, useState, useRef } from 'react'
+import { Settings, Image, Plus, Trash2, CheckCircle2, Upload, Crown, Lock } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { useStore } from '../lib/store'
+import { usePerfilStore } from '../lib/perfilStore'
+
+export function ConfigPage() {
+  const { logos, fetchLogos, adicionarLogo, deletarLogo, logoSelecionada, setLogoSelecionada } = useStore()
+  const { perfilAtual } = usePerfilStore()
+  const isAdmin = perfilAtual?.role === 'ADMIN'
+  const [nomeLogo, setNomeLogo] = useState('')
+  const [descLogo, setDescLogo] = useState('')
+  const [previewLogo, setPreviewLogo] = useState<string | null>(null)
+  const [salvando, setSalvando] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { fetchLogos() }, [])
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 1024 * 1024) { toast.error('Logo muito grande (máx 1MB)'); return }
+    const reader = new FileReader()
+    reader.onload = () => setPreviewLogo(reader.result as string)
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  async function handleSalvarLogo() {
+    if (!previewLogo || !nomeLogo.trim()) { toast.error('Nome e imagem são obrigatórios'); return }
+    setSalvando(true)
+    try {
+      await adicionarLogo({ nome: nomeLogo.trim(), descricao: descLogo || null, base64: previewLogo, criado_por: null })
+      setNomeLogo(''); setDescLogo(''); setPreviewLogo(null)
+      toast.success('Logo cadastrada!')
+    } catch { toast.error('Erro ao salvar logo') }
+    finally { setSalvando(false) }
+  }
+
+  async function handleDeletar(id: string, nome: string) {
+    if (!confirm(`Remover a logo "${nome}"?`)) return
+    try { await deletarLogo(id); toast.success('Logo removida') }
+    catch { toast.error('Erro ao remover') }
+  }
+
+  return (
+    <div className="p-8 max-w-4xl">
+      <div className="flex items-center gap-3 mb-8">
+        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+          <Settings size={20} className="text-slate-600" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Configurações</h1>
+          <p className="text-slate-500 text-sm">Gerencie as configurações do sistema</p>
+        </div>
+      </div>
+
+      {/* ── Logos do Sistema ─── */}
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between p-5 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center">
+              <Image size={18} className="text-amber-600" />
+            </div>
+            <div>
+              <h2 className="font-bold text-slate-800">Logos do Sistema</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Logos disponíveis para seleção na exportação das medições</p>
+            </div>
+          </div>
+          {isAdmin && (
+            <span className="flex items-center gap-1.5 text-xs text-amber-600 font-medium">
+              <Crown size={12}/> Gerenciado pelo Admin
+            </span>
+          )}
+        </div>
+
+        {/* Logos cadastradas */}
+        <div className="p-5">
+          {logos.length === 0 ? (
+            <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl mb-5">
+              <Image size={28} className="mx-auto text-slate-300 mb-2" />
+              <p className="text-slate-400 text-sm">Nenhuma logo cadastrada</p>
+              {isAdmin && <p className="text-slate-400 text-xs mt-1">Adicione logos abaixo para disponibilizar na exportação</p>}
+            </div>
+          ) : (
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              {logos.map(logo => (
+                <div key={logo.id}
+                  onClick={() => !isAdmin && setLogoSelecionada(logoSelecionada === logo.base64 ? null : logo.base64)}
+                  className={`group relative bg-slate-50 border-2 rounded-xl p-4 flex flex-col items-center gap-2 transition-all ${
+                    !isAdmin ? 'cursor-pointer hover:border-amber-300' : 'cursor-default'
+                  } ${logoSelecionada === logo.base64 ? 'border-amber-500 bg-amber-50' : 'border-slate-200'}`}
+                >
+                  <img src={logo.base64} alt={logo.nome} className="h-14 w-auto object-contain" />
+                  <p className="text-xs font-semibold text-slate-700 text-center truncate w-full">{logo.nome}</p>
+                  {logo.descricao && <p className="text-xs text-slate-400 text-center line-clamp-2">{logo.descricao}</p>}
+                  {logoSelecionada === logo.base64 && (
+                    <div className="absolute top-2 left-2 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center">
+                      <CheckCircle2 size={12} className="text-white" />
+                    </div>
+                  )}
+                  {isAdmin && (
+                    <button onClick={() => handleDeletar(logo.id, logo.nome)}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Trash2 size={12}/>
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Formulário de nova logo — só admin */}
+          {isAdmin ? (
+            <div className="bg-slate-50 rounded-xl p-5 border border-dashed border-slate-300">
+              <p className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                <Plus size={15}/> Cadastrar Nova Logo
+              </p>
+              <div className="flex gap-5">
+                {/* Preview */}
+                <div
+                  onClick={() => fileRef.current?.click()}
+                  className="w-36 h-24 bg-white border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400 hover:bg-amber-50 transition-all shrink-0"
+                >
+                  {previewLogo ? (
+                    <img src={previewLogo} alt="preview" className="max-h-20 max-w-32 object-contain p-2" />
+                  ) : (
+                    <>
+                      <Upload size={20} className="text-slate-400 mb-1"/>
+                      <span className="text-xs text-slate-400">Clique para upload</span>
+                      <span className="text-xs text-slate-400">PNG/JPG — máx 1MB</span>
+                    </>
+                  )}
+                </div>
+                <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+
+                <div className="flex-1 flex flex-col gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Nome da Logo *</label>
+                    <input value={nomeLogo} onChange={e => setNomeLogo(e.target.value)}
+                      placeholder="Ex: SEEC-RN, FUNDASE, Estado do RN..."
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 mb-1 block">Descrição (opcional)</label>
+                    <input value={descLogo} onChange={e => setDescLogo(e.target.value)}
+                      placeholder="Ex: Logo usada em obras estaduais"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  </div>
+                  <button onClick={handleSalvarLogo} disabled={salvando || !previewLogo || !nomeLogo.trim()}
+                    className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition-all self-start">
+                    <Plus size={15}/> {salvando ? 'Salvando...' : 'Cadastrar Logo'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center gap-3">
+              <Lock size={16} className="text-slate-400 shrink-0" />
+              <p className="text-sm text-slate-500">O cadastro de logos é restrito ao <strong>Administrador</strong> do sistema.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Futuras configurações ─── */}
+      <div className="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-5">
+        <h3 className="font-semibold text-slate-700 mb-2">Em breve</h3>
+        <p className="text-sm text-slate-400">• BDI e desconto padrão por tipo de contrato</p>
+        <p className="text-sm text-slate-400 mt-1">• Templates de órgãos e modelos de medição</p>
+        <p className="text-sm text-slate-400 mt-1">• Exportação em outros formatos</p>
+      </div>
+    </div>
+  )
+}

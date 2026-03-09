@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs'
 import { saveAs } from 'file-saver'
-import { Contrato, Medicao, Servico, LinhaMemoria } from '../types'
+import { Contrato, Obra, Medicao, Servico, LinhaMemoria } from '../types'
 import {
   calcPrecoComDesconto, calcPrecoComBDI, calcPrecoTotal,
   calcResumoServico, calcValoresMedicao, valorPorExtenso,
@@ -50,6 +50,7 @@ function cel(
 
 export async function gerarMedicaoExcel(
   contrato: Contrato,
+  obra: Obra,
   medicao: Medicao,
   servicos: Servico[],
   linhasPorServico: Map<string, LinhaMemoria[]>,
@@ -59,14 +60,14 @@ export async function gerarMedicaoExcel(
   wb.creator = 'MediObras'
   wb.created = new Date()
 
-  await gerarAbaMED(wb, contrato, medicao, servicos, linhasPorServico, logoBase64)
-  await gerarAbaMEM(wb, contrato, medicao, servicos, linhasPorServico)
+  await gerarAbaMED(wb, contrato, obra, medicao, servicos, linhasPorServico, logoBase64)
+  await gerarAbaMEM(wb, contrato, obra, medicao, servicos, linhasPorServico)
 
   const buffer = await wb.xlsx.writeBuffer()
   const blob = new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   })
-  const nome = `${contrato.nome_obra.replace(/\s+/g, '_')}_${medicao.numero_extenso}_MEDICAO.xlsx`
+  const nome = `${obra.nome_obra.replace(/\s+/g, '_')}_${medicao.numero_extenso}_MEDICAO.xlsx`
   saveAs(blob, nome)
 }
 
@@ -77,6 +78,7 @@ export async function gerarMedicaoExcel(
 async function gerarAbaMED(
   wb: ExcelJS.Workbook,
   contrato: Contrato,
+  obra: Obra,
   medicao: Medicao,
   servicos: Servico[],
   linhasPorServico: Map<string, LinhaMemoria[]>,
@@ -148,13 +150,13 @@ async function gerarAbaMED(
     fill: fill(AZUL_MEDIO),
     align: al('center'),
   })
-  cel(ws, 'D4', `OBRA: ${contrato.nome_obra}  |  LOCAL: ${contrato.local_obra}`, {
+  cel(ws, 'D4', `OBRA: ${obra.nome_obra}  |  LOCAL: ${obra.local_obra}`, {
     font: fNegrita(9),
     fill: fill(AZUL_CABEC),
     align: al('center'),
     border: { bottom: { style: 'thin' } },
   })
-  cel(ws, 'D5', `Contrato: ${contrato.numero_contrato || '—'}  |  Empresa: ${contrato.empresa_executora}`, {
+  cel(ws, 'D5', `Contrato: ${obra.numero_contrato || '—'}  |  Empresa: ${contrato.empresa_executora}`, {
     font: fNormal(8),
     fill: fill(AZUL_CABEC),
     align: al('center'),
@@ -177,12 +179,12 @@ async function gerarAbaMED(
     fill: fill(AZUL_CABEC),
     align: al('center'),
   })
-  cel(ws, 'U4', `Desc: ${(contrato.desconto_percentual * 100).toFixed(2)}%  |  BDI: ${(contrato.bdi_percentual * 100).toFixed(2)}%`, {
+  cel(ws, 'U4', `Desc: ${(obra.desconto_percentual * 100).toFixed(2)}%  |  BDI: ${(obra.bdi_percentual * 100).toFixed(2)}%`, {
     font: fNormal(8),
     fill: fill(AZUL_CABEC),
     align: al('center'),
   })
-  cel(ws, 'U5', `${contrato.data_base_planilha || ''}  |  Prazo: ${contrato.prazo_execucao_dias}d`, {
+  cel(ws, 'U5', `${obra.data_base_planilha || ''}  |  Prazo: ${obra.prazo_execucao_dias}d`, {
     font: fNormal(8),
     fill: fill(AZUL_CABEC),
     align: al('center'),
@@ -210,7 +212,7 @@ async function gerarAbaMED(
     ['L7','QUANTIDADES'],['Q7','PREÇOS R$'],
   ]
   const h8: [string, string][] = [
-    ['G8','SINAPI'],['H8',`C/ DESCONTO\n(${(contrato.desconto_percentual*100).toFixed(2)}%)`],
+    ['G8','SINAPI'],['H8',`C/ DESCONTO\n(${(obra.desconto_percentual*100).toFixed(2)}%)`],
     ['I8','C/ BDI'],
     ['L8','PREVISTO'],['M8','ANTERIOR\nACUMULADA'],['N8','MEDIDA NO\nPERIODO'],
     ['O8','ACUMULADO'],['P8','SALDO\nCONTRATO'],
@@ -231,8 +233,8 @@ async function gerarAbaMED(
   const servicosOrdenados = [...servicos].sort((a, b) => a.ordem - b.ordem)
 
   for (const srv of servicosOrdenados) {
-    const precoDesc = calcPrecoComDesconto(srv.preco_unitario, contrato.desconto_percentual)
-    const precoBDI  = calcPrecoComBDI(precoDesc, contrato.bdi_percentual)
+    const precoDesc = calcPrecoComDesconto(srv.preco_unitario, obra.desconto_percentual)
+    const precoBDI  = calcPrecoComBDI(precoDesc, obra.bdi_percentual)
     const precoTotal = calcPrecoTotal(srv.quantidade, precoBDI)
     ws.getRow(row).height = srv.descricao.length > 80 ? 42 : 26
 
@@ -322,7 +324,7 @@ async function gerarAbaMED(
     font: fBranca(10), fill: fill(AZUL_ESCURO), align: al('center'), border: borda('medium'),
   })
 
-  const vals = calcValoresMedicao(servicos, linhasPorServico, contrato)
+  const vals = calcValoresMedicao(servicos, linhasPorServico, obra)
 
   const totaisCols: [string, number][] = [
     [`J${rowTotal}`, vals.totalOrcamento],
@@ -388,6 +390,7 @@ async function gerarAbaMED(
 async function gerarAbaMEM(
   wb: ExcelJS.Workbook,
   contrato: Contrato,
+  obra: Obra,
   medicao: Medicao,
   servicos: Servico[],
   linhasPorServico: Map<string, LinhaMemoria[]>
@@ -407,7 +410,7 @@ async function gerarAbaMEM(
 
   cel(ws, 'A2', contrato.orgao_nome,              { font: fBranca(11), fill: fill(AZUL_ESCURO), align: al('center') })
   cel(ws, 'A3', contrato.orgao_subdivisao || '',   { font: fBranca(9),  fill: fill(AZUL_MEDIO),  align: al('center') })
-  cel(ws, 'A4', contrato.nome_obra,               { font: fNegrita(9), fill: fill(AZUL_CABEC),  align: al('center') })
+  cel(ws, 'A4', obra.nome_obra,               { font: fNegrita(9), fill: fill(AZUL_CABEC),  align: al('center') })
   cel(ws, 'A5', 'MEMÓRIA DE CÁLCULO',             { font: { ...fBranca(12) }, fill: fill(AZUL_ESCURO), align: al('center') })
 
   // Headers MEM
