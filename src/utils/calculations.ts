@@ -24,8 +24,13 @@ export function formatNumber(value: number, decimals = 4): string {
 
 export function formatDate(dateStr: string): string {
   if (!dateStr) return ''
-  const date = new Date(dateStr + 'T00:00:00')
-  return new Intl.DateTimeFormat('pt-BR').format(date)
+  try {
+    const date = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00')
+    if (isNaN(date.getTime())) return ''
+    return new Intl.DateTimeFormat('pt-BR').format(date)
+  } catch {
+    return ''
+  }
 }
 
 // ─── ORDINAIS ────────────────────────────────────────────────────────────────
