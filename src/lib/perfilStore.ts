@@ -53,11 +53,12 @@ export const usePerfilStore = create<PerfilStore>((set) => ({
     return data as Perfil
   },
 
-  // Usa RPC para buscar todos os perfis — bypassa recursão do RLS
   fetchTodosPerfis: async () => {
-    set({ loading: true })
+    set({ loading: true, error: null })
     const { data, error } = await supabase
-      .rpc('get_todos_perfis')
+      .from('perfis')
+      .select('*')
+      .order('created_at', { ascending: true })
 
     if (error) {
       console.error('Erro fetchTodosPerfis:', error.message)
