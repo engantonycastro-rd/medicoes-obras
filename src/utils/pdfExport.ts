@@ -1,4 +1,4 @@
-import { Contrato, Obra, Medicao, Servico, LinhaMemoria } from '../types'
+import { Contrato, Obra, Medicao, Servico, LinhaMemoria, FotoMedicao } from '../types'
 import {
   calcPrecoComDesconto, calcPrecoComBDI, calcPrecoTotal,
   calcResumoServico, calcValoresMedicao, valorPorExtenso,
@@ -13,11 +13,16 @@ export async function gerarMedicaoPDF(
   medicao: Medicao,
   servicos: Servico[],
   linhasPorServico: Map<string, LinhaMemoria[]>,
-  logoBase64?: string | null
+  logoBase64?: string | null,
+  fotos?: FotoMedicao[],
+  medicoesAnteriores?: { numero_extenso: string; valorPeriodo: number }[]
 ): Promise<void> {
-  const htmlMED = gerarHTMLMED(contrato, obra, medicao, servicos, linhasPorServico, logoBase64)
-  const htmlMEM = gerarHTMLMEM(contrato, obra, medicao, servicos, linhasPorServico)
-  const html = montarDocumento(contrato, obra, medicao, htmlMED, htmlMEM)
+  const htmlMED  = gerarHTMLMED(contrato, obra, medicao, servicos, linhasPorServico, logoBase64, medicoesAnteriores)
+  const htmlMEM  = gerarHTMLMEM(contrato, obra, medicao, servicos, linhasPorServico)
+  const htmlFOTO = fotos && fotos.length > 0
+    ? gerarHTMLFotos(contrato, obra, medicao, fotos, logoBase64)
+    : ''
+  const html = montarDocumento(contrato, obra, medicao, htmlMED, htmlMEM, htmlFOTO)
 
   const blob = new Blob([html], { type: 'text/html; charset=utf-8' })
   const url  = URL.createObjectURL(blob)
@@ -31,7 +36,7 @@ export async function gerarMedicaoPDF(
 
 // ─── DOCUMENTO COMPLETO ───────────────────────────────────────────────────────
 
-function montarDocumento(contrato: Contrato, obra: Obra, medicao: Medicao, med: string, mem: string) {
+function montarDocumento(contrato: Contrato, obra: Obra, medicao: Medicao, med: string, mem: string, foto = '') {
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -63,13 +68,13 @@ function montarDocumento(contrato: Contrato, obra: Obra, medicao: Medicao, med: 
 
   /* ── TABELA MED ─── */
   .tabela-med { width: 100%; border-collapse: collapse; }
-  .tabela-med th, .tabela-med td { border: 0.5px solid #aaa; padding: 0.5mm 1mm; white-space: nowrap; }
+  .tabela-med th, .tabela-med td { border: 0.5px solid #aaa; padding: 0.5mm 1mm; white-space: nowrap; vertical-align: middle; }
   .th-base    { background: #1F3864; color: white; font-weight: bold; font-size: 6.5pt; text-align: center; }
   .th-med     { background: #2E75B6; color: white; font-weight: bold; font-size: 6.5pt; text-align: center; }
   .tr-grupo   { background: #BDD7EE; font-weight: bold; }
   .tr-par     { background: #F2F7FC; }
   .tr-impar   { background: #FFFFFF; }
-  .td-desc    { max-width: 60mm; overflow: hidden; text-overflow: ellipsis; text-align: left !important; }
+  .td-desc    { text-align: left !important; white-space: normal !important; word-break: break-word; min-width: 45mm; max-width: 70mm; line-height: 1.3; }
   .td-n       { background: #FFF2CC; font-weight: bold; }
   .td-100     { background: #70AD47; color: white; }
   .tr-total   { background: #1F3864; color: white; font-weight: bold; }
@@ -98,9 +103,20 @@ function montarDocumento(contrato: Contrato, obra: Obra, medicao: Medicao, med: 
   .tr-tot-ant { background: #DDEEFF; font-weight: bold; }
   .tr-tot-mes { background: #FFF2CC; font-weight: bold; }
 
+  /* ── FOTOS ─── */
+  .foto-page   { padding: 4mm; }
+  .foto-titulo { font-size: 11pt; font-weight: bold; color: #1F3864; margin-bottom: 3mm; border-bottom: 2px solid #ED7D31; padding-bottom: 1mm; }
+  .foto-grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+  .foto-card   { border: 0.5px solid #ccc; border-radius: 2mm; overflow: hidden; }
+  .foto-img    { width: 100%; height: 65mm; object-fit: cover; display: block; }
+  .foto-leg    { background: #DEEAF1; padding: 1mm 2mm; font-size: 7pt; text-align: center; }
+  .foto-num    { font-size: 6pt; color: #666; padding: 0.5mm 2mm; }
+
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .page-break { page-break-after: always; }
+    /* Ocultar URL do blob que o Chrome adiciona no rodapé */
+    @page { margin: 10mm 8mm; }
   }
 </style>
 </head>
@@ -108,6 +124,7 @@ function montarDocumento(contrato: Contrato, obra: Obra, medicao: Medicao, med: 
 ${med}
 <div class="page-break"></div>
 ${mem}
+${foto ? `<div class="page-break"></div>${foto}` : ''}
 </body>
 </html>`
 }
@@ -116,7 +133,8 @@ ${mem}
 
 function gerarHTMLMED(
   contrato: Contrato, obra: Obra, medicao: Medicao,
-  servicos: Servico[], linhasPorServico: Map<string, LinhaMemoria[]>, logoBase64?: string | null
+  servicos: Servico[], linhasPorServico: Map<string, LinhaMemoria[]>, logoBase64?: string | null,
+  medicoesAnteriores?: { numero_extenso: string; valorPeriodo: number }[]
 ): string {
   const fmtN = (n: number, d = 2) => n.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d })
   const fmtC = (n: number) => `R$ ${fmtN(n)}`
@@ -182,15 +200,31 @@ function gerarHTMLMED(
     rowIdx++
   }
 
+  // Linhas de medições anteriores (uma por medição já realizada)
+  const antRowsHtml = (medicoesAnteriores || [])
+    .map((m, i) => {
+      const cls = i % 2 === 0 ? 'demo-par' : 'demo-impar'
+      return `<tr class="${cls}">
+        <td>${m.numero_extenso} Medição (Anterior)</td>
+        <td class="demo-val">${fmtC(m.valorPeriodo)}</td>
+      </tr>`
+    }).join('')
+
+  const valorAcumuladoAnterior = vals.valorAcumulado - vals.valorPeriodo
+
   const demoRows = [
-    ['Valor Total do Orçamento', fmtC(vals.totalOrcamento), 'demo-par'],
-    [`${medicao.numero_extenso} Medição (Período)`, fmtC(vals.valorPeriodo), 'demo-impar'],
-    ['Percentual da Medição', fmtN(vals.percentualPeriodo * 100) + '%', 'demo-par'],
-    ['Faturado Acumulado', fmtC(vals.valorAcumulado), 'demo-impar'],
-    ['Percentual Acumulado', fmtN(vals.percentualAcumulado * 100) + '%', 'demo-par'],
-    ['Saldo do Contrato', fmtC(vals.valorSaldo), 'demo-impar'],
-    ['Percentual do Saldo', fmtN(vals.percentualSaldo * 100) + '%', 'demo-par'],
-  ].map(([l, v, cls]) => `<tr class="${cls}"><td>${l}</td><td class="demo-val">${v}</td></tr>`).join('')
+    `<tr class="demo-par"><td><strong>Valor Total do Orçamento</strong></td><td class="demo-val">${fmtC(vals.totalOrcamento)}</td></tr>`,
+    antRowsHtml,
+    valorAcumuladoAnterior > 0
+      ? `<tr class="demo-impar"><td><strong>Total Faturado Anterior</strong></td><td class="demo-val">${fmtC(valorAcumuladoAnterior)}</td></tr>`
+      : '',
+    `<tr style="background:#FFF2CC"><td><strong>${medicao.numero_extenso} Medição — Período Atual</strong></td><td class="demo-val" style="color:#ED7D31;font-weight:bold">${fmtC(vals.valorPeriodo)}</td></tr>`,
+    `<tr class="demo-par"><td>Percentual da Medição</td><td class="demo-val">${fmtN(vals.percentualPeriodo * 100)}%</td></tr>`,
+    `<tr class="demo-impar"><td><strong>Faturado Acumulado</strong></td><td class="demo-val">${fmtC(vals.valorAcumulado)}</td></tr>`,
+    `<tr class="demo-par"><td>Percentual Acumulado</td><td class="demo-val">${fmtN(vals.percentualAcumulado * 100)}%</td></tr>`,
+    `<tr style="background:#E2EFDA"><td><strong>Saldo do Contrato</strong></td><td class="demo-val" style="color:#375623">${fmtC(vals.valorSaldo)}</td></tr>`,
+    `<tr class="demo-impar"><td>Percentual do Saldo</td><td class="demo-val">${fmtN(vals.percentualSaldo * 100)}%</td></tr>`,
+  ].join('')
 
   return `
 <div class="cabecalho">
@@ -336,4 +370,60 @@ function gerarHTMLMEM(
   </thead>
   <tbody>${rows}</tbody>
 </table>`
+}
+
+// ─── ABA RELATÓRIO FOTOGRÁFICO ────────────────────────────────────────────────
+
+function gerarHTMLFotos(
+  contrato: Contrato, obra: Obra, medicao: Medicao,
+  fotos: FotoMedicao[], logoBase64?: string | null
+): string {
+  const logoHtml = logoBase64
+    ? `<img src="${logoBase64}" alt="Logo"/>`
+    : `<span>${contrato.empresa_executora}</span>`
+
+  const dataFmt = medicao.data_medicao
+    ? new Date(medicao.data_medicao + 'T00:00:00').toLocaleDateString('pt-BR') : '—'
+
+  // Monta cabeçalho idêntico ao MED
+  const cabecalho = `
+<div class="cabecalho">
+  <div class="cab-logo">${logoHtml}</div>
+  <div class="cab-centro">
+    <div class="cab-orgao">${contrato.orgao_nome}</div>
+    <div class="cab-subdiv">${contrato.orgao_subdivisao || ''}</div>
+    <div class="cab-obra">OBRA: ${obra.nome_obra} &nbsp;|&nbsp; LOCAL: ${obra.local_obra}</div>
+    <div class="cab-contrato">Contrato: ${obra.numero_contrato || '—'} &nbsp;|&nbsp; Empresa: ${contrato.empresa_executora}</div>
+  </div>
+  <div class="cab-dir">
+    <div class="cab-dir-num">${medicao.numero_extenso} MEDIÇÃO</div>
+    <div class="cab-dir-info">Data: ${dataFmt}</div>
+    <div class="cab-dir-info">RELATÓRIO FOTOGRÁFICO</div>
+  </div>
+</div>`
+
+  // Agrupa fotos em pares (2 por linha) e páginas de 4 fotos
+  const FOTOS_POR_PAGINA = 4
+  let paginasHtml = ''
+
+  for (let i = 0; i < fotos.length; i += FOTOS_POR_PAGINA) {
+    const grupo = fotos.slice(i, i + FOTOS_POR_PAGINA)
+    const cards = grupo.map((f, j) => `
+      <div class="foto-card">
+        <div class="foto-num">Figura ${i + j + 1}</div>
+        <img class="foto-img" src="${f.base64}" alt="Figura ${i + j + 1}"/>
+        <div class="foto-leg">${f.legenda || ''}</div>
+      </div>`).join('')
+
+    const isUltima = i + FOTOS_POR_PAGINA >= fotos.length
+    paginasHtml += `
+<div class="foto-page">
+  ${cabecalho}
+  <div class="foto-titulo" style="margin-top:3mm">REGISTRO FOTOGRÁFICO — ${obra.nome_obra}</div>
+  <div class="foto-grid">${cards}</div>
+</div>
+${isUltima ? '' : '<div class="page-break"></div>'}`
+  }
+
+  return paginasHtml
 }

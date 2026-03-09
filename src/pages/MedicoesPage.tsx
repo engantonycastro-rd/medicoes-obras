@@ -8,7 +8,7 @@ import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
 import { usePerfilStore } from '../lib/perfilStore'
 import { Medicao } from '../types'
-import { formatDate } from '../utils/calculations'
+import { formatDate, calcValoresMedicao } from '../utils/calculations'
 import { gerarMedicaoExcel } from '../utils/excelExport'
 import { gerarMedicaoPDF } from '../utils/pdfExport'
 
@@ -17,7 +17,7 @@ export function MedicoesPage() {
     contratoAtivo, obraAtiva, fetchMedicoes, criarMedicao, criarProximaMedicao,
     efetuarMedicao, deletarMedicao, setMedicaoAtiva, fetchServicos,
     fetchLinhasMedicao, servicos, linhasPorServico, logos, fetchLogos,
-    logoSelecionada, setLogoSelecionada, loading,
+    logoSelecionada, setLogoSelecionada, loading, fetchFotos,
   } = useStore()
   const { perfilAtual } = usePerfilStore()
   const isAdmin = perfilAtual?.role === 'ADMIN'
@@ -96,9 +96,29 @@ export function MedicoesPage() {
     e.stopPropagation()
     if (!obraAtiva || !contratoAtivo) return
     try {
+      // Busca fotos da medição
+      await fetchFotos(m.id)
+      // Busca medições da obra para histórico
+      const todasMedicoes = await fetchMedicoes(obraAtiva.id)
+      // Monta histórico de medições anteriores aprovadas com valor real
+      const anterioresComValor: { numero_extenso: string; valorPeriodo: number }[] = []
+      for (const ant of todasMedicoes.filter(x => x.numero < m.numero && x.status === 'APROVADA').sort((a,b) => a.numero - b.numero)) {
+        await fetchLinhasMedicao(ant.id)
+        const st = useStore.getState()
+        const vals = calcValoresMedicao(st.servicos, st.linhasPorServico, obraAtiva)
+        anterioresComValor.push({ numero_extenso: ant.numero_extenso, valorPeriodo: vals.valorPeriodo })
+      }
+      // Restaura linhas da medição solicitada
       await fetchLinhasMedicao(m.id)
       const state = useStore.getState()
-      await gerarMedicaoPDF(contratoAtivo, obraAtiva, m, state.servicos, state.linhasPorServico, state.logoSelecionada)
+      const fotosAtuais = state.fotos
+
+      await gerarMedicaoPDF(
+        contratoAtivo, obraAtiva, m,
+        state.servicos, state.linhasPorServico, state.logoSelecionada,
+        fotosAtuais.length > 0 ? fotosAtuais : undefined,
+        anterioresComValor.length > 0 ? anterioresComValor : undefined
+      )
       toast.success('PDF exportado!')
     } catch (err) { console.error(err); toast.error('Erro ao exportar PDF') }
   }
