@@ -24,7 +24,8 @@
     "react-router-dom": "^6.21.0",
     "zustand": "^4.4.7",
     "clsx": "^2.1.0",
-    "tailwind-merge": "^2.2.0"
+    "tailwind-merge": "^2.2.0",
+    "jspdf": "^2.5.1"
   },
   "devDependencies": {
     "@types/file-saver": "^2.0.7",
