@@ -31,7 +31,6 @@ export function ContratoModal({ contrato, onClose }: Props) {
         orgao_subdivisao: 'SUBCOORDENADORIA DE MANUTENÇÃO E CONSTRUÇÃO ESCOLAR',
         desconto_percentual: 0.0429,
         bdi_percentual: 0.30091,
-        bdi_preco_unitario: 1.2452,
         prazo_execucao_dias: 120,
       })
     }
@@ -44,7 +43,6 @@ export function ContratoModal({ contrato, onClose }: Props) {
         ...data,
         desconto_percentual: Number(data.desconto_percentual),
         bdi_percentual: Number(data.bdi_percentual),
-        bdi_preco_unitario: Number(data.bdi_preco_unitario),
         prazo_execucao_dias: Number(data.prazo_execucao_dias),
       }
 
@@ -119,7 +117,7 @@ export function ContratoModal({ contrato, onClose }: Props) {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {field('nome_obra', 'Nome da Obra', { required: true, placeholder: 'E.E. CEL. Manoel Medeiros II' })}
+            {field('nome_obra', 'Nome do Contrato', { required: true, placeholder: 'E.E. CEL. Manoel Medeiros II' })}
             {field('local_obra', 'Local/Município', { required: true, placeholder: 'Japi/RN' })}
           </div>
 
@@ -136,7 +134,7 @@ export function ContratoModal({ contrato, onClose }: Props) {
             {field('data_ordem_servico', 'Data da Ordem de Serviço', { type: 'date' })}
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Desconto (%)</label>
               <input
@@ -156,16 +154,6 @@ export function ContratoModal({ contrato, onClose }: Props) {
                   focus:outline-none focus:ring-2 focus:ring-amber-400"
               />
               <p className="text-xs text-slate-400 mt-1">Ex: 0.30091</p>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">BDI Preço Unit.</label>
-              <input
-                {...register('bdi_preco_unitario')}
-                type="number" step="0.0001"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm
-                  focus:outline-none focus:ring-2 focus:ring-amber-400"
-              />
-              <p className="text-xs text-slate-400 mt-1">Ex: 1.2452</p>
             </div>
           </div>
 
