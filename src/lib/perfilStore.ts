@@ -30,14 +30,13 @@ export const usePerfilStore = create<PerfilStore>((set) => ({
       .from('perfis')
       .select('*')
       .eq('id', user.id)
-      .maybeSingle()          // não lança erro se não encontrar
+      .maybeSingle()
 
     if (error) {
       console.warn('Erro ao buscar perfil:', error.message)
     }
 
     if (!data) {
-      // Perfil não existe → cria como ENGENHEIRO inativo para aparecer na fila do admin
       const { data: criado } = await supabase.from('perfis').upsert({
         id: user.id,
         email: user.email || '',
@@ -54,14 +53,17 @@ export const usePerfilStore = create<PerfilStore>((set) => ({
     return data as Perfil
   },
 
+  // Usa RPC para buscar todos os perfis — bypassa recursão do RLS
   fetchTodosPerfis: async () => {
     set({ loading: true })
     const { data, error } = await supabase
-      .from('perfis')
-      .select('*')
-      .order('created_at', { ascending: true })
+      .rpc('get_todos_perfis')
 
-    if (error) { set({ error: error.message, loading: false }); return }
+    if (error) {
+      console.error('Erro fetchTodosPerfis:', error.message)
+      set({ error: error.message, loading: false })
+      return
+    }
     set({ perfis: (data || []) as Perfil[], loading: false })
   },
 
