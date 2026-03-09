@@ -38,8 +38,8 @@ export function AppLayout() {
           </div>
           {sidebarOpen && (
             <div className="leading-tight overflow-hidden">
-              <p className="font-bold text-sm tracking-tight text-white truncate">MediObras</p>
-              <p className="text-xs text-slate-400">Obras Públicas</p>
+              <p className="font-bold text-sm tracking-tight text-white truncate">RD - Medições</p>
+              <p className="text-xs text-slate-400">de Obras</p>
             </div>
           )}
         </div>
@@ -89,9 +89,17 @@ export function AppLayout() {
       </aside>
 
       {/* ── Main ─────────────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-auto">
-        <Outlet />
-      </main>
+      <div className="flex-1 overflow-auto flex flex-col">
+        <div className="flex-1 overflow-auto">
+          <Outlet />
+        </div>
+        {/* Rodapé */}
+        <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-2 text-center">
+          <p className="text-xs text-slate-400">
+            Desenvolvido por <span className="font-medium text-slate-500">Engenheiro Adaylson Castro</span>
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

@@ -130,55 +130,65 @@ export const useStore = create<Store>((set, get) => ({
 
   efetuarMedicao: async (medicaoId, _contratoId) => {
     set({ loading: true })
+    // Apenas muda o status da medição para APROVADA.
+    // As linhas NÃO são alteradas aqui — a virada A pagar → Pago
+    // só acontece ao criar a próxima medição.
     const { error: errMed } = await supabase.from('medicoes').update({ status: 'APROVADA' }).eq('id', medicaoId)
     if (errMed) { set({ error: errMed.message, loading: false }); throw errMed }
-    const { error: errLinhas } = await supabase.from('linhas_memoria')
-      .update({ status: 'Pago' }).eq('medicao_id', medicaoId).eq('status', 'A pagar')
-    if (errLinhas) { set({ error: errLinhas.message, loading: false }); throw errLinhas }
-    set(s => {
-      const mapa = new Map(s.linhasPorServico)
-      mapa.forEach((linhas, srvId) => {
-        mapa.set(srvId, linhas.map(l =>
-          l.medicao_id === medicaoId && l.status === 'A pagar' ? { ...l, status: 'Pago' as const } : l
-        ))
-      })
-      return {
-        medicaoAtiva: s.medicaoAtiva?.id === medicaoId ? { ...s.medicaoAtiva, status: 'APROVADA' as const } : s.medicaoAtiva,
-        linhasPorServico: mapa,
-        loading: false,
-      }
-    })
+    set(s => ({
+      medicaoAtiva: s.medicaoAtiva?.id === medicaoId
+        ? { ...s.medicaoAtiva, status: 'APROVADA' as const }
+        : s.medicaoAtiva,
+      loading: false,
+    }))
   },
 
   criarProximaMedicao: async (contratoId, medicaoAtualId) => {
     set({ loading: true })
-    // 1. Efetiva a medição atual
+
+    // 1. Efetiva a medição atual (só muda status, sem mexer nas linhas)
     await get().efetuarMedicao(medicaoAtualId, contratoId)
-    // 2. Busca linhas pagas da medição atual
-    const { data: linhasPagas } = await supabase.from('linhas_memoria')
-      .select('*').eq('medicao_id', medicaoAtualId).eq('status', 'Pago')
-    // 3. Cria nova medição
+
+    // 2. Busca TODAS as linhas da medição atual (Pago + A pagar)
+    //    "Pago" = já era acumulado anterior
+    //    "A pagar" = foi medido neste período — agora vira "Pago" na próxima
+    const { data: todasLinhas } = await supabase.from('linhas_memoria')
+      .select('*').eq('medicao_id', medicaoAtualId)
+
+    // 3. Cria a nova medição
     const medicoes = await get().fetchMedicoes(contratoId)
     const proximo = (medicoes.length || 0) + 1
     const ordinais = ['1ª','2ª','3ª','4ª','5ª','6ª','7ª','8ª','9ª','10ª','11ª','12ª','13ª','14ª','15ª']
     const numExtenso = ordinais[proximo - 1] || `${proximo}ª`
+
     const { data: novaMed, error: errNova } = await supabase.from('medicoes').insert({
       contrato_id: contratoId, numero: proximo, numero_extenso: numExtenso,
       data_medicao: new Date().toISOString().split('T')[0], status: 'RASCUNHO',
     }).select().single()
     if (errNova) { set({ error: errNova.message, loading: false }); throw errNova }
     const novaMedicao = novaMed as Medicao
-    // 4. Copia linhas pagas para nova medição (mantém como "Pago" = acumulado anterior)
-    if (linhasPagas && linhasPagas.length > 0) {
-      const novasLinhas = (linhasPagas as any[]).map(l => ({
-        medicao_id: novaMedicao.id, servico_id: l.servico_id, sub_item: l.sub_item,
-        descricao_calculo: l.descricao_calculo, largura: l.largura, comprimento: l.comprimento,
-        altura: l.altura, perimetro: l.perimetro, area: l.area, volume: l.volume,
-        kg: l.kg, outros: l.outros, desconto_dim: l.desconto_dim, quantidade: l.quantidade,
-        total: l.total, status: 'Pago', observacao: l.observacao,
-      }))
-      await supabase.from('linhas_memoria').insert(novasLinhas)
+
+    // 4. Copia as linhas para a nova medição, TODAS como "Pago" (acumulado anterior)
+    //    Linhas "Não executado" são descartadas
+    if (todasLinhas && todasLinhas.length > 0) {
+      const linhasParaCopiar = (todasLinhas as any[]).filter(l => l.status !== 'Não executado')
+      if (linhasParaCopiar.length > 0) {
+        const novasLinhas = linhasParaCopiar.map(l => ({
+          medicao_id: novaMedicao.id,
+          servico_id: l.servico_id,
+          sub_item: l.sub_item,
+          descricao_calculo: l.descricao_calculo,
+          largura: l.largura, comprimento: l.comprimento, altura: l.altura,
+          perimetro: l.perimetro, area: l.area, volume: l.volume,
+          kg: l.kg, outros: l.outros, desconto_dim: l.desconto_dim,
+          quantidade: l.quantidade, total: l.total,
+          status: 'Pago',  // ← virada acontece AQUI ao criar próxima medição
+          observacao: l.observacao,
+        }))
+        await supabase.from('linhas_memoria').insert(novasLinhas)
+      }
     }
+
     set({ loading: false })
     return novaMedicao
   },

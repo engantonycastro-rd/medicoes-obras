@@ -361,9 +361,7 @@ export function MedicoesPage() {
                 <h2 className="text-lg font-bold text-slate-800 mb-2">
                   Efetivar {confirmModal.medicao.numero_extenso} Medição?
                 </h2>
-                <p className="text-slate-600 text-sm mb-2">
-                  Esta ação irá:
-                </p>
+                <p className="text-slate-600 text-sm mb-2">Esta ação irá:</p>
                 <ul className="text-sm text-slate-600 space-y-1 mb-5 ml-4">
                   <li className="flex items-start gap-2">
                     <span className="text-blue-500 mt-0.5">✓</span>
@@ -371,11 +369,11 @@ export function MedicoesPage() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-blue-500 mt-0.5">✓</span>
-                    Todas as linhas <strong>"A pagar"</strong> serão marcadas como <strong>"Pago"</strong>
+                    Registrar a medição como <strong>oficialmente entregue ao órgão</strong>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-amber-500 mt-0.5">⚠</span>
-                    A medição ficará <strong>bloqueada para edição</strong>
+                    As linhas permanecem como estão — a virada para <strong>"Pago"</strong> ocorre ao criar a próxima medição
                   </li>
                 </ul>
               </>
