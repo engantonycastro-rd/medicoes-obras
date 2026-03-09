@@ -232,6 +232,88 @@ async function generateRelatorioFotograficoPDF(info: ReportInfo, fotos: FotoMedi
   doc.save(`Relatorio_Fotografico_Medicao${info.medicao}_${date}.pdf`)
 }
 
+// ─── FotoCard isolado (evita re-render do grid ao digitar legenda) ────────────
+
+interface FotoCardProps {
+  foto: FotoMedicao
+  idx: number
+  total: number
+  isAprovada: boolean
+  dragging: string | null
+  onDragStart: (id: string) => void
+  onDragEnter: (id: string) => void
+  onDragEnd: () => void
+  onMove: (id: string, dir: number) => void
+  onDeletar: (id: string) => void
+  onLegendaChange: (id: string, legenda: string) => void
+}
+
+function FotoCard({
+  foto, idx, total, isAprovada, dragging,
+  onDragStart, onDragEnter, onDragEnd, onMove, onDeletar, onLegendaChange,
+}: FotoCardProps) {
+  const [legenda, setLegenda] = useState(foto.legenda)
+
+  useEffect(() => {
+    setLegenda(foto.legenda)
+  }, [foto.id])
+
+  return (
+    <div
+      className={`group relative bg-white rounded-xl border shadow-sm hover:shadow-md transition-all ${
+        dragging === foto.id ? 'opacity-50 scale-95' : ''
+      } border-slate-200`}
+      draggable={!isAprovada}
+      onDragStart={() => onDragStart(foto.id)}
+      onDragEnter={() => onDragEnter(foto.id)}
+      onDragEnd={onDragEnd}
+      onDragOver={e => e.preventDefault()}
+    >
+      <div className="flex items-center justify-between px-2 pt-2 pb-1">
+        <span className="text-xs font-bold text-purple-600">Figura {idx + 1}</span>
+        {!isAprovada && (
+          <div className="flex items-center gap-0.5">
+            <button onClick={() => onMove(foto.id, -1)} disabled={idx === 0} className="p-0.5 rounded hover:bg-slate-100 disabled:opacity-30">
+              <ChevronUp size={12}/>
+            </button>
+            <button onClick={() => onMove(foto.id, 1)} disabled={idx === total - 1} className="p-0.5 rounded hover:bg-slate-100 disabled:opacity-30">
+              <ChevronDown size={12}/>
+            </button>
+            <GripVertical size={12} className="text-slate-300 cursor-grab" />
+          </div>
+        )}
+      </div>
+
+      <div className="px-2">
+        <img src={foto.base64} alt={legenda} className="w-full h-32 object-cover rounded-lg border border-slate-100" />
+      </div>
+
+      <div className="p-2">
+        {isAprovada ? (
+          <p className="text-xs text-slate-600 line-clamp-2">{legenda || '—'}</p>
+        ) : (
+          <input
+            value={legenda}
+            onChange={e => setLegenda(e.target.value)}
+            onBlur={() => onLegendaChange(foto.id, legenda)}
+            placeholder="Legenda..."
+            className="w-full text-xs border-b border-transparent hover:border-slate-300 focus:border-purple-400 outline-none bg-transparent py-0.5"
+          />
+        )}
+      </div>
+
+      {!isAprovada && (
+        <button
+          onClick={() => onDeletar(foto.id)}
+          className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+        >
+          <Trash2 size={12}/>
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
 let localIdCounter = 1
@@ -538,74 +620,20 @@ export function RelatorioFotografico({ medicaoId, isAprovada }: Props) {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {localFotos.map((foto, idx) => (
-              <div
+              <FotoCard
                 key={foto.id}
-                className={`group relative bg-white rounded-xl border shadow-sm hover:shadow-md transition-all ${
-                  dragging === foto.id ? 'opacity-50 scale-95' : ''
-                } border-slate-200`}
-                draggable={!isAprovada}
-                onDragStart={() => handleDragStart(foto.id)}
-                onDragEnter={() => handleDragEnter(foto.id)}
+                foto={foto}
+                idx={idx}
+                total={localFotos.length}
+                isAprovada={isAprovada}
+                dragging={dragging}
+                onDragStart={handleDragStart}
+                onDragEnter={handleDragEnter}
                 onDragEnd={handleDragEnd}
-                onDragOver={e => e.preventDefault()}
-              >
-                {/* Número e controles de ordem */}
-                <div className="flex items-center justify-between px-2 pt-2 pb-1">
-                  <span className="text-xs font-bold text-purple-600">Figura {idx + 1}</span>
-                  {!isAprovada && (
-                    <div className="flex items-center gap-0.5">
-                      <button
-                        onClick={() => movePhoto(foto.id, -1)}
-                        disabled={idx === 0}
-                        className="p-0.5 rounded hover:bg-slate-100 disabled:opacity-30"
-                      >
-                        <ChevronUp size={12}/>
-                      </button>
-                      <button
-                        onClick={() => movePhoto(foto.id, 1)}
-                        disabled={idx === localFotos.length - 1}
-                        className="p-0.5 rounded hover:bg-slate-100 disabled:opacity-30"
-                      >
-                        <ChevronDown size={12}/>
-                      </button>
-                      <GripVertical size={12} className="text-slate-300 cursor-grab" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Imagem */}
-                <div className="px-2">
-                  <img
-                    src={foto.base64}
-                    alt={foto.legenda}
-                    className="w-full h-32 object-cover rounded-lg border border-slate-100"
-                  />
-                </div>
-
-                {/* Legenda */}
-                <div className="p-2">
-                  {isAprovada ? (
-                    <p className="text-xs text-slate-600 line-clamp-2">{foto.legenda || '—'}</p>
-                  ) : (
-                    <input
-                      value={foto.legenda}
-                      onChange={e => atualizarFoto(foto.id, { legenda: e.target.value })}
-                      placeholder="Legenda..."
-                      className="w-full text-xs border-b border-transparent hover:border-slate-300 focus:border-purple-400 outline-none bg-transparent py-0.5"
-                    />
-                  )}
-                </div>
-
-                {/* Botão deletar */}
-                {!isAprovada && (
-                  <button
-                    onClick={() => handleDeletar(foto.id)}
-                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                  >
-                    <Trash2 size={12}/>
-                  </button>
-                )}
-              </div>
+                onMove={movePhoto}
+                onDeletar={handleDeletar}
+                onLegendaChange={(id, legenda) => atualizarFoto(id, { legenda })}
+              />
             ))}
           </div>
         </>
