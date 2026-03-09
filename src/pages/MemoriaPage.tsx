@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Plus, Trash2, ChevronDown, ChevronUp, AlertCircle,
-  Save, Download, CheckCircle2, Clock, XCircle, Camera, FileDown
+  Save, Download, CheckCircle2, Clock, XCircle, Camera, FileDown, Filter, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
@@ -37,6 +37,7 @@ export function MemoriaPage() {
   } = useStore()
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set())
   const [mostraFotos, setMostraFotos] = useState(false)
+  const [etapaFiltro, setEtapaFiltro] = useState<string | null>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -45,10 +46,25 @@ export function MemoriaPage() {
     fetchLinhasMedicao(medicaoAtiva.id)
   }, [obraAtiva, medicaoAtiva])
 
-  const servicosOrdenados = useMemo(
+  // Etapas (grupos) ordenadas para o filtro
+  const etapas = useMemo(
+    () => servicos.filter(s => s.is_grupo).sort((a, b) => a.ordem - b.ordem),
+    [servicos]
+  )
+
+  // Todos os serviços (não grupo), ordenados
+  const todosServicos = useMemo(
     () => servicos.filter(s => !s.is_grupo).sort((a, b) => a.ordem - b.ordem),
     [servicos]
   )
+
+  // Serviços filtrados pela etapa selecionada
+  const servicosOrdenados = useMemo(() => {
+    if (!etapaFiltro) return todosServicos
+    const etapa = etapas.find(e => e.item === etapaFiltro)
+    if (!etapa) return todosServicos
+    return todosServicos.filter(s => s.grupo_item === etapaFiltro)
+  }, [todosServicos, etapas, etapaFiltro])
 
   const totalPeriodo = servicosOrdenados.reduce((sum, srv) => {
     const linhas = linhasPorServico.get(srv.id) || []
@@ -122,7 +138,7 @@ export function MemoriaPage() {
           </button>
           <button onClick={() => setMostraFotos(!mostraFotos)}
             className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs font-medium transition-all ${
-              mostraFotos ? 'bg-purple-600 text-white border-purple-600' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+              mostraFotos ? 'bg-amber-500 text-white border-amber-500 shadow-sm shadow-amber-200' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
             }`}>
             <Camera size={13}/> Fotos
           </button>
@@ -136,6 +152,49 @@ export function MemoriaPage() {
           </button>
         </div>
       </div>
+
+      {/* Barra de Filtro por Etapa */}
+      {etapas.length > 0 && (
+        <div className="bg-white border-b border-slate-200 px-6 py-2.5 flex items-center gap-2 shrink-0 overflow-x-auto">
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 shrink-0">
+            <Filter size={12} />
+            <span className="font-medium">Etapa:</span>
+          </div>
+          <button
+            onClick={() => setEtapaFiltro(null)}
+            className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+              !etapaFiltro
+                ? 'bg-amber-500 text-white border-amber-500 shadow-sm shadow-amber-200'
+                : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            Todas
+          </button>
+          {etapas.map(etapa => (
+            <button
+              key={etapa.id}
+              onClick={() => setEtapaFiltro(etapaFiltro === etapa.item ? null : etapa.item)}
+              className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border max-w-[200px] truncate ${
+                etapaFiltro === etapa.item
+                  ? 'bg-amber-500 text-white border-amber-500 shadow-sm shadow-amber-200'
+                  : 'border-slate-200 text-slate-600 hover:border-amber-300 hover:text-amber-700 hover:bg-amber-50'
+              }`}
+              title={etapa.descricao}
+            >
+              {etapa.item} · {etapa.descricao}
+            </button>
+          ))}
+          {etapaFiltro && (
+            <button
+              onClick={() => setEtapaFiltro(null)}
+              className="shrink-0 ml-1 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
+              title="Limpar filtro"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Conteúdo */}
       <div className="flex-1 overflow-y-auto p-6 space-y-3">
