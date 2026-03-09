@@ -154,8 +154,8 @@ function getCellStr(row: ExcelJS.Row, col: number): string {
   const cell = row.getCell(col)
   const val  = cell.value
   if (val === null || val === undefined) return ''
-  if (typeof val === 'object' && 'richText' in (val as object)) {
-    return (val as ExcelJS.RichText[]).map((rt: ExcelJS.RichText) => rt.text).join('')
+  if (typeof val === 'object' && val !== null && 'richText' in (val as object)) {
+    return ((val as any).richText as Array<{text: string}>).map((rt) => rt.text).join('')
   }
   return String(val).trim()
 }

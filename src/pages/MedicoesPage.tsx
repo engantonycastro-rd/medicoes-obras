@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, FileText, Calendar, ChevronRight, AlertCircle, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { useStore } from '../../lib/store'
-import { Medicao } from '../../types'
-import { formatDate, formatCurrency, calcValoresMedicao } from '../../utils/calculations'
-import { gerarMedicaoExcel } from '../../utils/excelExport'
+import { useStore } from '../lib/store'
+import { Medicao } from '../types'
+import { formatDate, formatCurrency, calcValoresMedicao } from '../utils/calculations'
+import { gerarMedicaoExcel } from '../utils/excelExport'
 
 export function MedicoesPage() {
   const {

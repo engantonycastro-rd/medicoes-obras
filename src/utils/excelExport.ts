@@ -93,7 +93,7 @@ async function gerarAbaMED(
   servicos: Servico[],
   linhasPorServico: Map<string, LinhaMemoria[]>
 ) {
-  const ws = ws = wb.addWorksheet(`MED ${String(medicao.numero).padStart(2, '0')}`)
+  const ws = wb.addWorksheet(`MED ${String(medicao.numero).padStart(2, '0')}`)
 
   // Larguras das colunas (A=1 ... W=23)
   const larguras = [6, 14, 14, 45, 6, 10, 14, 14, 14, 14, 8,
