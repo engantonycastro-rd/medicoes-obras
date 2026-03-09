@@ -59,12 +59,20 @@ export function MemoriaPage() {
   )
 
   // Serviços filtrados pela etapa selecionada
+  // grupo_item vem como "1.0", "2.0" etc, mas etapa.item pode ser "1", "2" etc.
+  // Normalizamos: extraímos só o número inteiro inicial para comparar
   const servicosOrdenados = useMemo(() => {
     if (!etapaFiltro) return todosServicos
-    const etapa = etapas.find(e => e.item === etapaFiltro)
-    if (!etapa) return todosServicos
-    return todosServicos.filter(s => s.grupo_item === etapaFiltro)
-  }, [todosServicos, etapas, etapaFiltro])
+    // etapaFiltro é o item da etapa (ex: "1" ou "1.0")
+    // grupo_item dos serviços é "1.0", "2.0" etc
+    // Extraímos só o prefixo numérico inteiro para comparar
+    const prefixoFiltro = etapaFiltro.replace(/\.0$/, '').trim()
+    return todosServicos.filter(s => {
+      if (!s.grupo_item) return false
+      const prefixoServico = s.grupo_item.replace(/\.0$/, '').trim()
+      return prefixoServico === prefixoFiltro
+    })
+  }, [todosServicos, etapaFiltro])
 
   const totalPeriodo = servicosOrdenados.reduce((sum, srv) => {
     const linhas = linhasPorServico.get(srv.id) || []
