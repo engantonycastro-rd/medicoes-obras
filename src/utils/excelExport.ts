@@ -254,7 +254,8 @@ async function gerarAbaMED(
     } else {
       const linhas = linhasPorServico.get(srv.id) || []
       const { qtdAnterior, qtdPeriodo, qtdAcumulada, qtdSaldo } = calcResumoServico(srv, linhas)
-      const precoBDIdemo = Math.trunc(precoDesc * 1.2452 * 100) / 100
+      // precoBDI já calculado com o BDI real do contrato — não usar valor fixo 1.2452
+      const precoBDIdemo = precoBDI
 
       type ColDef = [string, ExcelJS.CellValue, string, ExcelJS.Alignment['horizontal']]
       const cols: ColDef[] = [

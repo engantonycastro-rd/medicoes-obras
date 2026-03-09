@@ -140,8 +140,8 @@ export function calcValoresMedicao(
     const linhas = linhasPorServico.get(srv.id) || []
     const { qtdAnterior, qtdPeriodo } = calcResumoServico(srv, linhas)
 
-    // Preço BDI para demonstrativo
-    const precoBDIDemo = Math.trunc(precoComDesconto * 1.2452 * 100) / 100
+    // Preço BDI usando o BDI real do contrato
+    const precoBDIDemo = calcPrecoComBDI(precoComDesconto, contrato.bdi_percentual)
 
     valorAcumulado += (qtdAnterior + qtdPeriodo) * precoBDIDemo
     valorPeriodo += qtdPeriodo * precoBDIDemo

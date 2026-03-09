@@ -119,7 +119,7 @@ export function MemoriaPage() {
     const linhas = linhasPorServico.get(srv.id) || []
     const { qtdPeriodo } = calcResumoServico(srv, linhas)
     const precoDesc = calcPrecoComDesconto(srv.preco_unitario, contratoAtivo.desconto_percentual)
-    const precoBDI  = Math.trunc(precoDesc * 1.2452 * 100) / 100
+    const precoBDI  = calcPrecoComBDI(precoDesc, contratoAtivo.bdi_percentual)
     return sum + qtdPeriodo * precoBDI
   }, 0)
 
@@ -235,7 +235,7 @@ function ServicoCard({
 }: ServicoCardProps) {
   const { qtdAnterior, qtdPeriodo, qtdAcumulada, qtdSaldo } = calcResumoServico(servico, linhas)
   const precoDesc = calcPrecoComDesconto(servico.preco_unitario, desconto)
-  const precoBDIdemo = Math.trunc(precoDesc * 1.2452 * 100) / 100
+  const precoBDIdemo = calcPrecoComBDI(precoDesc, bdi)
   const valorPeriodo = qtdPeriodo * precoBDIdemo
   const progresso = servico.quantidade > 0
     ? Math.min(100, (qtdAcumulada / servico.quantidade) * 100)
