@@ -1,89 +1,77 @@
 import ExcelJS from 'exceljs'
 import { saveAs } from 'file-saver'
-import {
-  Contrato, Medicao, Servico, LinhaMemoria,
-} from '../types'
+import { Contrato, Medicao, Servico, LinhaMemoria } from '../types'
 import {
   calcPrecoComDesconto, calcPrecoComBDI, calcPrecoTotal,
-  calcResumoServico, calcValoresMedicao, formatDate,
-  toOrdinalFeminino, valorPorExtenso,
+  calcResumoServico, calcValoresMedicao, valorPorExtenso,
 } from './calculations'
 
-// ─── CORES E ESTILOS ─────────────────────────────────────────────────────────
+// ─── CORES ────────────────────────────────────────────────────────────────────
+const AZUL_ESCURO    = '1F3864'
+const AZUL_MEDIO     = '2E75B6'
+const AZUL_CLARO     = 'BDD7EE'
+const AZUL_CABEC     = 'DEEAF1'
+const CINZA_SUB      = 'D9D9D9'
+const VERDE_OK       = '70AD47'
+const LARANJA_DEST   = 'ED7D31'
 
-const AZUL_CABECALHO  = '1F3864'
-const AZUL_GRUPO      = 'BDD7EE'
-const CINZA_SUBHEADER = 'D9D9D9'
-const VERDE_OK        = '70AD47'
-const VERMELHO_PEND   = 'FF0000'
-const AMARELO_AVISO   = 'FFEB9C'
+const fBranca   = (sz = 9) => ({ color: { argb: 'FFFFFFFF' }, bold: true,  size: sz, name: 'Arial Narrow' })
+const fNegrita  = (sz = 9) => ({ bold: true,  size: sz, name: 'Arial Narrow' })
+const fNormal   = (sz = 9) => ({ bold: false, size: sz, name: 'Arial Narrow' })
+const fLaranja  = (sz = 9) => ({ bold: true,  size: sz, name: 'Arial Narrow', color: { argb: `FF${LARANJA_DEST}` } })
 
-const fontBranca = { color: { argb: 'FFFFFFFF' }, bold: true, size: 9, name: 'Arial' }
-const fontNegrita = { bold: true, size: 9, name: 'Arial' }
-const fontNormal  = { size: 9, name: 'Arial' }
-
-function fillSolido(hex: string): ExcelJS.Fill {
+function fill(hex: string): ExcelJS.Fill {
   return { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${hex}` } }
 }
 
-function bordaThin(): Partial<ExcelJS.Borders> {
-  const t = { style: 'thin' as const }
-  return { top: t, bottom: t, left: t, right: t }
+function borda(estilo: 'thin' | 'medium' = 'thin'): Partial<ExcelJS.Borders> {
+  const s = { style: estilo as ExcelJS.BorderStyle }
+  return { top: s, bottom: s, left: s, right: s }
 }
 
-function alinhar(h: ExcelJS.Alignment['horizontal'], v: ExcelJS.Alignment['vertical'] = 'middle'): Partial<ExcelJS.Alignment> {
+function al(h: ExcelJS.Alignment['horizontal'], v: ExcelJS.Alignment['vertical'] = 'middle'): Partial<ExcelJS.Alignment> {
   return { horizontal: h, vertical: v, wrapText: true }
 }
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
-
-function aplicarCelula(
-  ws: ExcelJS.Worksheet,
-  cell: string,
-  value: ExcelJS.CellValue,
-  opts?: {
-    fill?: ExcelJS.Fill
-    font?: Partial<ExcelJS.Font>
-    align?: Partial<ExcelJS.Alignment>
-    border?: Partial<ExcelJS.Borders>
-    numFmt?: string
-  }
+function cel(
+  ws: ExcelJS.Worksheet, addr: string, value: ExcelJS.CellValue,
+  opts?: { fill?: ExcelJS.Fill; font?: any; align?: any; border?: any; numFmt?: string }
 ) {
-  const c = ws.getCell(cell)
+  const c = ws.getCell(addr)
   c.value = value
-  if (opts?.fill)   c.fill   = opts.fill
-  if (opts?.font)   c.font   = opts.font
-  if (opts?.align)  c.alignment = opts.align
-  if (opts?.border) c.border  = opts.border
-  if (opts?.numFmt) c.numFmt  = opts.numFmt
+  if (opts?.fill)   c.fill        = opts.fill
+  if (opts?.font)   c.font        = opts.font
+  if (opts?.align)  c.alignment   = opts.align
+  if (opts?.border) c.border      = opts.border
+  if (opts?.numFmt) c.numFmt      = opts.numFmt
 }
 
-// ─── GERADOR PRINCIPAL ────────────────────────────────────────────────────────
+// ─── MAIN ────────────────────────────────────────────────────────────────────
 
 export async function gerarMedicaoExcel(
   contrato: Contrato,
   medicao: Medicao,
   servicos: Servico[],
-  linhasPorServico: Map<string, LinhaMemoria[]>
+  linhasPorServico: Map<string, LinhaMemoria[]>,
+  logoBase64?: string | null
 ): Promise<void> {
   const wb = new ExcelJS.Workbook()
-  wb.creator = 'Sistema de Medições'
+  wb.creator = 'MediObras'
   wb.created = new Date()
 
-  await gerarAbaMED(wb, contrato, medicao, servicos, linhasPorServico)
+  await gerarAbaMED(wb, contrato, medicao, servicos, linhasPorServico, logoBase64)
   await gerarAbaMEM(wb, contrato, medicao, servicos, linhasPorServico)
 
   const buffer = await wb.xlsx.writeBuffer()
   const blob = new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   })
-
-  const nomeArquivo = `${contrato.nome_obra.replace(/\s+/g, '_')}_${medicao.numero_extenso}_MEDIÇÃO.xlsx`
-  saveAs(blob, nomeArquivo)
+  const nome = `${contrato.nome_obra.replace(/\s+/g, '_')}_${medicao.numero_extenso}_MEDICAO.xlsx`
+  saveAs(blob, nome)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ABA: MED 01 — BOLETIM DE MEDIÇÃO
+// ABA MED
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function gerarAbaMED(
@@ -91,248 +79,309 @@ async function gerarAbaMED(
   contrato: Contrato,
   medicao: Medicao,
   servicos: Servico[],
-  linhasPorServico: Map<string, LinhaMemoria[]>
+  linhasPorServico: Map<string, LinhaMemoria[]>,
+  logoBase64?: string | null
 ) {
   const ws = wb.addWorksheet(`MED ${String(medicao.numero).padStart(2, '0')}`)
 
-  // Larguras das colunas (A=1 ... W=23)
-  const larguras = [6, 14, 14, 45, 6, 10, 14, 14, 14, 14, 8,
-                    10, 12, 12, 12, 12, 14, 14, 14, 14, 14, 14, 8]
-  larguras.forEach((w, i) => {
-    ws.getColumn(i + 1).width = w
+  // Larguras
+  const larguras = [6, 14, 14, 48, 6, 10, 13, 13, 13, 14, 8,
+                    10, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 8]
+  larguras.forEach((w, i) => ws.getColumn(i + 1).width = w)
+
+  // ── CABEÇALHO REDESENHADO ─────────────────────────────────────────────────
+
+  // Linha 1 — barra de cor sólida no topo (decorativa)
+  ws.getRow(1).height = 8
+  for (let c = 1; c <= 23; c++) {
+    ws.getCell(1, c).fill = fill(LARANJA_DEST)
+  }
+
+  // Linha 2-5 — área do cabeçalho principal
+  ws.getRow(2).height = 36
+  ws.getRow(3).height = 20
+  ws.getRow(4).height = 20
+  ws.getRow(5).height = 16
+
+  // Bloco esquerdo: logo (A2:C5)
+  ws.mergeCells('A2:C5')
+  ws.getCell('A2').fill = fill('FFFFFF')
+  ws.getCell('A2').border = { bottom: { style: 'medium', color: { argb: `FF${AZUL_ESCURO}` } } }
+
+  // Se tiver logo, embutir imagem
+  if (logoBase64) {
+    try {
+      const base64Data = logoBase64.split(',')[1] || logoBase64
+      const mimeMatch = logoBase64.match(/data:([^;]+);/)
+      const ext = mimeMatch?.[1]?.includes('png') ? 'png' : 'jpeg'
+      const imageId = wb.addImage({ base64: base64Data, extension: ext as 'png' | 'jpeg' })
+      ws.addImage(imageId, {
+        tl: { col: 0, row: 1 },
+        br: { col: 3, row: 5 },
+        editAs: 'oneCell',
+      })
+    } catch (e) {
+      // logo falhou, deixa vazio
+    }
+  } else {
+    // Sem logo: coloca texto da empresa
+    cel(ws, 'A2', contrato.empresa_executora, {
+      font: { ...fNegrita(10), color: { argb: `FF${AZUL_ESCURO}` } },
+      align: al('center'),
+    })
+  }
+
+  // Bloco central: órgão (D2:T5)
+  ws.mergeCells('D2:T2')
+  ws.mergeCells('D3:T3')
+  ws.mergeCells('D4:T4')
+  ws.mergeCells('D5:T5')
+
+  cel(ws, 'D2', contrato.orgao_nome, {
+    font: fBranca(11),
+    fill: fill(AZUL_ESCURO),
+    align: al('center'),
+    border: borda('medium'),
+  })
+  cel(ws, 'D3', contrato.orgao_subdivisao || '', {
+    font: fBranca(9),
+    fill: fill(AZUL_MEDIO),
+    align: al('center'),
+  })
+  cel(ws, 'D4', `OBRA: ${contrato.nome_obra}  |  LOCAL: ${contrato.local_obra}`, {
+    font: fNegrita(9),
+    fill: fill(AZUL_CABEC),
+    align: al('center'),
+    border: { bottom: { style: 'thin' } },
+  })
+  cel(ws, 'D5', `Contrato: ${contrato.numero_contrato || '—'}  |  Empresa: ${contrato.empresa_executora}`, {
+    font: fNormal(8),
+    fill: fill(AZUL_CABEC),
+    align: al('center'),
   })
 
-  // ── Linha 1: Órgão ──────────────────────────────────────────────────────────
-  ws.mergeCells('C1:E1')
-  ws.mergeCells('F1:W1')
-  aplicarCelula(ws, 'C1', contrato.orgao_nome,
-    { font: fontBranca, fill: fillSolido(AZUL_CABECALHO), align: alinhar('center') })
-  aplicarCelula(ws, 'F1', 'PREVISÃO - BOLETIM DE MEDIÇÃO',
-    { font: { ...fontBranca, size: 11 }, fill: fillSolido(AZUL_CABECALHO), align: alinhar('center') })
-  ws.getRow(1).height = 20
+  // Bloco direito: dados da medição (U2:W5)
+  ws.mergeCells('U2:W2')
+  ws.mergeCells('U3:W3')
+  ws.mergeCells('U4:W4')
+  ws.mergeCells('U5:W5')
 
-  // ── Linha 2: Subdivisão ─────────────────────────────────────────────────────
-  ws.mergeCells('C2:W2')
-  aplicarCelula(ws, 'C2', contrato.orgao_subdivisao || '',
-    { font: fontBranca, fill: fillSolido(AZUL_CABECALHO), align: alinhar('center') })
-  ws.getRow(2).height = 16
+  cel(ws, 'U2', `${medicao.numero_extenso} MEDIÇÃO`, {
+    font: { ...fBranca(14) },
+    fill: fill(LARANJA_DEST),
+    align: al('center'),
+    border: borda('medium'),
+  })
+  cel(ws, 'U3', `Data: ${medicao.data_medicao ? new Date(medicao.data_medicao + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}`, {
+    font: fNormal(8),
+    fill: fill(AZUL_CABEC),
+    align: al('center'),
+  })
+  cel(ws, 'U4', `Desc: ${(contrato.desconto_percentual * 100).toFixed(2)}%  |  BDI: ${(contrato.bdi_percentual * 100).toFixed(2)}%`, {
+    font: fNormal(8),
+    fill: fill(AZUL_CABEC),
+    align: al('center'),
+  })
+  cel(ws, 'U5', `${contrato.data_base_planilha || ''}  |  Prazo: ${contrato.prazo_execucao_dias}d`, {
+    font: fNormal(8),
+    fill: fill(AZUL_CABEC),
+    align: al('center'),
+  })
 
-  // ── Linha 3: Obra / Contrato ─────────────────────────────────────────────────
-  ws.mergeCells('C3:D3')
-  ws.mergeCells('F3:L3')
-  aplicarCelula(ws, 'A3', 'OBRA:',       { font: fontNegrita })
-  aplicarCelula(ws, 'C3', contrato.nome_obra, { font: fontNegrita })
-  aplicarCelula(ws, 'E3', 'CONTRATO:',   { font: fontNegrita })
-  aplicarCelula(ws, 'F3', contrato.numero_contrato || '', { font: fontNormal })
-  aplicarCelula(ws, 'M3', 'MEDIÇÃO:',       { font: fontNegrita })
-  aplicarCelula(ws, 'N3', 'DATA DA ORDEM SERVIÇO', { font: fontNormal, align: alinhar('center') })
-  aplicarCelula(ws, 'P3', 'PRAZO EXECUÇÃO',  { font: fontNormal, align: alinhar('center') })
-  aplicarCelula(ws, 'Q3', 'DATA MEDIÇÃO',    { font: fontNormal, align: alinhar('center') })
-  aplicarCelula(ws, 'S3', 'DATA BASE PLANILHA', { font: fontNormal, align: alinhar('center') })
-  aplicarCelula(ws, 'U3', 'EMPRESA EXECUTORA', { font: fontNormal, align: alinhar('center') })
+  // ── Linha 6: divisor PLANILHA BASE / PLANILHA DE MEDIÇÃO ─────────────────
+  ws.getRow(6).height = 16
+  ws.mergeCells('A6:K6')
+  ws.mergeCells('L6:W6')
+  cel(ws, 'A6', 'PLANILHA BASE', {
+    font: fBranca(9), fill: fill(AZUL_ESCURO), align: al('center'), border: borda(),
+  })
+  cel(ws, 'L6', 'PLANILHA DE MEDIÇÃO', {
+    font: fBranca(9), fill: fill(AZUL_MEDIO), align: al('center'), border: borda(),
+  })
 
-  // ── Linha 4: Valores do cabeçalho ───────────────────────────────────────────
-  aplicarCelula(ws, 'C4', contrato.local_obra, { font: fontNormal })
-  aplicarCelula(ws, 'E4', 'DESCONTO:', { font: fontNegrita })
-  aplicarCelula(ws, 'F4', contrato.desconto_percentual, { font: fontNormal, numFmt: '0.00%' })
-  aplicarCelula(ws, 'M4', medicao.numero_extenso, { font: fontNegrita, align: alinhar('center') })
-  aplicarCelula(ws, 'N4', contrato.data_ordem_servico ? new Date(contrato.data_ordem_servico) : '',
-    { font: fontNormal, numFmt: 'DD/MM/YYYY', align: alinhar('center') })
-  aplicarCelula(ws, 'P4', `${contrato.prazo_execucao_dias} dias`,
-    { font: fontNormal, align: alinhar('center') })
-  aplicarCelula(ws, 'Q4', new Date(medicao.data_medicao),
-    { font: fontNormal, numFmt: 'DD/MM/YYYY', align: alinhar('center') })
-  aplicarCelula(ws, 'S4', contrato.data_base_planilha || '',
-    { font: fontNormal, align: alinhar('center') })
-  aplicarCelula(ws, 'U4', contrato.empresa_executora,
-    { font: fontNormal, align: alinhar('center') })
+  // ── Linhas 7/8: Headers colunas ──────────────────────────────────────────
+  ws.getRow(7).height = 28
+  ws.getRow(8).height = 30
 
-  // ── Linha 5: Divisor PLANILHA BASE / PLANILHA DE MEDIÇÃO ────────────────────
-  ws.mergeCells('A5:K5')
-  ws.mergeCells('L5:W5')
-  aplicarCelula(ws, 'A5', 'PLANILHA BASE',
-    { font: fontBranca, fill: fillSolido(AZUL_CABECALHO), align: alinhar('center') })
-  aplicarCelula(ws, 'L5', 'PLANILHA DE MEDIÇÃO',
-    { font: fontBranca, fill: fillSolido(AZUL_CABECALHO), align: alinhar('center') })
-  ws.getRow(5).height = 18
-
-  // ── Linha 6/7: Headers das colunas ──────────────────────────────────────────
-  const headers6: [string, string][] = [
-    ['A6', 'ITEM'], ['B6', 'FONTE'], ['C6', 'CÓDIGO'], ['D6', 'DESCRIÇÃO'],
-    ['E6', 'UNID'], ['F6', 'QUANTIDADE'], ['G6', 'PREÇO UNITÁRIO R$'],
-    ['J6', 'PREÇO\nTOTAL R$'], ['K6', 'PESO (%)'],
-    ['L6', 'QUANTIDADES'], ['Q6', 'PREÇOS R$'],
+  const h7: [string, string][] = [
+    ['A7','ITEM'],['B7','FONTE'],['C7','CÓDIGO'],['D7','DESCRIÇÃO'],
+    ['E7','UNID'],['F7','QUANTIDADE'],['G7','PREÇO\nUNITÁRIO R$'],
+    ['J7','PREÇO\nTOTAL R$'],['K7','PESO (%)'],
+    ['L7','QUANTIDADES'],['Q7','PREÇOS R$'],
+  ]
+  const h8: [string, string][] = [
+    ['G8','SINAPI'],['H8',`C/ DESCONTO\n(${(contrato.desconto_percentual*100).toFixed(2)}%)`],
+    ['I8','C/ BDI'],
+    ['L8','PREVISTO'],['M8','ANTERIOR\nACUMULADA'],['N8','MEDIDA NO\nPERIODO'],
+    ['O8','ACUMULADO'],['P8','SALDO\nCONTRATO'],
+    ['Q8','UNITÁRIO'],['R8','UNIT.\nC/ BDI'],
+    ['S8','ANT.\nACUMULADO'],['T8','ACUMULADO'],['U8','NO PERIODO'],
+    ['V8','SALDO\nCONTRATO'],['W8','SALDO (%)'],
   ]
 
-  const headers7: [string, string][] = [
-    ['G7', 'SINAPI'], ['H7', `COM DESCONTO\n(${(contrato.desconto_percentual * 100).toFixed(2)}%)`],
-    ['I7', 'COM BDI'],
-    ['L7', 'PREVISTO'], ['M7', 'ANTERIOR\nACUMULADA'], ['N7', 'MEDIDA NO\nPERIODO'],
-    ['O7', 'ACUMULADO'], ['P7', 'SALDO DO\nCONTRATO'],
-    ['Q7', 'UNITÁRIO'], ['R7', 'UNITÁRIO\nCOM BDI'],
-    ['S7', 'ANTERIOR\nACUMULADO'], ['T7', 'ACUMULADO'], ['U7', 'NO PERIODO'],
-    ['V7', 'SALDO DO\nCONTRATO'], ['W7', 'SALDO (%)'],
-  ]
+  h7.forEach(([addr, val]) => cel(ws, addr, val, {
+    font: fBranca(8), fill: fill(AZUL_ESCURO), align: al('center'), border: borda(),
+  }))
+  h8.forEach(([addr, val]) => cel(ws, addr, val, {
+    font: fBranca(8), fill: fill(AZUL_MEDIO), align: al('center'), border: borda(),
+  }))
 
-  headers6.forEach(([cell, val]) => {
-    aplicarCelula(ws, cell, val, {
-      font: fontBranca, fill: fillSolido(AZUL_CABECALHO),
-      align: alinhar('center'), border: bordaThin(),
-    })
-  })
-
-  headers7.forEach(([cell, val]) => {
-    aplicarCelula(ws, cell, val, {
-      font: fontBranca, fill: fillSolido(AZUL_CABECALHO),
-      align: alinhar('center'), border: bordaThin(),
-    })
-  })
-
-  ws.getRow(6).height = 28
-  ws.getRow(7).height = 32
-
-  // ── Dados dos serviços ───────────────────────────────────────────────────────
-  let rowNum = 8
-  let totalOrcamento = 0
-
+  // ── Dados ─────────────────────────────────────────────────────────────────
+  let row = 9
   const servicosOrdenados = [...servicos].sort((a, b) => a.ordem - b.ordem)
 
   for (const srv of servicosOrdenados) {
-    const row = ws.getRow(rowNum)
-    row.height = srv.descricao.length > 80 ? 42 : 28
-
     const precoDesc = calcPrecoComDesconto(srv.preco_unitario, contrato.desconto_percentual)
     const precoBDI  = calcPrecoComBDI(precoDesc, contrato.bdi_percentual)
     const precoTotal = calcPrecoTotal(srv.quantidade, precoBDI)
+    ws.getRow(row).height = srv.descricao.length > 80 ? 42 : 26
 
     if (srv.is_grupo) {
-      // ── Linha de grupo ──────────────────────────────────────────────────────
-      ws.mergeCells(`D${rowNum}:F${rowNum}`)
-      ;['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W']
-        .forEach(col => {
-          const c = ws.getCell(`${col}${rowNum}`)
-          c.fill   = fillSolido(AZUL_GRUPO)
-          c.font   = fontNegrita
-          c.border = bordaThin()
-        })
-      ws.getCell(`A${rowNum}`).value = srv.item
-      ws.getCell(`D${rowNum}`).value = srv.descricao
-      ws.getCell(`J${rowNum}`).value = precoTotal
-      ws.getCell(`J${rowNum}`).numFmt = '#,##0.00'
-      ws.getCell(`K${rowNum}`).value = 0 // será calculado na totalização
-      totalOrcamento += precoTotal
+      ws.mergeCells(`D${row}:F${row}`)
+      'ABCDEFGHIJKLMNOPQRSTUVW'.split('').forEach(c => {
+        const cell = ws.getCell(`${c}${row}`)
+        cell.fill   = fill(AZUL_CLARO)
+        cell.font   = fNegrita(9)
+        cell.border = borda()
+      })
+      ws.getCell(`A${row}`).value = srv.item
+      ws.getCell(`A${row}`).alignment = al('center')
+      ws.getCell(`D${row}`).value = srv.descricao
+      ws.getCell(`D${row}`).alignment = al('left')
+      ws.getCell(`J${row}`).value = precoTotal
+      ws.getCell(`J${row}`).numFmt = '#,##0.00'
+      ws.getCell(`J${row}`).alignment = al('right')
     } else {
-      // ── Linha de serviço ────────────────────────────────────────────────────
       const linhas = linhasPorServico.get(srv.id) || []
       const { qtdAnterior, qtdPeriodo, qtdAcumulada, qtdSaldo } = calcResumoServico(srv, linhas)
       const precoBDIdemo = Math.trunc(precoDesc * 1.2452 * 100) / 100
 
-      const cells: Record<string, ExcelJS.CellValue> = {
-        A: srv.item, B: srv.fonte, C: srv.codigo || '',
-        D: srv.descricao, E: srv.unidade,
-        F: srv.quantidade,
-        G: srv.preco_unitario, H: precoDesc, I: precoBDI,
-        J: precoTotal, K: 0, // peso % calculado depois
-        L: srv.quantidade,         // Previsto
-        M: qtdAnterior,            // Anterior Acumulada
-        N: qtdPeriodo,             // Medida no Período ← CHAVE
-        O: qtdAcumulada,           // Acumulado
-        P: qtdSaldo,               // Saldo do Contrato
-        Q: precoDesc,              // Unitário
-        R: precoBDIdemo,           // Unitário c/ BDI
-        S: qtdAnterior * precoBDIdemo,  // Anterior Acumulado R$
-        T: qtdAcumulada * precoBDIdemo, // Acumulado R$
-        U: qtdPeriodo * precoBDIdemo,   // No Período R$
-        V: precoTotal - (qtdAcumulada * precoBDIdemo), // Saldo R$
-        W: precoTotal > 0 ? (precoTotal - qtdAcumulada * precoBDIdemo) / precoTotal : 0, // Saldo %
-      }
+      type ColDef = [string, ExcelJS.CellValue, string, ExcelJS.Alignment['horizontal']]
+      const cols: ColDef[] = [
+        ['A', srv.item,            '@',          'center'],
+        ['B', srv.fonte,           '@',          'center'],
+        ['C', srv.codigo || '',    '@',          'center'],
+        ['D', srv.descricao,       '@',          'left'],
+        ['E', srv.unidade,         '@',          'center'],
+        ['F', srv.quantidade,      '#,##0.0000', 'right'],
+        ['G', srv.preco_unitario,  '#,##0.00',   'right'],
+        ['H', precoDesc,           '#,##0.00',   'right'],
+        ['I', precoBDI,            '#,##0.00',   'right'],
+        ['J', precoTotal,          '#,##0.00',   'right'],
+        ['K', 0,                   '0.00%',      'right'],
+        ['L', srv.quantidade,      '#,##0.0000', 'right'],
+        ['M', qtdAnterior,         '#,##0.0000', 'right'],
+        ['N', qtdPeriodo,          '#,##0.0000', 'right'],
+        ['O', qtdAcumulada,        '#,##0.0000', 'right'],
+        ['P', qtdSaldo,            '#,##0.0000', 'right'],
+        ['Q', precoDesc,           '#,##0.00',   'right'],
+        ['R', precoBDIdemo,        '#,##0.00',   'right'],
+        ['S', qtdAnterior * precoBDIdemo,  '#,##0.00', 'right'],
+        ['T', qtdAcumulada * precoBDIdemo, '#,##0.00', 'right'],
+        ['U', qtdPeriodo * precoBDIdemo,   '#,##0.00', 'right'],
+        ['V', precoTotal - qtdAcumulada * precoBDIdemo, '#,##0.00', 'right'],
+        ['W', precoTotal > 0 ? (precoTotal - qtdAcumulada * precoBDIdemo) / precoTotal : 0, '0.00%', 'right'],
+      ]
 
-      const numCols = ['F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V']
-      const pctCols = ['K','W']
+      // Zebra nas linhas de serviço
+      const rowFill = row % 2 === 0 ? fill('F2F7FC') : fill('FFFFFF')
 
-      Object.entries(cells).forEach(([col, val]) => {
-        const c = ws.getCell(`${col}${rowNum}`)
-        c.value  = val
-        c.border = bordaThin()
-        c.font   = fontNormal
-        c.alignment = alinhar(numCols.includes(col) ? 'right' : col === 'D' ? 'left' : 'center')
-        if (numCols.includes(col)) c.numFmt = '#,##0.0000'
-        if (['G','H','I','J','Q','R','S','T','U','V'].includes(col)) c.numFmt = '#,##0.00'
-        if (pctCols.includes(col)) c.numFmt = '0.00%'
+      cols.forEach(([col, val, fmt, align]) => {
+        const c = ws.getCell(`${col}${row}`)
+        c.value     = val
+        c.numFmt    = fmt
+        c.font      = fNormal(8)
+        c.fill      = rowFill
+        c.border    = borda()
+        c.alignment = al(align)
       })
 
-      // Status visual (coluna W = saldo %)
-      const saldoCell = ws.getCell(`W${rowNum}`)
-      if (qtdAcumulada >= srv.quantidade) {
-        saldoCell.fill = fillSolido(VERDE_OK)
+      // Destaque na coluna N (medida no período)
+      const cN = ws.getCell(`N${row}`)
+      if (qtdPeriodo > 0) {
+        cN.fill = fill('FFF2CC')
+        cN.font = fNegrita(8)
       }
 
-      totalOrcamento += precoTotal
+      // Verde se 100% executado
+      if (qtdAcumulada >= srv.quantidade && srv.quantidade > 0) {
+        ws.getCell(`W${row}`).fill = fill(VERDE_OK)
+        ws.getCell(`W${row}`).font = fBranca(8)
+      }
     }
-
-    rowNum++
+    row++
   }
 
-  // ── Totais Gerais ─────────────────────────────────────────────────────────
-  const rowTotal = rowNum
+  // ── Linha de totais ──────────────────────────────────────────────────────
+  const rowTotal = row
+  ws.getRow(rowTotal).height = 22
   ws.mergeCells(`A${rowTotal}:I${rowTotal}`)
-  ws.getRow(rowTotal).height = 20
 
-  const valores = calcValoresMedicao(servicos, linhasPorServico, contrato)
+  cel(ws, `A${rowTotal}`, 'TOTAIS GERAIS DO ORÇAMENTO', {
+    font: fBranca(10), fill: fill(AZUL_ESCURO), align: al('center'), border: borda('medium'),
+  })
 
-  aplicarCelula(ws, `A${rowTotal}`, 'TOTAIS GERAIS DO ORÇAMENTO',
-    { font: fontBranca, fill: fillSolido(AZUL_CABECALHO), align: alinhar('center') })
+  const vals = calcValoresMedicao(servicos, linhasPorServico, contrato)
 
-  const totaisCells: Record<string, number> = {
-    J: valores.totalOrcamento,
-    T: valores.valorAcumulado,
-    U: valores.valorPeriodo,
-    V: valores.valorSaldo,
-  }
-  Object.entries(totaisCells).forEach(([col, val]) => {
-    aplicarCelula(ws, `${col}${rowTotal}`, val, {
-      font: fontBranca, fill: fillSolido(AZUL_CABECALHO),
-      align: alinhar('right'), numFmt: '#,##0.00',
+  const totaisCols: [string, number][] = [
+    [`J${rowTotal}`, vals.totalOrcamento],
+    [`T${rowTotal}`, vals.valorAcumulado],
+    [`U${rowTotal}`, vals.valorPeriodo],
+    [`V${rowTotal}`, vals.valorSaldo],
+  ]
+  totaisCols.forEach(([addr, val]) => {
+    cel(ws, addr, val, {
+      font: fBranca(9), fill: fill(AZUL_ESCURO), align: al('right'),
+      border: borda('medium'), numFmt: '#,##0.00',
     })
   })
 
-  // ── Extenso ───────────────────────────────────────────────────────────────
-  const rowExtenso = rowTotal + 2
-  ws.mergeCells(`A${rowExtenso}:W${rowExtenso}`)
-  aplicarCelula(ws, `A${rowExtenso}`,
-    `A presente medição importa o valor de: ${valorPorExtenso(valores.valorPeriodo).toUpperCase()} (${
-      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valores.valorPeriodo)
-    })`,
-    { font: { ...fontNegrita, size: 10 }, align: alinhar('left') })
+  // ── Extenso ──────────────────────────────────────────────────────────────
+  const rowExt = rowTotal + 2
+  ws.mergeCells(`A${rowExt}:W${rowExt}`)
+  ws.getRow(rowExt).height = 24
+  cel(ws, `A${rowExt}`,
+    `A presente medição importa o valor de: ${valorPorExtenso(vals.valorPeriodo).toUpperCase()} — ${
+      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(vals.valorPeriodo)
+    }`,
+    { font: fNegrita(10), fill: fill('FFF8E7'), align: al('left'), border: { bottom: { style: 'medium', color: { argb: `FF${LARANJA_DEST}` } } } }
+  )
 
-  // ── Demonstrativo ─────────────────────────────────────────────────────────
-  const rowDemo = rowExtenso + 3
-  const labelsDemo = [
-    ['VALOR TOTAL DO ORÇAMENTO GERAL', valores.totalOrcamento, '#,##0.00', ''],
-    [`VALOR ${medicao.numero_extenso} MEDIÇÃO (R$)`, valores.valorPeriodo, '#,##0.00', ''],
-    ['PERCENTUAL DA PRIMEIRA MEDIÇÃO', valores.percentualPeriodo, '0.00%', ''],
-    ['FATURADO ACUMULADO', valores.valorAcumulado, '#,##0.00', ''],
-    ['PERCENTUAL FATURADO ACUMULADO', valores.percentualAcumulado, '0.00%', ''],
-    ['SALDO CONTRATO', valores.valorSaldo, '#,##0.00', ''],
-    ['PERCENTUAL DO SALDO DO CONTRATO', valores.percentualSaldo, '0.00%', ''],
-  ]
+  // ── Demonstrativo ────────────────────────────────────────────────────────
+  const rowDemo = rowExt + 3
+  ws.getRow(rowDemo - 1).height = 18
 
   ws.mergeCells(`A${rowDemo - 1}:E${rowDemo - 1}`)
-  aplicarCelula(ws, `A${rowDemo - 1}`, 'DEMONSTRATIVO',
-    { font: fontBranca, fill: fillSolido(AZUL_CABECALHO), align: alinhar('center') })
+  cel(ws, `A${rowDemo - 1}`, 'DEMONSTRATIVO FINANCEIRO', {
+    font: fBranca(10), fill: fill(AZUL_ESCURO), align: al('center'), border: borda('medium'),
+  })
 
-  labelsDemo.forEach(([label, val, fmt], i) => {
+  const demo = [
+    ['VALOR TOTAL DO ORÇAMENTO GERAL',     vals.totalOrcamento,       '#,##0.00'],
+    [`VALOR ${medicao.numero_extenso} MEDIÇÃO (R$)`, vals.valorPeriodo, '#,##0.00'],
+    ['PERCENTUAL DA MEDIÇÃO',              vals.percentualPeriodo,    '0.00%'],
+    ['FATURADO ACUMULADO',                 vals.valorAcumulado,       '#,##0.00'],
+    ['PERCENTUAL FATURADO ACUMULADO',      vals.percentualAcumulado,  '0.00%'],
+    ['SALDO DO CONTRATO',                  vals.valorSaldo,           '#,##0.00'],
+    ['PERCENTUAL DO SALDO',                vals.percentualSaldo,      '0.00%'],
+  ] as [string, number, string][]
+
+  demo.forEach(([label, val, fmt], i) => {
     const r = rowDemo + i
+    ws.getRow(r).height = 16
     ws.mergeCells(`A${r}:D${r}`)
-    aplicarCelula(ws, `A${r}`, label as string,
-      { font: fontNormal, fill: fillSolido(CINZA_SUBHEADER), border: bordaThin() })
-    aplicarCelula(ws, `E${r}`, val as number,
-      { font: fontNegrita, numFmt: fmt as string, align: alinhar('right'), border: bordaThin() })
+    const bgRow = i % 2 === 0 ? fill('EBF3FB') : fill('FFFFFF')
+    cel(ws, `A${r}`, label, {
+      font: fNormal(9), fill: bgRow, align: al('left'), border: borda(),
+    })
+    cel(ws, `E${r}`, val, {
+      font: fNegrita(9), fill: bgRow, align: al('right'), border: borda(), numFmt: fmt,
+    })
   })
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ABA: MEM 01 — MEMÓRIA DE CÁLCULO
+// ABA MEM
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function gerarAbaMEM(
@@ -343,126 +392,113 @@ async function gerarAbaMEM(
   linhasPorServico: Map<string, LinhaMemoria[]>
 ) {
   const ws = wb.addWorksheet(`MEM ${String(medicao.numero).padStart(2, '0')}`)
-
-  // Larguras
-  const larguras = [8, 35, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 14, 20]
+  const larguras = [8, 38, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 14, 22]
   larguras.forEach((w, i) => ws.getColumn(i + 1).width = w)
 
-  // ── Cabeçalho ─────────────────────────────────────────────────────────────
-  ws.mergeCells('A1:N1')
-  ws.mergeCells('A2:N2')
-  ws.mergeCells('A3:N3')
-  ws.mergeCells('A4:N4')
-  ws.mergeCells('A5:N5')
+  // Cabeçalho
+  ws.getRow(1).height = 8
+  for (let c = 1; c <= 14; c++) ws.getCell(1, c).fill = fill(LARANJA_DEST)
 
-  ;[
-    [1, contrato.orgao_nome],
-    [2, contrato.orgao_subdivisao || ''],
-    [3, contrato.nome_obra],
-    [4, medicao.numero_extenso],
-    [5, 'MEMÓRIA DE CÁLCULO'],
-  ].forEach(([r, txt]) => {
-    aplicarCelula(ws, `A${r}`, txt as string,
-      { font: { ...fontBranca, size: r === 5 ? 11 : 9, bold: true },
-        fill: fillSolido(AZUL_CABECALHO), align: alinhar('center') })
-    ws.getRow(r as number).height = 18
+  ws.mergeCells('A2:N2'); ws.getRow(2).height = 30
+  ws.mergeCells('A3:N3'); ws.getRow(3).height = 16
+  ws.mergeCells('A4:N4'); ws.getRow(4).height = 14
+  ws.mergeCells('A5:N5'); ws.getRow(5).height = 20
+
+  cel(ws, 'A2', contrato.orgao_nome,              { font: fBranca(11), fill: fill(AZUL_ESCURO), align: al('center') })
+  cel(ws, 'A3', contrato.orgao_subdivisao || '',   { font: fBranca(9),  fill: fill(AZUL_MEDIO),  align: al('center') })
+  cel(ws, 'A4', contrato.nome_obra,               { font: fNegrita(9), fill: fill(AZUL_CABEC),  align: al('center') })
+  cel(ws, 'A5', 'MEMÓRIA DE CÁLCULO',             { font: { ...fBranca(12) }, fill: fill(AZUL_ESCURO), align: al('center') })
+
+  // Headers MEM
+  ws.getRow(7).height = 28
+  const headersMEM = ['ITEM','DESCRIÇÃO','Larg.','Comp.','Altura','Perim.','Área','Vol.','Kg','Outros','Desc.','Qtde','TOTAL','OBSERVAÇÃO']
+  headersMEM.forEach((h, i) => {
+    cel(ws, `${String.fromCharCode(65 + i)}7`, h, {
+      font: fBranca(9), fill: fill(AZUL_ESCURO), align: al('center'), border: borda(),
+    })
   })
 
-  // ── Headers MEM ───────────────────────────────────────────────────────────
-  ws.getRow(7).height = 28
-  ;['ITEM','DESCRIÇÃO DOS SERVIÇOS','Larg.','Comp.','Altura','Perim.','Área','Vol.','Kg','Outros','Desc.','Qtde','TOTAL','OBSERVAÇÃO']
-    .forEach((h, i) => {
-      aplicarCelula(ws, `${String.fromCharCode(65 + i)}7`, h, {
-        font: fontBranca, fill: fillSolido(AZUL_CABECALHO),
-        align: alinhar('center'), border: bordaThin(),
-      })
-    })
-
-  // ── Dados ──────────────────────────────────────────────────────────────────
-  let rowNum = 8
+  let row = 8
   const servicosOrdenados = servicos.filter(s => !s.is_grupo).sort((a, b) => a.ordem - b.ordem)
 
   for (const srv of servicosOrdenados) {
     const linhas = linhasPorServico.get(srv.id) || []
 
-    // Linha de título do serviço
-    ws.mergeCells(`A${rowNum}:B${rowNum}`)
-    aplicarCelula(ws, `A${rowNum}`, srv.item,
-      { font: fontNegrita, fill: fillSolido(AZUL_GRUPO), border: bordaThin() })
-    aplicarCelula(ws, `B${rowNum}`, srv.descricao,
-      { font: fontNegrita, fill: fillSolido(AZUL_GRUPO), border: bordaThin(), align: alinhar('left') })
-    ws.getRow(rowNum).height = 20
-    rowNum++
+    // Título do serviço
+    ws.mergeCells(`A${row}:B${row}`)
+    ws.getRow(row).height = 20
+    'ABCDEFGHIJKLMN'.split('').forEach(c => {
+      const cell = ws.getCell(`${c}${row}`)
+      cell.fill   = fill(AZUL_CLARO)
+      cell.font   = fNegrita(9)
+      cell.border = borda()
+    })
+    ws.getCell(`A${row}`).value     = srv.item
+    ws.getCell(`A${row}`).alignment = al('center')
+    ws.getCell(`B${row}`).value     = srv.descricao
+    ws.getCell(`B${row}`).alignment = al('left')
+    row++
 
     // Linhas de cálculo
-    const linhasOrdenadas = [...linhas].sort((a, b) => a.sub_item.localeCompare(b.sub_item))
-
-    for (const linha of linhasOrdenadas) {
-      const r = ws.getRow(rowNum)
-      r.height = 16
+    for (const linha of [...linhas].sort((a, b) => a.sub_item.localeCompare(b.sub_item))) {
+      ws.getRow(row).height = 16
 
       const statusFill = linha.status === 'A pagar'
-        ? fillSolido('E2EFDA')
+        ? fill('E2EFDA')
         : linha.status === 'Pago'
-          ? fillSolido('DDEBF7')
-          : fillSolido('FCE4D6')
+          ? fill('DDEEFF')
+          : fill('FCE4D6')
 
-      const camposCols: [string, ExcelJS.CellValue, string][] = [
-        ['A', linha.sub_item, '@'],
-        ['B', linha.descricao_calculo, '@'],
-        ['C', linha.largura ?? null, '#,##0.0000'],
-        ['D', linha.comprimento ?? null, '#,##0.0000'],
-        ['E', linha.altura ?? null, '#,##0.0000'],
-        ['F', linha.perimetro ?? null, '#,##0.0000'],
-        ['G', linha.area ?? null, '#,##0.0000'],
-        ['H', linha.volume ?? null, '#,##0.0000'],
-        ['I', linha.kg ?? null, '#,##0.0000'],
-        ['J', linha.outros ?? null, '#,##0.0000'],
-        ['K', linha.desconto_dim ?? null, '#,##0.0000'],
+      const campos: [string, ExcelJS.CellValue, string][] = [
+        ['A', linha.sub_item,           '@'],
+        ['B', linha.descricao_calculo,  '@'],
+        ['C', linha.largura ?? null,    '#,##0.0000'],
+        ['D', linha.comprimento ?? null,'#,##0.0000'],
+        ['E', linha.altura ?? null,     '#,##0.0000'],
+        ['F', linha.perimetro ?? null,  '#,##0.0000'],
+        ['G', linha.area ?? null,       '#,##0.0000'],
+        ['H', linha.volume ?? null,     '#,##0.0000'],
+        ['I', linha.kg ?? null,         '#,##0.0000'],
+        ['J', linha.outros ?? null,     '#,##0.0000'],
+        ['K', linha.desconto_dim ?? null,'#,##0.0000'],
         ['L', linha.quantidade ?? null, '#,##0.0000'],
-        ['M', linha.total, '#,##0.0000'],
-        ['N', linha.status, '@'],
+        ['M', linha.total,              '#,##0.0000'],
+        ['N', linha.status,             '@'],
       ]
 
-      camposCols.forEach(([col, val, fmt]) => {
-        const c = ws.getCell(`${col}${rowNum}`)
-        c.value  = val
-        c.fill   = statusFill
-        c.font   = fontNormal
-        c.border = bordaThin()
-        c.numFmt = fmt
-        c.alignment = alinhar(['A','B','N'].includes(col) ? 'left' : 'right')
-        if (col === 'M') c.font = { ...fontNegrita }
+      campos.forEach(([c, v, fmt]) => {
+        const cell = ws.getCell(`${c}${row}`)
+        cell.value     = v
+        cell.fill      = statusFill
+        cell.font      = ['A','B','N'].includes(c) ? fNormal(9) : fNormal(8)
+        cell.border    = borda()
+        cell.numFmt    = fmt
+        cell.alignment = al(['A','B','N'].includes(c) ? 'left' : 'right')
+        if (c === 'M') cell.font = fNegrita(9)
       })
-
-      if (linha.observacao) {
-        ws.getCell(`N${rowNum}`).note = linha.observacao
-      }
-
-      rowNum++
+      row++
     }
 
-    // Linha de totalização do serviço
+    // Totalizadores
     const qtdAnterior = linhas.filter(l => l.status === 'Pago').reduce((s, l) => s + l.total, 0)
     const qtdPeriodo  = linhas.filter(l => l.status === 'A pagar').reduce((s, l) => s + l.total, 0)
-    const totalAcum   = qtdAnterior + qtdPeriodo
 
-    ;[
-      ['TOTAL ACUMULADO', totalAcum],
-      ['TOTAL ACUMULADO ANTERIOR', qtdAnterior],
-      ['TOTAL DO MÊS', qtdPeriodo],
-    ].forEach(([label, val]) => {
-      ws.mergeCells(`A${rowNum}:L${rowNum}`)
-      aplicarCelula(ws, `A${rowNum}`, label as string,
-        { font: fontNegrita, fill: fillSolido(CINZA_SUBHEADER),
-          align: alinhar('right'), border: bordaThin() })
-      aplicarCelula(ws, `M${rowNum}`, val as number,
-        { font: fontNegrita, fill: fillSolido(CINZA_SUBHEADER),
-          numFmt: '#,##0.0000', align: alinhar('right'), border: bordaThin() })
-      rowNum++
+    const totalizadores: [string, number, ExcelJS.Fill][] = [
+      ['TOTAL ACUMULADO',          qtdAnterior + qtdPeriodo, fill(CINZA_SUB)],
+      ['TOTAL ACUMULADO ANTERIOR', qtdAnterior,               fill('DDEEFF')],
+      ['TOTAL DO MÊS',             qtdPeriodo,                fill('FFF2CC')],
+    ]
+
+    totalizadores.forEach(([label, val, bg]) => {
+      ws.getRow(row).height = 16
+      ws.mergeCells(`A${row}:L${row}`)
+      cel(ws, `A${row}`, label, { font: fNegrita(9), fill: bg, align: al('right'), border: borda() })
+      cel(ws, `M${row}`, val,   { font: fNegrita(9), fill: bg, align: al('right'), border: borda(), numFmt: '#,##0.0000' })
+      ws.getCell(`N${row}`).fill   = bg
+      ws.getCell(`N${row}`).border = borda()
+      row++
     })
 
-    // Linha em branco entre serviços
-    rowNum++
+    row++ // linha em branco
   }
 }
