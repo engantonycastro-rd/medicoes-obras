@@ -110,81 +110,104 @@ const KEYWORDS: Record<keyof Omit<ColMap, '_headerRow'>, { exact: string[]; part
     partial: ['fonte'],
   },
   codigo: {
-    exact:   ['código', 'codigo', 'cód', 'cod'],
+    exact:   ['código', 'codigo', 'cód', 'cod', 'cód.'],
     partial: ['código', 'codigo'],
   },
   descricao: {
-    exact:   ['descrição', 'descricao', 'especificação', 'especificacao', 'serviço', 'servico'],
-    partial: ['descri'],
+    exact:   ['descrição', 'descricao', 'especificação', 'especificacao', 'serviço', 'servico', 'discriminação', 'discriminacao'],
+    partial: ['descri', 'discrimin'],
   },
   unidade: {
-    // Match EXATO — evita pegar "unitário"
     exact:   ['unid', 'und', 'un', 'unidade', 'unid.'],
     partial: [],
   },
   quantidade: {
-    exact:   ['quantidade', 'qtd', 'qtde', 'quant.', 'quant'],
+    exact:   ['quantidade', 'qtd', 'qtde', 'quant.', 'quant', 'quantid e', 'quantidad e'],
     partial: ['quantid', 'qtd'],
   },
   preco_unitario: {
     exact:   ['preço unitário', 'preco unitario', 'valor unitário', 'valor unitario',
-              'pu', 'p.u.', 'preço unit.'],
-    partial: ['unitário', 'unitario'],
+              'pu', 'p.u.', 'preço unit.', 'preço unitário r$', 'preco unitario r$'],
+    partial: ['unitário', 'unitario', 'preço unit'],
   },
 }
 
 function detectarColunas(ws: ExcelJS.Worksheet): ColMap | null {
+  // Candidatos: cada row recebe score = (nº de colunas obrigatórias encontradas * 10) + pontos parciais
+  // Isso prioriza linhas com MAIS colunas distintas, não apenas matches fortes em poucas colunas
   let melhorLinha = 0
   let melhorMapa: Partial<Omit<ColMap, '_headerRow'>> = {}
-  let melhorPontos = 0
+  let melhorScore = 0
 
   ws.eachRow((row, rowIndex) => {
-    if (rowIndex > 30) return
+    if (rowIndex > 40) return
 
     const candidato: Partial<Omit<ColMap, '_headerRow'>> = {}
-    let pontos = 0
+    let pontosExato = 0
+    let pontosParcial = 0
 
     row.eachCell({ includeEmpty: false }, (cell, colIndex) => {
-      // Normaliza: minúsculas, remove quebras de linha e espaços duplos
-      const val = String(cell.value ?? '')
+      const raw = cell.value
+      // Ignora cells numéricas ou datas (cabeçalho real tem texto)
+      if (typeof raw === 'number' || raw instanceof Date) return
+
+      const val = String(raw ?? '')
         .toLowerCase()
         .replace(/\n/g, ' ')
         .replace(/\s+/g, ' ')
         .trim()
 
-      if (!val) return
+      if (!val || val.length > 80) return // Ignora textos muito longos (são dados, não headers)
 
       for (const [key, rules] of Object.entries(KEYWORDS) as [keyof typeof KEYWORDS, typeof KEYWORDS[keyof typeof KEYWORDS]][]) {
-        // Já encontrou essa coluna com score melhor? Pula
         if (candidato[key]) continue
 
-        // Match exato tem prioridade máxima
         if (rules.exact.some(w => val === w)) {
           candidato[key] = colIndex
-          pontos += 3
+          pontosExato += 3
           continue
         }
 
-        // Match parcial — mas NÃO para 'unidade' (evita "unitário")
         if (key !== 'unidade' && rules.partial.some(w => val.includes(w))) {
           candidato[key] = colIndex
-          pontos += 1
+          pontosParcial += 1
         }
       }
     })
 
-    if (pontos > melhorPontos) {
-      melhorPontos = pontos
-      melhorMapa   = candidato
-      melhorLinha  = rowIndex
+    // Score composto: nº de colunas obrigatórias × 10 + pontos detalhados
+    // Isso garante que uma linha com 4 matches obrigatórios sempre ganha de uma com 2
+    const required: (keyof Omit<ColMap, '_headerRow'>)[] = ['item', 'descricao', 'quantidade', 'preco_unitario']
+    const nObrig = required.filter(k => candidato[k]).length
+    const nTotal = Object.keys(candidato).length
+    const score = nObrig * 100 + nTotal * 10 + pontosExato + pontosParcial
+
+    if (score > melhorScore) {
+      melhorScore = score
+      melhorMapa  = candidato
+      melhorLinha = rowIndex
     }
   })
 
   const required: (keyof Omit<ColMap, '_headerRow'>)[] = ['item', 'descricao', 'quantidade', 'preco_unitario']
   if (!required.every(k => melhorMapa[k])) return null
 
+  // Validação extra: verifica se a próxima linha tem dados tipo "1" ou "1.1" na coluna item
+  // Se não, tenta avançar até 5 linhas procurando o início dos dados
+  let headerRow = melhorLinha
+  for (let offset = 1; offset <= 5; offset++) {
+    const nextRow = ws.getRow(headerRow + offset)
+    if (!nextRow) break
+    const itemVal = String(nextRow.getCell(melhorMapa.item!).value ?? '').trim()
+    if (/^\d+(\.\d+)*$/.test(itemVal)) {
+      // Dados começam nesta linha, header é a linha anterior a ela menos o offset
+      headerRow = headerRow + offset - 1
+      break
+    }
+  }
+
   return {
-    _headerRow:     melhorLinha,
+    _headerRow:     headerRow,
     item:           melhorMapa.item!,
     fonte:          melhorMapa.fonte    || 0,
     codigo:         melhorMapa.codigo   || 0,
