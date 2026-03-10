@@ -27,6 +27,24 @@ export function ContratosPage() {
 
   useEffect(() => { fetchContratos() }, [])
 
+  // Busca obras de TODOS os contratos ao montar para ter contagem correta nos stats
+  useEffect(() => {
+    if (contratos.length === 0) return
+    let cancelled = false
+    async function loadAllObras() {
+      const result: Record<string, Obra[]> = { ...obrasPorContrato }
+      for (const c of contratos) {
+        if (result[c.id]) continue // já tem
+        const obs = await fetchObras(c.id)
+        if (cancelled) return
+        result[c.id] = obs
+      }
+      if (!cancelled) setObrasPorContrato(result)
+    }
+    loadAllObras()
+    return () => { cancelled = true }
+  }, [contratos])
+
   async function toggleExpandir(contratoId: string) {
     const novo = new Set(expandidos)
     if (novo.has(contratoId)) {
