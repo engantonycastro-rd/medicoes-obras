@@ -79,8 +79,8 @@ html,body{width:289mm;max-width:289mm;overflow-x:hidden;font-family:Arial,Helvet
 .pf-hl{background:#D4D4D4;font-weight:bold;text-align:right;font-size:5pt}
 .pf-hl-val{font-weight:bold;text-align:right;font-size:5.5pt}
 .pf-verde{background:${p.linhaPeriodo};font-weight:bold;text-align:right;font-size:5.5pt}
-.pf-logo-cell{width:16mm;text-align:center;vertical-align:middle;border-right:0.6px solid #000}
-.pf-logo-cell img{max-width:14mm;max-height:12mm;object-fit:contain}
+.pf-logo-cell{width:28mm;text-align:center;vertical-align:middle;border-right:0.6px solid #000}
+.pf-logo-cell img{max-width:26mm;max-height:18mm;object-fit:contain}
 .pf-empresa{font-size:4.5pt;line-height:1.35;vertical-align:top;text-align:left;padding:0.8mm;width:28mm}
 
 /* ESTADO cabeçalho */

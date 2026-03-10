@@ -291,209 +291,173 @@ async function gerarAbaPREF(
   modelo?: ModeloPlanilha
 ) {
   const m  = modelo ?? MODELO_PREFEITURA_DEFAULT
-  const { fW, fB, fN } = mkFont(m)
   const C  = m.cores
   const bD = makeBorder(m.bordas.dados)
-  const bC = makeBorder(m.bordas.cabec)
   const bT = makeBorder(m.bordas.totais)
-  // Nome da aba = MED 01, MED 02…
   const abaNome = `MED ${String(medicao.numero).padStart(2,'0')}`
   const ws = wb.addWorksheet(abaNome)
 
-  // Larguras exatamente como no modelo PREV 02
-  const W = [9.33, 13.44, 52.78, 9.66, 5.11, 8.0, 7.89, 7.89, 13.11, 10.0, 10.0, 11.11, 7.89, 10.0, 10.0, 11.44, 11.78, 10.0, 7.89]
+  // 19 colunas A–S — logo maior (col A-C mais largas)
+  const W = [12, 12, 52, 10, 6, 9, 8, 8, 13, 10, 10, 11, 8, 10, 10, 12, 12, 10, 8]
   W.forEach((w, i) => ws.getColumn(i + 1).width = w)
 
-  ws.getRow(1).height  = 14.4
-  ws.getRow(9).height  = 16
-  ws.getRow(10).height = 8    // linha separadora
-  ws.getRow(11).height = 12
-  ws.getRow(12).height = 30
+  const N2 = '#,##0.00', N4 = '#,##0.0000', PCT = '0.00%', DAT = 'DD/MM/YYYY'
+  const dataEmissao = medicao.data_medicao ? new Date(medicao.data_medicao + 'T00:00:00') : new Date()
+  const dtFim = medicao.data_medicao ? new Date(medicao.data_medicao+'T00:00:00').toLocaleDateString('pt-BR') : '—'
+  const vals = calcValoresMedicao(servicos, linhasPorServico, obra)
 
-  const N2  = '#,##0.00'
-  const N4  = '#,##0.0000'
-  const PCT = '0.00%'
-  const DAT = 'DD/MM/YYYY'
-
-  const dataEmissao = medicao.data_medicao
-    ? new Date(medicao.data_medicao + 'T00:00:00')
-    : new Date()
-
-  // ── BLOCO LOGO (A1:B9) ────────────────────────────────────────────────────
-  ws.mergeCells('A1:B9')
+  // ── BLOCO LOGO (A1:C9) — 3 colunas, espaço amplo ──────────────────────
+  ws.mergeCells('A1:C9')
   ws.getCell('A1').fill = solidFill(PF_CINZA_LOGO)
+  ws.getCell('A1').border = thinBorder()
   if (logoBase64) {
     try {
       const base64Data = logoBase64.split(',')[1] || logoBase64
       const ext = logoBase64.includes('png') ? 'png' : 'jpeg'
       const imgId = wb.addImage({ base64: base64Data, extension: ext as 'png'|'jpeg' })
-      ws.addImage(imgId, { tl:{col:0,row:0}, br:{col:2,row:9}, editAs:'oneCell' })
+      ws.addImage(imgId, { tl:{col:0,row:0}, br:{col:3,row:9}, editAs:'oneCell' })
     } catch {}
   }
 
-  // ── BLOCO EMPRESA RD (N1:S9) — fundo CINZA ───────────────────────────────
+  // ── BLOCO EMPRESA RD (N1:S9) — fundo CINZA ────────────────────────────
   ws.mergeCells('N1:S9')
   setCell(ws,'N1',
     'RD CONSTRUTORA LTDA\nRUA BELA VISTA, 874, JARDINS, SÃO GONÇALO DO AMARANTE/RN\nCEP: 59293-576, CNPJ: 43.357.757/0001-40\nemail: rd_solucoes@outlook.com\ntel.: (84) 99641-8124',
-    { font: pf8(true), align: pfALT, fill: solidFill(PF_CINZA_LOGO) }
+    { font: pf8(true), align: pfALT, fill: solidFill(PF_CINZA_LOGO), border: thinBorder() }
   )
 
-  // ── LINHAS 1-9 CABEÇALHO CENTRAL (C..M) ─────────────────────────────────
-  // L1: labels finos
-  ws.mergeCells('D1:G1')
-  setCell(ws,'C1','CONCEDENTE',          { font:pf8(), align:pfAL })
-  setCell(ws,'D1','Data de emissão BM',  { font:pf8(), align:pfAL })
+  // ── CABEÇALHO CENTRAL (D..M, linhas 1-9) — espelha PDF exatamente ─────
+  for (let r = 1; r <= 9; r++) ws.getRow(r).height = 14
+
+  // L1: labels
+  setCell(ws,'D1','CONCEDENTE',     { font:pf6(), align:pfAL, border:thinBorder() })
+  ws.mergeCells('E1:G1')
+  setCell(ws,'E1','Data emissão BM',{ font:pf6(), align:pfAL, border:thinBorder() })
   ws.mergeCells('H1:J1')
-  setCell(ws,'H1','Período de referência',{ font:pf8(), align:pfAL })
-  // K1:M1 = VALOR DO CONTRATO — fundo CINZA
+  setCell(ws,'H1','Período ref.',   { font:pf6(), align:pfAL, border:thinBorder() })
   ws.mergeCells('K1:M1')
-  setCell(ws,'K1','VALOR DO CONTRATO', {
-    font:pf8(), align:pfAC, fill:solidFill(PF_CINZA_HDR), border:thinBorder(),
-  })
+  setCell(ws,'K1','VALOR DO CONTRATO', { font:pf6(true), align:pfAC, fill:solidFill(PF_CINZA_HDR), border:thinBorder() })
 
-  // L2: concedente + data + período + valor contrato
-  ws.mergeCells('D2:G2')
-  setCell(ws,'C2', contrato.orgao_nome||'', { font:pf8(true), align:pfAL })
-  setCell(ws,'D2', dataEmissao,              { font:pf8(true), align:pfAL, numFmt:DAT })
+  // L2: valores
+  setCell(ws,'D2', contrato.orgao_nome||'', { font:pf6(true), align:pfAL, border:thinBorder() })
+  ws.mergeCells('E2:G2')
+  setCell(ws,'E2', dataEmissao,             { font:pf6(true), align:pfAL, border:thinBorder(), numFmt:DAT })
   ws.mergeCells('H2:J2')
-  // período ex: "01/01/2026 a 06/02/2026" — usamos data_medicao como data final
-  const dtFim = medicao.data_medicao ? new Date(medicao.data_medicao+'T00:00:00').toLocaleDateString('pt-BR') : '—'
-  setCell(ws,'H2', dtFim, { font:pf8(true), align:pfAL })
+  setCell(ws,'H2', dtFim,                   { font:pf6(true), align:pfAL, border:thinBorder() })
   ws.mergeCells('K2:M2')
-  // Preenchido depois com SUM dos grupos
+  setCell(ws,'K2', vals.totalOrcamento,      { font:pf8(true), align:pfAR, border:thinBorder(), numFmt:N2 })
 
-  // L3: convenete + objetivo
-  ws.mergeCells('D3:J3')
-  setCell(ws,'C3','CONVENETE',                    { font:pf8(), align:pfAL })
-  setCell(ws,'D3','OBJETIVO DA ORDEM DE SERVIÇO', { font:pf8(), align:pfAL })
+  // L3
+  setCell(ws,'D3','CONVENENTE',               { font:pf6(), align:pfAL, border:thinBorder() })
+  ws.mergeCells('E3:J3')
+  setCell(ws,'E3','OBJETIVO DA O.S.',         { font:pf6(), align:pfAL, border:thinBorder() })
   ws.mergeCells('K3:M3')
-  setCell(ws,'K3',`VALOR DA O.S. ${contrato.numero_contrato||''}`, { font:pf8(), align:pfAL })
+  setCell(ws,'K3',`VALOR O.S. ${contrato.numero_contrato||''}`, { font:pf6(), align:pfAL, border:thinBorder() })
 
-  // L4-6: concedente (nome grande) + processo licitatório + valor OS
-  ws.mergeCells('D4:J6')
-  setCell(ws,'C4', contrato.orgao_nome||'', { font:pf8(true), align:pfAL })
-  setCell(ws,'D4', obra.nome_obra||'',       { font:pf8(true), align:pfAL })
-  ws.mergeCells('C5:C6')
-  setCell(ws,'C5','PROCESSO LICITATÓRIO', { font:pf8(), align:pfAL })
+  // L4
+  setCell(ws,'D4', contrato.orgao_nome||'',   { font:pf6(true), align:pfAL, border:thinBorder() })
+  ws.mergeCells('E4:J4')
+  setCell(ws,'E4', obra.nome_obra||'',         { font:pf6(true), align:pfAL, border:thinBorder() })
   ws.mergeCells('K4:M4')
-  // K4 = =K2 (preenchido depois)
+  setCell(ws,'K4', vals.totalOrcamento,        { font:pf8(true), align:pfAR, border:thinBorder(), numFmt:N2 })
+
+  // L5
+  setCell(ws,'D5','PROC. LICITATÓRIO',        { font:pf6(), align:pfAL, border:thinBorder() })
+  ws.mergeCells('E5:J5')
+  setCell(ws,'E5', obra.numero_contrato||'',   { font:pf6(true), align:pfAL, border:thinBorder() })
   ws.mergeCells('K5:M5')
-  setCell(ws,'K5','VALOR ACUMULADO', {
-    font:pf8(), align:pfAC, fill:solidFill(PF_CINZA_HDR), border:thinBorder(),
-  })
+  setCell(ws,'K5','VALOR ACUMULADO',           { font:pf6(true), align:pfAC, fill:solidFill(PF_CINZA_HDR), border:thinBorder() })
+
+  // L6
+  setCell(ws,'D6','EMPRESA',                   { font:pf6(), align:pfAL, border:thinBorder() })
+  ws.mergeCells('E6:F6')
+  setCell(ws,'E6','CNPJ',                      { font:pf6(), align:pfAL, border:thinBorder() })
+  ws.mergeCells('G6:J6')
+  ws.getCell('G6').border = thinBorder()
   ws.mergeCells('K6:M6')
-  setCell(ws,'K6',{ formula:'SUM(Q14:Q10000)' } as any, {
-    font:pf8(true), align:pfAR, border:thinBorder(), numFmt:N2,
-  })
+  setCell(ws,'K6', vals.valorAcumulado,        { font:pf8(true), align:pfAR, border:thinBorder(), numFmt:N2 })
 
-  // L7: empresa
-  ws.mergeCells('D7:J7')
-  setCell(ws,'C7','EMPRESA CONTRATADA', { font:pf8(), align:pfAL })
-  setCell(ws,'D7','CNPJ',               { font:pf8(), align:pfAL })
+  // L7
+  setCell(ws,'D7', contrato.empresa_executora||'', { font:pf6(true), align:pfAL, border:thinBorder() })
+  ws.mergeCells('E7:F7')
+  setCell(ws,'E7','43.357.757/0001-40',            { font:pf6(true), align:pfAL, border:thinBorder() })
+  ws.mergeCells('G7:J7')
+  ws.getCell('G7').border = thinBorder()
   ws.mergeCells('K7:M7')
-  setCell(ws,'K7','SALDO EM CONTRATO', {
-    font:pf8(), align:pfAC, fill:solidFill(PF_CINZA_HDR), border:thinBorder(),
-  })
+  setCell(ws,'K7','SALDO CONTRATO',            { font:pf6(true), align:pfAC, fill:solidFill(PF_CINZA_HDR), border:thinBorder() })
 
-  // L8: empresa contratada + cnpj + saldo
+  // L8
   ws.mergeCells('D8:J8')
-  setCell(ws,'C8', contrato.empresa_executora||'', { font:pf8(true), align:pfAL })
-  setCell(ws,'D8','43.357.757/0001-40',             { font:pf8(true), align:pfAL })
+  ws.getCell('D8').border = thinBorder()
   ws.mergeCells('K8:M8')
-  setCell(ws,'K8',{ formula:'K2-K6' } as any, {
-    font:pf8(true), align:pfAR, border:thinBorder(), numFmt:N2,
-  })
+  setCell(ws,'K8', vals.valorSaldo,            { font:pf8(true), align:pfAR, border:thinBorder(), numFmt:N2 })
 
-  // L9: boletim
-  ws.mergeCells('D9:F9')
-  setCell(ws,'C9',`BOLETIM DE MEDIÇÃO - N° ${medicao.numero}`, { font:pf8(true), align:pfAL })
-  setCell(ws,'D9','EMISSÃO DO BM', { font:pf8(), align:pfAL })
-  ws.mergeCells('G9:H9')
-  setCell(ws,'G9', dataEmissao, { font:pf8(true), align:pfAC, numFmt:DAT })
-  ws.mergeCells('I9:J9')
-  setCell(ws,'I9','VALOR MEDIDO NO PERÍODO:', { font:pf8(), align:pfAL })
+  // L9
+  setCell(ws,'D9',`BM N° ${medicao.numero}`,  { font:pf6(true), align:pfAL, border:thinBorder() })
+  ws.mergeCells('E9:G9')
+  setCell(ws,'E9',`EMISSÃO: ${dtFim}`,         { font:pf6(), align:pfAL, border:thinBorder() })
+  ws.mergeCells('H9:J9')
+  setCell(ws,'H9','VALOR MEDIDO:',             { font:pf6(), align:pfAL, border:thinBorder() })
   ws.mergeCells('K9:M9')
-  setCell(ws,'K9',{ formula:'SUM(P14:P10000)' } as any, {
-    font:pf9(true), align:pfAR, border:thinBorder(), numFmt:N2,
-    fill: solidFill(PF_VERDE_DADOS),  // verde claro no valor medido
-  })
+  setCell(ws,'K9', vals.valorPeriodo,          { font:pf9(true), align:pfAR, border:thinBorder(), numFmt:N2, fill:solidFill(PF_VERDE_DADOS) })
 
-  // ── CABEÇALHO DA TABELA (rows 11-12) ────────────────────────────────────
-  // Mesclagens
+  // ── SEPARADOR (row 10) ─────────────────────────────────────────────────
+  ws.getRow(10).height = 4
+
+  // ── CABEÇALHO DA TABELA (rows 11-12) — labels idênticos ao PDF ─────────
+  ws.getRow(11).height = 14
+  ws.getRow(12).height = 26
+
   ws.mergeCells('A11:A12'); ws.mergeCells('B11:B12'); ws.mergeCells('C11:C12')
   ws.mergeCells('D11:D12'); ws.mergeCells('E11:E12'); ws.mergeCells('F11:F12')
-  ws.mergeCells('G11:H11')  // PREÇO UNITÁRIO R$
-  ws.mergeCells('I11:J11')  // PREÇO TOTAL R$ (com colunas COM BDI + DESCONTO)
-  ws.mergeCells('K11:S11')  // PLANILHA DE MEDIÇÃO — VERDE
+  ws.mergeCells('G11:H11'); ws.mergeCells('I11:J11'); ws.mergeCells('K11:S11')
 
-  // Fundo cinza/azul para colunas A-J (cabeçalho base)
-  const hTabFill = solidFill(PF_AZUL_TABCAB)
-  ;['A11','B11','C11','D11','E11','F11'].forEach(a =>
-    setCell(ws, a, ['ITEM','CÓDIGO','DESCRIÇÃO','FONTE','UNID','QUANTIDADE'][['A11','B11','C11','D11','E11','F11'].indexOf(a)], {
-      font:pf6(true), align:pfAC, fill:hTabFill, border:thinBorder(),
-    })
+  const hFill = solidFill(PF_AZUL_TABCAB)
+  ;[['A11','ITEM'],['B11','CÓDIGO'],['C11','DESCRIÇÃO'],['D11','FONTE'],['E11','UN'],['F11','QTD']].forEach(([a,t]) =>
+    setCell(ws, a, t, { font:pf6(true), align:pfAC, fill:hFill, border:thinBorder() })
   )
-  setCell(ws,'G11','PREÇO UNITÁRIO R$',  { font:pf6(true), align:pfAC, fill:hTabFill, border:thinBorder() })
-  setCell(ws,'I11','PREÇO TOTAL R$',     { font:pf6(true), align:pfAC, fill:hTabFill, border:thinBorder() })
-
-  // K11-S11 = PLANILHA DE MEDIÇÃO — fundo VERDE
+  setCell(ws,'G11','P.UNIT. R$', { font:pf6(true), align:pfAC, fill:hFill, border:thinBorder() })
+  setCell(ws,'I11','P.TOTAL R$', { font:pf6(true), align:pfAC, fill:hFill, border:thinBorder() })
   setCell(ws,'K11','PLANILHA DE MEDIÇÃO', {
     font:{ name:'Arial', size:7, bold:true, color:{ argb:'FFFFFFFF' } },
     align:pfAC, fill:solidFill(PF_VERDE_MED), border:thinBorder(),
   })
 
-  // Row 12 — sub-cabeçalhos
-  ;['A12','B12','C12','D12','E12','F12'].forEach(a =>
-    setCell(ws, a, '', { fill:hTabFill, border:thinBorder() })
-  )
-  // G12, H12 = SEM BDI / COM BDI — azul claro
-  setCell(ws,'G12','SEM BDI', { font:pf6(true), align:pfAC, fill:hTabFill, border:thinBorder() })
-  setCell(ws,'H12','COM BDI', { font:pf6(true), align:pfAC, fill:hTabFill, border:thinBorder() })
-  // I12, J12 = COM BDI / DESCONTO — azul claro
-  setCell(ws,'I12','COM BDI',                                        { font:pf6(true), align:pfAC, fill:hTabFill, border:thinBorder() })
-  setCell(ws,'J12',`DESCONTO ${(obra.desconto_percentual*100).toFixed(1)}%`, { font:pf6(true), align:pfAC, fill:hTabFill, border:thinBorder() })
-  // K12..S12 = sub-cabeçalhos verdes claros
-  const verdeClaro = solidFill('C6EFCE')  // verde claro para sub-headers da planilha medição
-  ;[
-    ['K12','ACUMULADO ANTERIOR'],['L12','MED. NO PERÍODO'],['M12','(%)'],
-    ['N12','ACUMULADO ATUAL (UND)'],['O12','SALDO (UND)'],
-    ['P12','MED. ATUAL (R$)'],['Q12','ACUMULADO (R$)'],['R12','SALDO (R$)'],['S12','(%)'],
+  ;['A12','B12','C12','D12','E12','F12'].forEach(a => setCell(ws, a, '', { fill:hFill, border:thinBorder() }))
+  setCell(ws,'G12','S/BDI',  { font:pf6(true), align:pfAC, fill:hFill, border:thinBorder() })
+  setCell(ws,'H12','C/BDI',  { font:pf6(true), align:pfAC, fill:hFill, border:thinBorder() })
+  setCell(ws,'I12','C/BDI',  { font:pf6(true), align:pfAC, fill:hFill, border:thinBorder() })
+  setCell(ws,'J12',`DESC.${(obra.desconto_percentual*100).toFixed(0)}%`, { font:pf6(true), align:pfAC, fill:hFill, border:thinBorder() })
+
+  const verdeClaro = solidFill('C6EFCE')
+  ;[['K12','AC.ANT'],['L12','MED.PER'],['M12','%'],['N12','AC.UND'],['O12','SALDO'],
+    ['P12','MED.R$'],['Q12','AC.R$'],['R12','SALD.R$'],['S12','%']
   ].forEach(([a,t]) => setCell(ws, a, t, { font:pf6(true), align:pfAC, fill:verdeClaro, border:thinBorder() }))
 
-  // ── DADOS ─────────────────────────────────────────────────────────────────
+  // ── DADOS ──────────────────────────────────────────────────────────────
   const grupos = servicos.filter(s =>  s.is_grupo).sort((a,b) => a.ordem - b.ordem)
   const itens  = servicos.filter(s => !s.is_grupo)
   let dataRow  = 13
-  const grupoRefs: { gRow: number; iRows: number[] }[] = []
 
   for (const grp of grupos) {
     ws.getRow(dataRow).height = 14
-    const gRow = dataRow
-
-    ws.mergeCells(`B${dataRow}:H${dataRow}`)
-    // Linha de grupo: fundo CINZA (como no modelo)
     const gFill = solidFill('D9D9D9')
-    ;['A','B','C','D','E','F','G','H','I','J'].forEach(c =>
-      { ws.getCell(`${c}${dataRow}`).fill = gFill; ws.getCell(`${c}${dataRow}`).border = thinBorder() }
-    )
+    ws.mergeCells(`B${dataRow}:H${dataRow}`)
+    ;['A','B','I','J'].forEach(c => {
+      ws.getCell(`${c}${dataRow}`).fill = gFill; ws.getCell(`${c}${dataRow}`).border = thinBorder()
+    })
     setCell(ws,`A${dataRow}`, grp.item,     { font:pf6(true), align:pfAL, fill:gFill, border:thinBorder() })
     setCell(ws,`B${dataRow}`, grp.descricao,{ font:pf6(true), align:pfAL, fill:gFill, border:thinBorder() })
     setCell(ws,`I${dataRow}`, null,          { fill:gFill, border:thinBorder() })
     setCell(ws,`J${dataRow}`, null,          { fill:gFill, border:thinBorder() })
-
-    // Colunas K..S grupo: apenas borda superior
     const thin = { style: 'thin' as ExcelJS.BorderStyle }
     ws.getCell(`K${dataRow}`).border = { top:thin, left:thin }
     'LMNOPQR'.split('').forEach(c => { ws.getCell(`${c}${dataRow}`).border = { top:thin } })
     ws.getCell(`S${dataRow}`).border = { top:thin, right:thin }
-
     dataRow++
-    const iRows: number[] = []
 
     const filhos = itens.filter(s =>
-      s.grupo_item === grp.item ||
-      s.grupo_item === `${grp.item}.0` ||
-      s.grupo_item === String(parseFloat(grp.item))
+      s.grupo_item === grp.item || s.grupo_item === `${grp.item}.0` || s.grupo_item === String(parseFloat(grp.item))
     )
 
     for (const srv of filhos) {
@@ -505,10 +469,7 @@ async function gerarAbaPREF(
       const pBDI  = calcPrecoComBDI(pDesc, obra.bdi_percentual)
       const pTot  = pBDI * srv.quantidade
       const temPeriodo = qtdPeriodo > 0
-
-      // Fundo VERDE CLARO para linhas onde há medição no período
       const rowFill = temPeriodo ? solidFill(PF_VERDE_DADOS) : solidFill(PF_BRANCO)
-      const rowFillNums = temPeriodo ? solidFill(PF_VERDE_DADOS) : solidFill('F9F9F9')
 
       setCell(ws,`A${r}`, srv.item,       { font:pf6(), align:pfAL, border:thinBorder(), fill:rowFill })
       setCell(ws,`B${r}`, srv.codigo,     { font:pf6(), align:pfAC, border:thinBorder(), fill:rowFill })
@@ -520,114 +481,102 @@ async function gerarAbaPREF(
       setCell(ws,`H${r}`, pBDI,           { font:pf6(), align:pfAR, border:thinBorder(), fill:rowFill, numFmt:N2 })
       setCell(ws,`I${r}`, pTot,           { font:pf6(), align:pfAR, border:thinBorder(), fill:rowFill, numFmt:N2 })
 
-      // J = I * (1 - desconto)
-      ws.getCell(`J${r}`).value     = { formula:`I${r}*(1-${obra.desconto_percentual})` } as any
-      ws.getCell(`J${r}`).font      = pf6() as ExcelJS.Font
-      ws.getCell(`J${r}`).alignment = pfAR as ExcelJS.Alignment
-      ws.getCell(`J${r}`).border    = thinBorder() as ExcelJS.Borders
-      ws.getCell(`J${r}`).numFmt    = N2
-      ws.getCell(`J${r}`).fill      = rowFill
+      ws.getCell(`J${r}`).value = { formula:`I${r}*(1-${obra.desconto_percentual})` } as any
+      ws.getCell(`J${r}`).font = pf6() as ExcelJS.Font; ws.getCell(`J${r}`).alignment = pfAR as ExcelJS.Alignment
+      ws.getCell(`J${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`J${r}`).numFmt = N2; ws.getCell(`J${r}`).fill = rowFill
 
-      // K = acumulado anterior
       setCell(ws,`K${r}`, qtdAnterior, { font:pf6(), align:pfAC, border:thinBorder(), numFmt:N4,
-        fill: qtdAnterior > 0 ? solidFill(PF_VERDE_DADOS) : solidFill(PF_BRANCO),
-      })
-
-      // L = medido no período — VERDE se > 0
+        fill: qtdAnterior > 0 ? solidFill(PF_VERDE_DADOS) : solidFill(PF_BRANCO) })
       setCell(ws,`L${r}`, qtdPeriodo, { font:pf6(temPeriodo), align:pfAC, border:thinBorder(), numFmt:N4,
-        fill: temPeriodo ? solidFill(PF_VERDE_DADOS) : solidFill(PF_BRANCO),
-      })
+        fill: temPeriodo ? solidFill(PF_VERDE_DADOS) : solidFill(PF_BRANCO) })
 
-      // M = L/F (%)
-      ws.getCell(`M${r}`).value     = { formula:`IF(F${r}=0,0,L${r}/F${r})` } as any
-      ws.getCell(`M${r}`).font      = pf6() as ExcelJS.Font
-      ws.getCell(`M${r}`).alignment = pfAC as ExcelJS.Alignment
-      ws.getCell(`M${r}`).border    = thinBorder() as ExcelJS.Borders
-      ws.getCell(`M${r}`).numFmt    = PCT
-      ws.getCell(`M${r}`).fill      = temPeriodo ? solidFill(PF_VERDE_DADOS) : solidFill(PF_BRANCO)
+      ws.getCell(`M${r}`).value = { formula:`IF(F${r}=0,0,L${r}/F${r})` } as any
+      ws.getCell(`M${r}`).font = pf6() as ExcelJS.Font; ws.getCell(`M${r}`).alignment = pfAC as ExcelJS.Alignment
+      ws.getCell(`M${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`M${r}`).numFmt = PCT
+      ws.getCell(`M${r}`).fill = temPeriodo ? solidFill(PF_VERDE_DADOS) : solidFill(PF_BRANCO)
 
-      // N = K+L
-      ws.getCell(`N${r}`).value     = { formula:`K${r}+L${r}` } as any
-      ws.getCell(`N${r}`).font      = pf6() as ExcelJS.Font
-      ws.getCell(`N${r}`).alignment = pfAC as ExcelJS.Alignment
-      ws.getCell(`N${r}`).border    = thinBorder() as ExcelJS.Borders
-      ws.getCell(`N${r}`).numFmt    = N4
-      ws.getCell(`N${r}`).fill      = solidFill(PF_BRANCO)
+      ws.getCell(`N${r}`).value = { formula:`K${r}+L${r}` } as any
+      ws.getCell(`N${r}`).font = pf6() as ExcelJS.Font; ws.getCell(`N${r}`).alignment = pfAC as ExcelJS.Alignment
+      ws.getCell(`N${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`N${r}`).numFmt = N4; ws.getCell(`N${r}`).fill = solidFill(PF_BRANCO)
 
-      // O = F-N (saldo UND)
-      ws.getCell(`O${r}`).value     = { formula:`F${r}-N${r}` } as any
-      ws.getCell(`O${r}`).font      = pf6() as ExcelJS.Font
-      ws.getCell(`O${r}`).alignment = pfAC as ExcelJS.Alignment
-      ws.getCell(`O${r}`).border    = thinBorder() as ExcelJS.Borders
-      ws.getCell(`O${r}`).numFmt    = N4
-      ws.getCell(`O${r}`).fill      = solidFill(PF_BRANCO)
+      ws.getCell(`O${r}`).value = { formula:`F${r}-N${r}` } as any
+      ws.getCell(`O${r}`).font = pf6() as ExcelJS.Font; ws.getCell(`O${r}`).alignment = pfAC as ExcelJS.Alignment
+      ws.getCell(`O${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`O${r}`).numFmt = N4; ws.getCell(`O${r}`).fill = solidFill(PF_BRANCO)
 
-      // P = L*H*(1-desconto) — MED ATUAL R$ — VERDE
-      ws.getCell(`P${r}`).value     = { formula:`L${r}*H${r}*(1-${obra.desconto_percentual})` } as any
-      ws.getCell(`P${r}`).font      = pf6(temPeriodo) as ExcelJS.Font
-      ws.getCell(`P${r}`).alignment = pfAC as ExcelJS.Alignment
-      ws.getCell(`P${r}`).border    = thinBorder() as ExcelJS.Borders
-      ws.getCell(`P${r}`).numFmt    = N2
-      ws.getCell(`P${r}`).fill      = temPeriodo ? solidFill(PF_VERDE_DADOS) : solidFill(PF_BRANCO)
+      ws.getCell(`P${r}`).value = { formula:`L${r}*H${r}*(1-${obra.desconto_percentual})` } as any
+      ws.getCell(`P${r}`).font = pf6(temPeriodo) as ExcelJS.Font; ws.getCell(`P${r}`).alignment = pfAC as ExcelJS.Alignment
+      ws.getCell(`P${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`P${r}`).numFmt = N2
+      ws.getCell(`P${r}`).fill = temPeriodo ? solidFill(PF_VERDE_DADOS) : solidFill(PF_BRANCO)
 
-      // Q = N*H*(1-desconto) — ACUMULADO R$
-      ws.getCell(`Q${r}`).value     = { formula:`N${r}*H${r}*(1-${obra.desconto_percentual})` } as any
-      ws.getCell(`Q${r}`).font      = pf6() as ExcelJS.Font
-      ws.getCell(`Q${r}`).alignment = pfAC as ExcelJS.Alignment
-      ws.getCell(`Q${r}`).border    = thinBorder() as ExcelJS.Borders
-      ws.getCell(`Q${r}`).numFmt    = N2
-      ws.getCell(`Q${r}`).fill      = solidFill(PF_BRANCO)
+      ws.getCell(`Q${r}`).value = { formula:`N${r}*H${r}*(1-${obra.desconto_percentual})` } as any
+      ws.getCell(`Q${r}`).font = pf6() as ExcelJS.Font; ws.getCell(`Q${r}`).alignment = pfAC as ExcelJS.Alignment
+      ws.getCell(`Q${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`Q${r}`).numFmt = N2; ws.getCell(`Q${r}`).fill = solidFill(PF_BRANCO)
 
-      // R = H*O*(1-desconto) — SALDO R$
-      ws.getCell(`R${r}`).value     = { formula:`H${r}*O${r}*(1-${obra.desconto_percentual})` } as any
-      ws.getCell(`R${r}`).font      = pf6() as ExcelJS.Font
-      ws.getCell(`R${r}`).alignment = pfAC as ExcelJS.Alignment
-      ws.getCell(`R${r}`).border    = thinBorder() as ExcelJS.Borders
-      ws.getCell(`R${r}`).numFmt    = N2
-      ws.getCell(`R${r}`).fill      = solidFill(PF_BRANCO)
+      ws.getCell(`R${r}`).value = { formula:`H${r}*O${r}*(1-${obra.desconto_percentual})` } as any
+      ws.getCell(`R${r}`).font = pf6() as ExcelJS.Font; ws.getCell(`R${r}`).alignment = pfAC as ExcelJS.Alignment
+      ws.getCell(`R${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`R${r}`).numFmt = N2; ws.getCell(`R${r}`).fill = solidFill(PF_BRANCO)
 
-      // S = N/F (%) — VERDE se 100%
-      ws.getCell(`S${r}`).value     = { formula:`IF(F${r}=0,0,N${r}/F${r})` } as any
-      ws.getCell(`S${r}`).font      = pf6() as ExcelJS.Font
-      ws.getCell(`S${r}`).alignment = pfAC as ExcelJS.Alignment
-      ws.getCell(`S${r}`).border    = thinBorder() as ExcelJS.Borders
-      ws.getCell(`S${r}`).numFmt    = PCT
-      // Verde sólido se item 100% executado
       const pctAcum = srv.quantidade > 0 ? (qtdAnterior + qtdPeriodo) / srv.quantidade : 0
+      ws.getCell(`S${r}`).value = { formula:`IF(F${r}=0,0,N${r}/F${r})` } as any
+      ws.getCell(`S${r}`).font = pf6() as ExcelJS.Font; ws.getCell(`S${r}`).alignment = pfAC as ExcelJS.Alignment
+      ws.getCell(`S${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`S${r}`).numFmt = PCT
       ws.getCell(`S${r}`).fill = pctAcum >= 1 ? solidFill(PF_VERDE_MED) : solidFill(PF_BRANCO)
 
-      iRows.push(dataRow)
       dataRow++
     }
-    grupoRefs.push({ gRow, iRows })
   }
 
-  // ── Totais por grupo ──────────────────────────────────────────────────────
-  let totalOsFormula = ''
-  for (const { gRow, iRows } of grupoRefs) {
-    if (!iRows.length) continue
-    const fI = iRows.map(r => `I${r}`).join('+')
-    const fJ = iRows.map(r => `J${r}`).join('+')
-    ws.getCell(`I${gRow}`).value     = { formula: fI } as any
-    ws.getCell(`I${gRow}`).font      = pf6(true) as ExcelJS.Font
-    ws.getCell(`I${gRow}`).alignment = pfAR as ExcelJS.Alignment
-    ws.getCell(`I${gRow}`).numFmt    = N2
-    ws.getCell(`J${gRow}`).value     = { formula: fJ } as any
-    ws.getCell(`J${gRow}`).font      = pf6(true) as ExcelJS.Font
-    ws.getCell(`J${gRow}`).alignment = pfAR as ExcelJS.Alignment
-    ws.getCell(`J${gRow}`).numFmt    = N2
-    totalOsFormula += (totalOsFormula?',':'') + `I${gRow}`
-  }
-  if (totalOsFormula) {
-    ws.getCell('K2').value = { formula:`SUM(${totalOsFormula})` } as any
-    ws.getCell('K2').font  = pf8(true) as ExcelJS.Font
-    ws.getCell('K2').alignment = pfAR as ExcelJS.Alignment
-    ws.getCell('K2').numFmt    = N2
-    ws.getCell('K4').value = { formula:'K2' } as any
-    ws.getCell('K4').font  = pf8(true) as ExcelJS.Font
-    ws.getCell('K4').alignment = pfAR as ExcelJS.Alignment
-    ws.getCell('K4').numFmt    = N2
-  }
+  // ── TOTAIS GERAIS (idêntico ao PDF) ────────────────────────────────────
+  const rTot = dataRow
+  ws.getRow(rTot).height = 20
+  ws.mergeCells(`A${rTot}:H${rTot}`)
+  const totFill = solidFill(m.cores.linha_total)
+  const totFont: Partial<ExcelJS.Font> = { name:'Arial', size:7, bold:true, color:{ argb:'FFFFFFFF' } }
+  setCell(ws,`A${rTot}`,'TOTAIS GERAIS', { font:totFont, fill:totFill, align:pfAC, border:bT })
+  setCell(ws,`I${rTot}`, vals.totalOrcamento, { font:totFont, fill:totFill, align:pfAR, border:bT, numFmt:N2 })
+  setCell(ws,`J${rTot}`, vals.totalOrcamento*(1-obra.desconto_percentual), { font:totFont, fill:totFill, align:pfAR, border:bT, numFmt:N2 })
+  ;['K','L','M','N','O'].forEach(c => { ws.getCell(`${c}${rTot}`).fill = totFill; ws.getCell(`${c}${rTot}`).border = bT })
+  setCell(ws,`P${rTot}`, vals.valorPeriodo,   { font:totFont, fill:totFill, align:pfAR, border:bT, numFmt:N2 })
+  setCell(ws,`Q${rTot}`, vals.valorAcumulado, { font:totFont, fill:totFill, align:pfAR, border:bT, numFmt:N2 })
+  setCell(ws,`R${rTot}`, vals.valorSaldo,     { font:totFont, fill:totFill, align:pfAR, border:bT, numFmt:N2 })
+  ws.getCell(`S${rTot}`).fill = totFill; ws.getCell(`S${rTot}`).border = bT
+
+  // ── EXTENSO (idêntico ao PDF) ──────────────────────────────────────────
+  const rExt = rTot + 2
+  ws.mergeCells(`A${rExt}:S${rExt}`)
+  ws.getRow(rExt).height = 22
+  setCell(ws,`A${rExt}`,
+    `A presente medição importa o valor de: ${valorPorExtenso(vals.valorPeriodo).toUpperCase()} — ${new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(vals.valorPeriodo)}`,
+    { font:{ name:'Arial', size:8, bold:true }, fill:solidFill(m.cores.extenso_bg), align:align('left'),
+      border:{ bottom:{ style:'medium', color:{ argb:`FF${m.cores.extenso_borda}` } } } }
+  )
+
+  // ── DEMONSTRATIVO FINANCEIRO (idêntico ao PDF) ─────────────────────────
+  const rDemo = rExt + 2
+  ws.mergeCells(`A${rDemo}:E${rDemo}`)
+  ws.getRow(rDemo).height = 18
+  setCell(ws,`A${rDemo}`,'DEMONSTRATIVO FINANCEIRO', {
+    font:{ name:'Arial', size:8, bold:true, color:{ argb:'FFFFFFFF' } },
+    fill:solidFill(m.cores.demo_cabec), align:pfAC, border:bT,
+  })
+
+  const demo: [string, number, string][] = [
+    ['Valor Total Orçamento',                     vals.totalOrcamento,       N2],
+    [`${medicao.numero_extenso} Med. — Período`,  vals.valorPeriodo,         N2],
+    ['% da Medição',                               vals.percentualPeriodo,   PCT],
+    ['Faturado Acumulado',                         vals.valorAcumulado,       N2],
+    ['% Acumulado',                                vals.percentualAcumulado, PCT],
+    ['Saldo do Contrato',                          vals.valorSaldo,           N2],
+    ['% do Saldo',                                 vals.percentualSaldo,     PCT],
+  ]
+  demo.forEach(([label, val, fmt], i) => {
+    const r = rDemo + 1 + i
+    ws.getRow(r).height = 15
+    ws.mergeCells(`A${r}:D${r}`)
+    const bg = i % 2 === 0 ? solidFill(m.cores.hdr_cabec) : solidFill('FFFFFF')
+    setCell(ws,`A${r}`, label, { font:pf8(), fill:bg, align:pfAL, border:bD })
+    setCell(ws,`E${r}`, val,   { font:pf8(true), fill:bg, align:pfAR, border:bD, numFmt:fmt })
+  })
 
   ws.views = [{ state:'frozen', xSplit:0, ySplit:12 }]
 }
