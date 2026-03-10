@@ -704,6 +704,9 @@ async function gerarAbaMEM(
   for (const srv of servicosOrdenados) {
     const linhas = linhasPorServico.get(srv.id) || []
 
+    // Só inclui serviços que possuem linhas de memória (igual ao PDF)
+    if (!linhas.length) continue
+
     // Título do serviço
     ws.mergeCells(`A${row}:B${row}`); ws.getRow(row).height = 20
     'ABCDEFGHIJKLMN'.split('').forEach(c => {

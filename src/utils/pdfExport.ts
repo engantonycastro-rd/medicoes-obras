@@ -72,14 +72,14 @@ html,body{width:289mm;max-width:289mm;overflow-x:hidden;font-family:Arial,Helvet
 .page-break{page-break-after:always}
 
 /* PREF cabeçalho */
-.pf-cab{width:100%;border-collapse:collapse;border:0.6px solid #888;margin-bottom:0.8mm;font-size:5pt;table-layout:auto}
-.pf-cab td{padding:0.4mm 0.7mm;vertical-align:middle;border:0.3px solid #bbb}
+.pf-cab{width:100%;border-collapse:collapse;border:0.6px solid #000;margin-bottom:0.8mm;font-size:5pt;table-layout:auto}
+.pf-cab td{padding:0.4mm 0.7mm;vertical-align:middle;border:0.3px solid #000}
 .pf-lbl{color:#555;font-size:4.5pt;white-space:nowrap}
 .pf-val{font-weight:bold;font-size:5pt}
 .pf-hl{background:#D4D4D4;font-weight:bold;text-align:right;font-size:5pt}
 .pf-hl-val{font-weight:bold;text-align:right;font-size:5.5pt}
 .pf-verde{background:${p.linhaPeriodo};font-weight:bold;text-align:right;font-size:5.5pt}
-.pf-logo-cell{width:16mm;text-align:center;vertical-align:middle;border-right:0.6px solid #888}
+.pf-logo-cell{width:16mm;text-align:center;vertical-align:middle;border-right:0.6px solid #000}
 .pf-logo-cell img{max-width:14mm;max-height:12mm;object-fit:contain}
 .pf-empresa{font-size:4.5pt;line-height:1.35;vertical-align:top;text-align:left;padding:0.8mm;width:28mm}
 
@@ -99,7 +99,7 @@ html,body{width:289mm;max-width:289mm;overflow-x:hidden;font-family:Arial,Helvet
 
 /* Tabela medição */
 .t-med{width:100%;border-collapse:collapse;font-size:4.5pt;table-layout:fixed}
-.t-med th,.t-med td{border:0.3px solid #999;padding:0.2mm 0.35mm;vertical-align:middle;overflow:hidden;text-overflow:ellipsis}
+.t-med th,.t-med td{border:0.3px solid #000;padding:0.2mm 0.35mm;vertical-align:middle;overflow:hidden;text-overflow:ellipsis}
 .th-b{color:#fff;font-weight:bold;text-align:center;font-size:4pt;line-height:1.15;white-space:normal;word-break:break-word}
 .th-m{color:#fff;font-weight:bold;text-align:center;font-size:4pt;line-height:1.15;white-space:normal;word-break:break-word}
 .tr-par{background:#FAFAFA} .tr-imp{background:#fff}
@@ -112,14 +112,14 @@ html,body{width:289mm;max-width:289mm;overflow-x:hidden;font-family:Arial,Helvet
 .extenso{padding:0.8mm 1.5mm;margin:0.8mm 0;font-weight:bold;font-size:5.5pt;border-width:0.8px;border-style:solid}
 .demo-titulo{color:#fff;font-weight:bold;font-size:6pt;padding:0.8mm;margin-top:1mm}
 .demo-t{width:68mm;border-collapse:collapse;margin-top:0.6mm}
-.demo-t td{border:0.3px solid #aaa;padding:0.5mm 1mm;font-size:5pt}
+.demo-t td{border:0.3px solid #000;padding:0.5mm 1mm;font-size:5pt}
 .d-par{background:#F5F5F5} .d-imp{background:#fff}
 .d-val{font-weight:bold;text-align:right;width:24mm}
 
 /* Memória */
 .mem-tit{font-size:7pt;font-weight:bold;margin-bottom:0.8mm;padding:0.8mm 1.5mm;border-left-width:3px;border-left-style:solid}
 .t-mem{width:100%;border-collapse:collapse;margin-top:0.8mm;font-size:4.5pt;table-layout:fixed}
-.t-mem th,.t-mem td{border:0.3px solid #aaa;padding:0.2mm 0.4mm;vertical-align:middle;overflow:hidden;text-overflow:ellipsis}
+.t-mem th,.t-mem td{border:0.3px solid #000;padding:0.2mm 0.4mm;vertical-align:middle;overflow:hidden;text-overflow:ellipsis}
 .th-mem{color:#fff;font-weight:bold;text-align:center;font-size:4.5pt;white-space:nowrap}
 .tr-srv{font-weight:bold}
 .tr-tam{font-weight:bold} .tr-tan{font-weight:bold} .tr-tme{font-weight:bold}
