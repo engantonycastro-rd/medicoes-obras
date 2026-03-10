@@ -2,10 +2,11 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Trash2, ChevronDown, ChevronUp, AlertCircle,
-  Save, Download, CheckCircle2, Clock, XCircle, Camera, FileDown, Filter,
+  Save, Download, CheckCircle2, Clock, XCircle, Camera, FileDown, Filter, Zap,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
+import { usePerfilStore } from '../lib/perfilStore'
 import { Servico, LinhaMemoria, StatusLinhaMemoria } from '../types'
 import {
   calcularTotalLinha, calcResumoServico, formatCurrency, formatNumber,
@@ -42,7 +43,9 @@ export function MemoriaPage() {
   const [mostraFotos, setMostraFotos] = useState(false)
   const [medicoesDaObra, setMedicoesDaObra] = useState<import('../types').Medicao[]>([])
   const [exportModal, setExportModal] = useState<'xlsx'|'pdf'|null>(null)
-  const { excelHabilitado } = useModeloStore()
+  const { excelHabilitado, medir100Habilitado } = useModeloStore()
+  const { perfilAtual } = usePerfilStore()
+  const isAdmin = perfilAtual?.role === 'ADMIN'
   // null = todas; string = item do grupo (ex: "2")
   const [etapaFiltro, setEtapaFiltro] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -155,6 +158,69 @@ export function MemoriaPage() {
     )
   }
 
+  async function handleMedir100() {
+    if (!medicaoAtiva || !obraAtiva) return
+    const todosServicos = servicos.filter(s => !s.is_grupo).sort((a, b) => a.ordem - b.ordem)
+    
+    // Calcula quantos serviços têm saldo > 0
+    const servicosComSaldo = todosServicos.filter(srv => {
+      const linhas = linhasPorServico.get(srv.id) || []
+      const { qtdSaldo } = calcResumoServico(srv, linhas)
+      return qtdSaldo > 0 && srv.quantidade > 0
+    })
+
+    if (servicosComSaldo.length === 0) {
+      toast('Todos os serviços já estão com 100% medidos!', { icon: '✅' })
+      return
+    }
+
+    if (!confirm(
+      `MEDIR 100%\n\n` +
+      `Serão preenchidos ${servicosComSaldo.length} serviço(s) com o saldo restante.\n` +
+      `Cada um receberá uma linha "TOTAL" com a quantidade prevista.\n\n` +
+      `Deseja continuar?`
+    )) return
+
+    let criados = 0
+    let erros = 0
+
+    for (const srv of servicosComSaldo) {
+      const linhas = linhasPorServico.get(srv.id) || []
+      const { qtdSaldo } = calcResumoServico(srv, linhas)
+      if (qtdSaldo <= 0) continue
+
+      // Calcula próximo sub_item
+      const existentes = linhas.map(l => l.sub_item).filter(s => s.startsWith(`${srv.item}.`))
+      let nextNum = 1
+      if (existentes.length > 0) {
+        const nums = existentes.map(s => parseInt(s.split('.').pop() || '0')).filter(n => !isNaN(n))
+        nextNum = Math.max(...nums) + 1
+      }
+
+      try {
+        await salvarLinha({
+          medicao_id: medicaoAtiva.id,
+          servico_id: srv.id,
+          sub_item: `${srv.item}.${nextNum}`,
+          descricao_calculo: 'TOTAL',
+          largura: null, comprimento: null, altura: null,
+          perimetro: null, area: null, volume: null,
+          kg: null, outros: null, desconto_dim: null,
+          quantidade: qtdSaldo,
+          total: qtdSaldo,
+          status: 'A pagar' as any,
+          observacao: null,
+        })
+        criados++
+      } catch {
+        erros++
+      }
+    }
+
+    if (criados > 0) toast.success(`${criados} serviço(s) medidos a 100%!`)
+    if (erros > 0) toast.error(`${erros} erro(s) ao criar linhas`)
+  }
+
   const isAprovada = medicaoAtiva.status === 'APROVADA'
 
   return (
@@ -195,6 +261,13 @@ export function MemoriaPage() {
             }`}>
             <Camera size={13}/> Fotos
           </button>
+          {isAdmin && medir100Habilitado && !isAprovada && (
+            <button onClick={handleMedir100}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-amber-300 rounded-lg text-xs font-bold
+                text-amber-700 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 transition-all">
+              <Zap size={13}/> Medir 100%
+            </button>
+          )}
           {excelHabilitado && (
             <button onClick={handleExportXlsx}
               className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:border-emerald-300 hover:text-emerald-600 hover:bg-emerald-50 transition-all">

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { Settings, Image, Plus, Trash2, CheckCircle2, Upload, Crown, Lock, TableProperties, FileSpreadsheet, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Settings, Image, Plus, Trash2, CheckCircle2, Upload, Crown, Lock, TableProperties, FileSpreadsheet, ToggleLeft, ToggleRight, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
 import { usePerfilStore } from '../lib/perfilStore'
@@ -11,7 +11,7 @@ type Aba = 'logos' | 'modelos' | 'exportacao'
 export function ConfigPage() {
   const { logos, fetchLogos, adicionarLogo, deletarLogo, logoSelecionada, setLogoSelecionada } = useStore()
   const { perfilAtual } = usePerfilStore()
-  const { excelHabilitado, setExcelHabilitado } = useModeloStore()
+  const { excelHabilitado, setExcelHabilitado, medir100Habilitado, setMedir100Habilitado } = useModeloStore()
   const isAdmin = perfilAtual?.role === 'ADMIN'
 
   const [abaAtiva,  setAbaAtiva]  = useState<Aba>('logos')
@@ -271,6 +271,39 @@ export function ConfigPage() {
                 </div>
               </div>
               <span className="px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold">Sempre Ativo</span>
+            </div>
+
+            {/* Toggle MEDIR 100% */}
+            <div className="flex items-center justify-between p-4 border border-slate-200 rounded-xl bg-white">
+              <div className="flex items-center gap-4">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  medir100Habilitado ? 'bg-amber-100' : 'bg-slate-100'
+                }`}>
+                  <Zap size={20} className={medir100Habilitado ? 'text-amber-600' : 'text-slate-400'}/>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-800 text-sm">Medir 100% (ação rápida)</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {medir100Habilitado
+                      ? 'Habilitado — botão visível na Memória de Cálculo para administradores. Preenche todos os serviços automaticamente com a quantidade prevista.'
+                      : 'Desabilitado — botão oculto para todos os usuários'
+                    }
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setMedir100Habilitado(!medir100Habilitado)
+                  toast.success(medir100Habilitado ? 'Medir 100% desabilitado' : 'Medir 100% habilitado')
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                  medir100Habilitado
+                    ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                    : 'bg-slate-200 hover:bg-slate-300 text-slate-600'
+                }`}>
+                {medir100Habilitado ? <ToggleRight size={18}/> : <ToggleLeft size={18}/>}
+                {medir100Habilitado ? 'Habilitado' : 'Desabilitado'}
+              </button>
             </div>
           </div>
         </div>
