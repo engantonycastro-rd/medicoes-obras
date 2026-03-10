@@ -1,4 +1,4 @@
-import { LinhaMemoria, Servico, Contrato } from '../types'
+import { LinhaMemoria, Servico, Contrato, Obra } from '../types'
 
 // ─── FORMATAÇÃO ───────────────────────────────────────────────────────────────
 
@@ -134,6 +134,9 @@ export function calcValoresMedicao(
   let valorPeriodo = 0
   let valorAcumulado = 0
 
+  // Arredonda para 2 casas (padrão financeiro)
+  const r2 = (n: number) => Math.round(n * 100) / 100
+
   for (const srv of servicos) {
     if (srv.is_grupo) continue
 
@@ -143,13 +146,27 @@ export function calcValoresMedicao(
     totalOrcamento += precoTotal
 
     const linhas = linhasPorServico.get(srv.id) || []
-    const { qtdAnterior, qtdPeriodo } = calcResumoServico(srv, linhas)
+    const { qtdAnterior, qtdPeriodo, qtdAcumulada } = calcResumoServico(srv, linhas)
 
     // Preço BDI usando o BDI real do contrato
-    const precoBDIDemo = calcPrecoComBDI(precoComDesconto, contrato.bdi_percentual)
+    const precoBDI = calcPrecoComBDI(precoComDesconto, contrato.bdi_percentual)
 
-    valorAcumulado += (qtdAnterior + qtdPeriodo) * precoBDIDemo
-    valorPeriodo += qtdPeriodo * precoBDIDemo
+    // Quando 100% medido, usa o valor do contrato (evita diferença de arredondamento)
+    if (qtdAcumulada >= srv.quantidade && srv.quantidade > 0) {
+      valorAcumulado += precoTotal
+      // Período = total apenas se tudo foi medido neste período (qtdAnterior == 0)
+      if (qtdAnterior === 0) {
+        valorPeriodo += precoTotal
+      } else {
+        // Parte do período: total - valor já acumulado anterior (arredondado)
+        const valAnterior = r2(qtdAnterior * precoBDI)
+        valorPeriodo += precoTotal - valAnterior
+      }
+    } else {
+      // Parcialmente medido: arredonda cada multiplicação individualmente
+      valorAcumulado += r2((qtdAnterior + qtdPeriodo) * precoBDI)
+      valorPeriodo += r2(qtdPeriodo * precoBDI)
+    }
   }
 
   const valorSaldo = totalOrcamento - valorAcumulado

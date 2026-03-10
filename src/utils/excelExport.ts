@@ -148,9 +148,12 @@ async function gerarAbaESTADO(
   setCell(ws,'D4', `OBRA: ${obra.nome_obra}  |  LOCAL: ${obra.local_obra}`, { font:fB(9), fill:solidFill(C.hdr_cabec), align:align('center') })
   setCell(ws,'D5', `Contrato: ${obra.numero_contrato||'—'}  |  Empresa: ${contrato.empresa_executora}`, { font:fN(8), fill:solidFill(C.hdr_cabec), align:align('center') })
 
+  const estadoDataFmt = medicao.data_medicao ? new Date(medicao.data_medicao+'T00:00:00').toLocaleDateString('pt-BR') : '—'
+  const estadoPeriodo = (medicao as any).periodo_referencia || estadoDataFmt
+
   ws.mergeCells('U2:W2'); ws.mergeCells('U3:W3'); ws.mergeCells('U4:W4'); ws.mergeCells('U5:W5')
   setCell(ws,'U2',`${medicao.numero_extenso} MEDIÇÃO`, { font:{...fW(14)}, fill:solidFill(C.hdr_topo), align:align('center'), border:bE })
-  setCell(ws,'U3',`Data: ${medicao.data_medicao ? new Date(medicao.data_medicao+'T00:00:00').toLocaleDateString('pt-BR') : '—'}`, { font:fN(8), fill:solidFill(C.hdr_cabec), align:align('center') })
+  setCell(ws,'U3',`Período: ${estadoPeriodo}`, { font:fN(8), fill:solidFill(C.hdr_cabec), align:align('center') })
   setCell(ws,'U4',`Desc: ${(obra.desconto_percentual*100).toFixed(2)}%  |  BDI: ${(obra.bdi_percentual*100).toFixed(2)}%`, { font:fN(8), fill:solidFill(C.hdr_cabec), align:align('center') })
   setCell(ws,'U5',`${obra.data_base_planilha||''}  |  Prazo: ${obra.prazo_execucao_dias}d`, { font:fN(8), fill:solidFill(C.hdr_cabec), align:align('center') })
 
@@ -195,6 +198,13 @@ async function gerarAbaESTADO(
       const linhas = linhasPorServico.get(srv.id) || []
       const { qtdAnterior, qtdPeriodo, qtdAcumulada, qtdSaldo } = calcResumoServico(srv, linhas)
       const rowFill = row % 2 === 0 ? solidFill(C.linha_par) : solidFill(C.linha_impar)
+      const pctAcum = srv.quantidade > 0 ? qtdAcumulada / srv.quantidade : 0
+      const is100 = pctAcum >= 1 && srv.quantidade > 0
+      const r2 = (n: number) => Math.round(n * 100) / 100
+      const eAntR = r2(qtdAnterior * pBDI)
+      const eAcumR = is100 ? pTotal : r2(qtdAcumulada * pBDI)
+      const ePerR = is100 && qtdAnterior === 0 ? pTotal : is100 ? pTotal - eAntR : r2(qtdPeriodo * pBDI)
+      const eSaldR = is100 ? 0 : pTotal - eAcumR
       type CD = [string, ExcelJS.CellValue, string, ExcelJS.Alignment['horizontal']]
       const cols: CD[] = [
         ['A',srv.item,'@','center'],['B',srv.fonte,'@','center'],['C',srv.codigo||'','@','center'],
@@ -204,10 +214,10 @@ async function gerarAbaESTADO(
         ['L',srv.quantidade,'#,##0.00','right'],['M',qtdAnterior,'#,##0.00','right'],
         ['N',qtdPeriodo,'#,##0.00','right'],['O',qtdAcumulada,'#,##0.00','right'],['P',qtdSaldo,'#,##0.00','right'],
         ['Q',pDesc,'R$ #,##0.00','right'],['R',pBDI,'R$ #,##0.00','right'],
-        ['S',qtdAnterior*pBDI,'R$ #,##0.00','right'],['T',qtdAcumulada*pBDI,'R$ #,##0.00','right'],
-        ['U',qtdPeriodo*pBDI,'R$ #,##0.00','right'],
-        ['V',pTotal - qtdAcumulada*pBDI,'R$ #,##0.00','right'],
-        ['W',pTotal > 0 ? (pTotal - qtdAcumulada*pBDI)/pTotal : 0,'0.00%','right'],
+        ['S',eAntR,'R$ #,##0.00','right'],['T',eAcumR,'R$ #,##0.00','right'],
+        ['U',ePerR,'R$ #,##0.00','right'],
+        ['V',eSaldR,'R$ #,##0.00','right'],
+        ['W',is100 ? 0 : (pTotal > 0 ? eSaldR/pTotal : 0),'0.00%','right'],
       ]
       cols.forEach(([col, val, fmt, al]) => {
         const c = ws.getCell(`${col}${row}`)
@@ -304,6 +314,7 @@ async function gerarAbaPREF(
   const N2 = '#,##0.00', R2 = 'R$ #,##0.00', PCT = '0.00%', DAT = 'DD/MM/YYYY'
   const dataEmissao = medicao.data_medicao ? new Date(medicao.data_medicao + 'T00:00:00') : new Date()
   const dtFim = medicao.data_medicao ? new Date(medicao.data_medicao+'T00:00:00').toLocaleDateString('pt-BR') : '—'
+  const periodoRef = (medicao as any).periodo_referencia || dtFim
   const vals = calcValoresMedicao(servicos, linhasPorServico, obra)
 
   // ── BLOCO LOGO (A1:C9) — 3 colunas, espaço amplo ──────────────────────
@@ -343,7 +354,7 @@ async function gerarAbaPREF(
   ws.mergeCells('E2:G2')
   setCell(ws,'E2', dataEmissao,             { font:pf6(true), align:pfAL, border:thinBorder(), numFmt:DAT })
   ws.mergeCells('H2:J2')
-  setCell(ws,'H2', dtFim,                   { font:pf6(true), align:pfAL, border:thinBorder() })
+  setCell(ws,'H2', periodoRef,                { font:pf6(true), align:pfAL, border:thinBorder() })
   ws.mergeCells('K2:M2')
   setCell(ws,'K2', vals.totalOrcamento,      { font:pf8(true), align:pfAR, border:thinBorder(), numFmt:N2 })
 
