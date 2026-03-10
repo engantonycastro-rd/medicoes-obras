@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Trash2, ChevronDown, ChevronUp, AlertCircle,
@@ -363,8 +363,66 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
   const valorPeriodo = qtdPeriodo * precoBDI
   const progresso = servico.quantidade > 0 ? Math.min(100, (qtdAcumulada / servico.quantidade) * 100) : 0
   const [novaLinha, setNovaLinha] = useState<Partial<LinhaMemoria>>({})
-  const [salvando, setSalvando] = useState(false)
+  const [salvandoNova, setSalvandoNova] = useState(false)
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle'|'saving'|'saved'>('idle')
 
+  // ── Debounced update for existing lines ──────────────────────────────────
+  // Updates UI immediately via store, debounces DB writes
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const pendingRef = useRef<Map<string, Partial<LinhaMemoria>>>(new Map())
+
+  function debouncedUpdate(linhaId: string, changes: Partial<LinhaMemoria>) {
+    // 1. Update store immediately for responsive UI
+    const currentState = useStore.getState()
+    const newMap = new Map(currentState.linhasPorServico)
+    newMap.forEach((arr, k) => newMap.set(k, arr.map(l => l.id === linhaId ? { ...l, ...changes } : l)))
+    useStore.setState({ linhasPorServico: newMap })
+
+    // 2. Merge pending DB changes
+    const prev = pendingRef.current.get(linhaId) || {}
+    const merged = { ...prev, ...changes }
+    pendingRef.current.set(linhaId, merged)
+
+    // 3. Clear existing timer and set new one
+    const existing = timersRef.current.get(linhaId)
+    if (existing) clearTimeout(existing)
+
+    setAutoSaveStatus('saving')
+
+    const timer = setTimeout(async () => {
+      const data = pendingRef.current.get(linhaId)
+      if (!data) return
+      pendingRef.current.delete(linhaId)
+      timersRef.current.delete(linhaId)
+      try {
+        // DB write only — store already updated above
+        const { error } = await (await import('../lib/supabase')).supabase
+          .from('linhas_memoria').update(data).eq('id', linhaId)
+        if (error) throw error
+        setAutoSaveStatus('saved')
+        setTimeout(() => setAutoSaveStatus(s => s === 'saved' ? 'idle' : s), 2000)
+      } catch {
+        toast.error('Erro ao salvar')
+        setAutoSaveStatus('idle')
+      }
+    }, 800)
+    timersRef.current.set(linhaId, timer)
+  }
+
+  // Flush pending saves on unmount
+  useEffect(() => {
+    return () => {
+      timersRef.current.forEach(t => clearTimeout(t))
+      pendingRef.current.forEach(async (data, id) => {
+        try {
+          const { supabase } = await import('../lib/supabase')
+          await supabase.from('linhas_memoria').update(data).eq('id', id)
+        } catch {}
+      })
+    }
+  }, [])
+
+  // ── Auto-create new line ─────────────────────────────────────────────────
   function proximoSubItem() {
     const existentes = linhas.map(l => l.sub_item).filter(s => s.startsWith(`${servico.item}.`))
     if (!existentes.length) return `${servico.item}.1`
@@ -377,39 +435,63 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
     return calcularTotalLinha(tmp)
   }
 
-  async function handleSalvar() {
-    if (!novaLinha.descricao_calculo?.trim()) { toast.error('Descrição obrigatória'); return }
-    setSalvando(true)
+  const autoCreateTimerRef = useRef<ReturnType<typeof setTimeout>|null>(null)
+
+  function handleNovaLinhaChange(changes: Partial<LinhaMemoria>) {
+    const updated = { ...novaLinha, ...changes }
+    setNovaLinha(updated)
+
+    // Auto-create: quando tem descrição E pelo menos um valor numérico
+    const temDescricao = (updated.descricao_calculo || '').trim().length > 0
+    const temValor = ['largura','comprimento','altura','perimetro','area','volume','kg','outros','desconto_dim','quantidade']
+      .some(k => (updated as any)[k] != null && (updated as any)[k] !== '')
+
+    if (temDescricao && temValor) {
+      if (autoCreateTimerRef.current) clearTimeout(autoCreateTimerRef.current)
+      autoCreateTimerRef.current = setTimeout(() => autoCreateLinha(updated), 1200)
+    }
+  }
+
+  async function autoCreateLinha(data: Partial<LinhaMemoria>) {
+    if (!data.descricao_calculo?.trim()) return
+    if (salvandoNova) return
+    setSalvandoNova(true)
+    setAutoSaveStatus('saving')
     try {
       await onSalvarLinha({
         medicao_id: medicaoId, servico_id: servico.id,
         sub_item: proximoSubItem(),
-        descricao_calculo: novaLinha.descricao_calculo || '',
-        largura:      novaLinha.largura      ?? null,
-        comprimento:  novaLinha.comprimento  ?? null,
-        altura:       novaLinha.altura       ?? null,
-        perimetro:    novaLinha.perimetro    ?? null,
-        area:         novaLinha.area         ?? null,
-        volume:       novaLinha.volume       ?? null,
-        kg:           novaLinha.kg           ?? null,
-        outros:       novaLinha.outros       ?? null,
-        desconto_dim: novaLinha.desconto_dim ?? null,
-        quantidade:   novaLinha.quantidade   ?? null,
-        total:        calcTotal(novaLinha),
-        status:       (novaLinha.status as StatusLinhaMemoria) ?? 'A pagar',
-        observacao:   novaLinha.observacao   ?? null,
+        descricao_calculo: data.descricao_calculo || '',
+        largura: data.largura ?? null, comprimento: data.comprimento ?? null,
+        altura: data.altura ?? null, perimetro: data.perimetro ?? null,
+        area: data.area ?? null, volume: data.volume ?? null,
+        kg: data.kg ?? null, outros: data.outros ?? null,
+        desconto_dim: data.desconto_dim ?? null, quantidade: data.quantidade ?? null,
+        total: calcTotal(data),
+        status: (data.status as StatusLinhaMemoria) ?? 'A pagar',
+        observacao: data.observacao ?? null,
       })
       setNovaLinha({})
-      toast.success('Linha adicionada!')
-    } catch { toast.error('Erro ao salvar linha') }
-    finally { setSalvando(false) }
+      setAutoSaveStatus('saved')
+      setTimeout(() => setAutoSaveStatus(s => s === 'saved' ? 'idle' : s), 2000)
+    } catch { toast.error('Erro ao criar linha') }
+    finally { setSalvandoNova(false) }
+  }
+
+  // Manual save (Enter key or button click)
+  async function handleSalvarManual() {
+    if (autoCreateTimerRef.current) clearTimeout(autoCreateTimerRef.current)
+    if (!novaLinha.descricao_calculo?.trim()) { toast.error('Descrição obrigatória'); return }
+    await autoCreateLinha(novaLinha)
   }
 
   const fieldCls = "w-full border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
-  const numField = (k: keyof LinhaMemoria) => (
+  const numFieldNew = (k: keyof LinhaMemoria) => (
     <input type="number" step="any" className={fieldCls + " text-right"}
       value={(novaLinha as any)[k] ?? ''}
-      onChange={e => setNovaLinha(p => ({ ...p, [k]: e.target.value === '' ? null : Number(e.target.value) }))} />
+      onChange={e => handleNovaLinhaChange({ [k]: e.target.value === '' ? null : Number(e.target.value) })}
+      onKeyDown={e => { if (e.key === 'Enter') handleSalvarManual() }}
+    />
   )
 
   return (
@@ -449,7 +531,22 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
 
       {expandido && (
         <div className="border-t border-slate-100 p-4">
-          {/* Tabela de linhas */}
+
+          {/* Autosave indicator */}
+          <div className="flex items-center justify-end mb-2 h-4">
+            {autoSaveStatus === 'saving' && (
+              <span className="text-xs text-amber-500 flex items-center gap-1 animate-pulse">
+                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"/>Salvando...
+              </span>
+            )}
+            {autoSaveStatus === 'saved' && (
+              <span className="text-xs text-emerald-500 flex items-center gap-1">
+                <CheckCircle2 size={11}/>Salvo automaticamente
+              </span>
+            )}
+          </div>
+
+          {/* Tabela de linhas existentes */}
           {linhas.length > 0 && (
             <div className="mb-4 overflow-x-auto">
               <table className="w-full text-xs">
@@ -467,7 +564,8 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
                       <tr key={linha.id} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="px-2 py-1.5 text-center font-mono">{linha.sub_item}</td>
                         <td className="px-2 py-1.5 min-w-32">
-                          <input value={linha.descricao_calculo} onChange={e => onAtualizarLinha(linha.id, { descricao_calculo: e.target.value })}
+                          <input value={linha.descricao_calculo}
+                            onChange={e => debouncedUpdate(linha.id, { descricao_calculo: e.target.value })}
                             className="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-amber-400 outline-none py-0.5 transition-colors" />
                         </td>
                         {(['largura','comprimento','altura','perimetro','area','volume','kg','outros','desconto_dim','quantidade'] as (keyof LinhaMemoria)[]).map(k => (
@@ -477,14 +575,16 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
                                 const val = e.target.value === '' ? null : Number(e.target.value)
                                 const updated = { ...linha, [k]: val }
                                 const total = calcularTotalLinha(updated as LinhaMemoria)
-                                onAtualizarLinha(linha.id, { [k]: val, total })
+                                debouncedUpdate(linha.id, { [k]: val, total })
                               }}
                               className="w-16 text-right bg-transparent border-b border-transparent hover:border-slate-300 focus:border-amber-400 outline-none py-0.5 transition-colors" />
                           </td>
                         ))}
                         <td className="px-2 py-1.5 text-right font-bold text-slate-800">{formatNumber(linha.total)}</td>
                         <td className="px-2 py-1.5">
-                          <select value={linha.status} onChange={e => onAtualizarLinha(linha.id, { status: e.target.value as StatusLinhaMemoria })}
+                          <select value={linha.status} onChange={e => {
+                            onAtualizarLinha(linha.id, { status: e.target.value as StatusLinhaMemoria })
+                          }}
                             className={`text-xs px-2 py-1 rounded-full border font-medium ${cfg.color}`}>
                             {Object.keys(STATUS_CONFIG).map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
@@ -512,19 +612,24 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
             ))}
           </div>
 
-          {/* Nova linha */}
+          {/* Nova linha — autosave */}
           <div className="bg-slate-50 rounded-xl p-3 border border-dashed border-slate-300">
-            <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">+ Adicionar Linha</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">+ Adicionar Linha</p>
+              <span className="text-[10px] text-slate-400">Preencha descrição + qualquer valor → salva automaticamente</span>
+            </div>
             <div className="grid grid-cols-12 gap-1.5 items-end">
               <div className="col-span-3">
                 <label className="text-xs text-slate-500 mb-1 block">Descrição *</label>
-                <input value={novaLinha.descricao_calculo || ''} onChange={e => setNovaLinha(p => ({ ...p, descricao_calculo: e.target.value }))}
+                <input value={novaLinha.descricao_calculo || ''}
+                  onChange={e => handleNovaLinhaChange({ descricao_calculo: e.target.value })}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSalvarManual() }}
                   placeholder="Ex: Parede sala" className={fieldCls} />
               </div>
               {(['largura','comprimento','altura','area','volume','kg','outros','desconto_dim','quantidade'] as (keyof LinhaMemoria)[]).map(k => (
                 <div key={k}>
                   <label className="text-xs text-slate-500 mb-1 block capitalize">{k === 'desconto_dim' ? 'Desc.' : k === 'comprimento' ? 'Comp.' : k.charAt(0).toUpperCase()+k.slice(1,4)+'.'}</label>
-                  {numField(k)}
+                  {numFieldNew(k)}
                 </div>
               ))}
               <div>
@@ -533,14 +638,14 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
               </div>
               <div>
                 <label className="text-xs text-slate-500 mb-1 block">Status</label>
-                <select className={fieldCls} value={novaLinha.status || 'A pagar'} onChange={e => setNovaLinha(p => ({ ...p, status: e.target.value as StatusLinhaMemoria }))}>
+                <select className={fieldCls} value={novaLinha.status || 'A pagar'} onChange={e => handleNovaLinhaChange({ status: e.target.value as StatusLinhaMemoria })}>
                   {Object.keys(STATUS_CONFIG).map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div className="flex items-end">
-                <button onClick={handleSalvar} disabled={salvando}
+                <button onClick={handleSalvarManual} disabled={salvandoNova}
                   className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition-all">
-                  <Save size={12}/> {salvando ? '...' : 'Salvar'}
+                  <Save size={12}/> {salvandoNova ? '...' : 'Salvar'}
                 </button>
               </div>
             </div>
