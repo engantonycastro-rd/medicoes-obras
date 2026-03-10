@@ -12,8 +12,9 @@ interface PerfilStore {
   fetchTodosPerfis: () => Promise<void>
   ativarUsuario: (userId: string) => Promise<void>
   desativarUsuario: (userId: string) => Promise<void>
-  alterarRole: (userId: string, role: 'ADMIN' | 'ENGENHEIRO') => Promise<void>
+  alterarRole: (userId: string, role: 'ADMIN' | 'GESTOR' | 'ENGENHEIRO') => Promise<void>
   atualizarNome: (userId: string, nome: string) => Promise<void>
+  atribuirGestor: (userId: string, gestorId: string | null) => Promise<void>
 }
 
 export const usePerfilStore = create<PerfilStore>((set) => ({
@@ -83,10 +84,27 @@ export const usePerfilStore = create<PerfilStore>((set) => ({
   },
 
   alterarRole: async (userId, role) => {
-    const { error } = await supabase
-      .from('perfis').update({ role }).eq('id', userId)
+    // Se está saindo de GESTOR, limpa gestor_id dos membros da equipe
+    const state = usePerfilStore.getState()
+    const antigoRole = state.perfis.find(p => p.id === userId)?.role
+    if (antigoRole === 'GESTOR' && role !== 'GESTOR') {
+      await supabase.from('perfis').update({ gestor_id: null }).eq('gestor_id', userId)
+    }
+    // Se está virando GESTOR, limpa seu próprio gestor_id (não pode ter gestor)
+    const updates: Record<string, any> = { role }
+    if (role === 'GESTOR' || role === 'ADMIN') updates.gestor_id = null
+
+    const { error } = await supabase.from('perfis').update(updates).eq('id', userId)
     if (error) { set({ error: error.message }); throw error }
-    set(s => ({ perfis: s.perfis.map(p => p.id === userId ? { ...p, role } : p) }))
+
+    set(s => ({
+      perfis: s.perfis.map(p => {
+        if (p.id === userId) return { ...p, ...updates }
+        // Se removeu GESTOR, limpa membros
+        if (antigoRole === 'GESTOR' && role !== 'GESTOR' && p.gestor_id === userId) return { ...p, gestor_id: null }
+        return p
+      }),
+    }))
   },
 
   atualizarNome: async (userId, nome) => {
@@ -96,6 +114,14 @@ export const usePerfilStore = create<PerfilStore>((set) => ({
     set(s => ({
       perfis: s.perfis.map(p => p.id === userId ? { ...p, nome } : p),
       perfilAtual: s.perfilAtual?.id === userId ? { ...s.perfilAtual, nome } : s.perfilAtual,
+    }))
+  },
+
+  atribuirGestor: async (userId, gestorId) => {
+    const { error } = await supabase.from('perfis').update({ gestor_id: gestorId }).eq('id', userId)
+    if (error) { set({ error: error.message }); throw error }
+    set(s => ({
+      perfis: s.perfis.map(p => p.id === userId ? { ...p, gestor_id: gestorId } : p),
     }))
   },
 }))
