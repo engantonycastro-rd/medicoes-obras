@@ -4,31 +4,46 @@ import {
   calcPrecoComDesconto, calcPrecoComBDI, calcPrecoTotal,
   calcResumoServico, calcValoresMedicao, valorPorExtenso,
 } from './calculations'
+import type { ModeloPlanilha } from '../lib/modeloStore'
+import { MODELO_ESTADO_DEFAULT, MODELO_PREFEITURA_DEFAULT } from '../lib/modeloStore'
 
 // ─── PALETAS ─────────────────────────────────────────────────────────────────
-const PAL = {
-  ESTADO: {
-    hdrPrincipal:'#1F3864', hdrSub:'#2E75B6', hdrCabec:'#DEEAF1',
-    hdrDirBg:'#ED7D31', thBase:'#1F3864', thMed:'#2E75B6',
-    trGrupo:'#BDD7EE', trTotal:'#1F3864',
-    extensoBg:'#FFF8E7', extensoBdr:'#ED7D31',
-    memTitulo:'#1F3864', memSub:'#2E75B6', memGrupo:'#BDD7EE', memGrupoFnt:'#1F3864',
-    memApagar:'#E2EFDA', memPago:'#DDEEFF',
-    memTotAc:'#D9D9D9', memTotAnt:'#DDEEFF', memTotMes:'#FFF2CC',
-    thMem:'#1F3864', faixaTopo:'#ED7D31',
-  },
-  PREFEITURA: {
-    hdrPrincipal:'#375623', hdrSub:'#70AD47', hdrCabec:'#E2EFDA',
-    hdrDirBg:'#375623', thBase:'#4E6B30', thMed:'#70AD47',
-    trGrupo:'#E2EFDA', trTotal:'#375623',
-    extensoBg:'#F0FFF0', extensoBdr:'#70AD47',
-    memTitulo:'#375623', memSub:'#70AD47', memGrupo:'#E2EFDA', memGrupoFnt:'#375623',
-    memApagar:'#C6EFCE', memPago:'#BDD7EE',
-    memTotAc:'#A9D08E', memTotAnt:'#C6EFCE', memTotMes:'#FFEB9C',
-    thMem:'#375623', faixaTopo:'#70AD47',
-  },
+type Pal = {
+  hdrPrincipal:string; hdrSub:string; hdrCabec:string;
+  hdrDirBg:string; thBase:string; thMed:string;
+  trGrupo:string; trTotal:string;
+  extensoBg:string; extensoBdr:string;
+  memTitulo:string; memSub:string; memGrupo:string; memGrupoFnt:string;
+  memApagar:string; memPago:string;
+  memTotAc:string; memTotAnt:string; memTotMes:string;
+  thMem:string; faixaTopo:string;
 }
-type Pal = typeof PAL.ESTADO
+
+function modelToPal(m: ModeloPlanilha): Pal {
+  return {
+    hdrPrincipal: `#${m.cores.hdr_principal}`,
+    hdrSub:       `#${m.cores.hdr_sub}`,
+    hdrCabec:     `#${m.cores.hdr_cabec}`,
+    hdrDirBg:     `#${m.cores.hdr_topo}`,
+    thBase:       `#${m.cores.th_base}`,
+    thMed:        `#${m.cores.th_medicao}`,
+    trGrupo:      `#${m.cores.linha_grupo}`,
+    trTotal:      `#${m.cores.linha_total}`,
+    extensoBg:    `#${m.cores.extenso_bg}`,
+    extensoBdr:   `#${m.cores.extenso_borda}`,
+    memTitulo:    `#${m.cores.mem_titulo}`,
+    memSub:       `#${m.cores.hdr_sub}`,
+    memGrupo:     `#${m.cores.mem_grupo}`,
+    memGrupoFnt:  `#${m.cores.mem_titulo}`,
+    memApagar:    `#${m.cores.mem_apagar}`,
+    memPago:      `#${m.cores.mem_pago}`,
+    memTotAc:     `#${m.cores.mem_tot_acum}`,
+    memTotAnt:    `#${m.cores.mem_tot_ant}`,
+    memTotMes:    `#${m.cores.mem_tot_mes}`,
+    thMem:        `#${m.cores.mem_titulo}`,
+    faixaTopo:    `#${m.cores.hdr_topo}`,
+  }
+}
 
 // ─── ENTRADA PRINCIPAL ────────────────────────────────────────────────────────
 export async function gerarMedicaoPDF(
@@ -39,14 +54,18 @@ export async function gerarMedicaoPDF(
   linhasPorServico: Map<string, LinhaMemoria[]>,
   logoBase64?: string | null,
   fotos?: FotoMedicao[],
-  medicoesAnteriores?: { numero_extenso: string; valorPeriodo: number }[]
+  medicoesAnteriores?: { numero_extenso: string; valorPeriodo: number }[],
+  modelo?: ModeloPlanilha
 ): Promise<void> {
-  const isPref = contrato.tipo === 'PREFEITURA'
-  const p = isPref ? PAL.PREFEITURA : PAL.ESTADO
+  const mod = modelo ?? (
+    contrato.tipo === 'PREFEITURA' ? MODELO_PREFEITURA_DEFAULT : MODELO_ESTADO_DEFAULT
+  )
+  const isPref = mod.base === 'PREFEITURA'
+  const p = modelToPal(mod)
 
   const htmlMED = gerarHTMLMED(contrato, obra, medicao, servicos, linhasPorServico, logoBase64, medicoesAnteriores, p, isPref)
   const htmlMEM = gerarHTMLMEM(contrato, obra, medicao, servicos, linhasPorServico, p, isPref)
-  const html    = montarDoc(obra, medicao, htmlMED, htmlMEM)
+  const html    = montarDoc(obra, medicao, htmlMED, htmlMEM, p)
 
   const blob = new Blob([html], { type: 'text/html; charset=utf-8' })
   const url  = URL.createObjectURL(blob)
@@ -57,7 +76,7 @@ export async function gerarMedicaoPDF(
 }
 
 // ─── CSS COMPARTILHADO ────────────────────────────────────────────────────────
-function montarDoc(obra: Obra, medicao: Medicao, med: string, mem: string) {
+function montarDoc(obra: Obra, medicao: Medicao, med: string, mem: string, p: Pal) {
   return `<!DOCTYPE html>
 <html lang="pt-BR"><head>
 <meta charset="UTF-8"/>
@@ -75,24 +94,24 @@ function montarDoc(obra: Obra, medicao: Medicao, med: string, mem: string) {
   .pf-val{font-weight:bold}
   .pf-hl{background:#D4D4D4;font-weight:bold;text-align:right;font-size:6.5pt}
   .pf-hl-val{font-weight:bold;text-align:right;font-size:7pt}
-  .pf-verde{background:#C6EFCE;font-weight:bold;text-align:right;font-size:7pt}
+  .pf-verde{background:${p.memApagar};font-weight:bold;text-align:right;font-size:7pt}
   .pf-logo-cell{width:22mm;text-align:center;vertical-align:middle;border-right:1px solid #888}
   .pf-logo-cell img{max-width:20mm;max-height:16mm;object-fit:contain}
   .pf-empresa{font-size:6pt;line-height:1.5;vertical-align:top;text-align:left;padding:1.5mm}
 
   /* ===== CABEÇALHO ESTADO ===== */
-  .est-cab{display:flex;border:1.5px solid #1F3864;margin-bottom:2mm}
-  .est-logo{width:26mm;display:flex;align-items:center;justify-content:center;border-right:1px solid #1F3864;padding:1.5mm;background:#fff}
+  .est-cab{display:flex;border:1.5px solid ${p.hdrPrincipal};margin-bottom:2mm}
+  .est-logo{width:26mm;display:flex;align-items:center;justify-content:center;border-right:1px solid ${p.hdrPrincipal};padding:1.5mm;background:#fff}
   .est-logo img{max-height:13mm;max-width:24mm;object-fit:contain}
   .est-logo span{font-size:6.5pt;color:#555;text-align:center}
   .est-centro{flex:1;display:flex;flex-direction:column}
-  .est-orgao{background:#1F3864;color:#fff;font-weight:bold;font-size:8.5pt;text-align:center;padding:1.5mm}
-  .est-sub{background:#2E75B6;color:#fff;font-size:7pt;text-align:center;padding:0.8mm}
-  .est-obra{background:#DEEAF1;font-size:6.5pt;text-align:center;padding:0.8mm;font-weight:bold}
-  .est-ctr{background:#DEEAF1;font-size:6pt;text-align:center;padding:0.5mm}
-  .est-dir{width:26mm;display:flex;flex-direction:column;border-left:1px solid #1F3864}
-  .est-dir-num{background:#ED7D31;color:#fff;font-weight:bold;font-size:10pt;text-align:center;padding:1.5mm;flex:1;display:flex;align-items:center;justify-content:center}
-  .est-dir-info{background:#DEEAF1;font-size:5.5pt;text-align:center;padding:0.8mm;border-top:1px solid #1F3864}
+  .est-orgao{background:${p.hdrPrincipal};color:#fff;font-weight:bold;font-size:8.5pt;text-align:center;padding:1.5mm}
+  .est-sub{background:${p.hdrSub};color:#fff;font-size:7pt;text-align:center;padding:0.8mm}
+  .est-obra{background:${p.hdrCabec};font-size:6.5pt;text-align:center;padding:0.8mm;font-weight:bold}
+  .est-ctr{background:${p.hdrCabec};font-size:6pt;text-align:center;padding:0.5mm}
+  .est-dir{width:26mm;display:flex;flex-direction:column;border-left:1px solid ${p.hdrPrincipal}}
+  .est-dir-num{background:${p.hdrDirBg};color:#fff;font-weight:bold;font-size:10pt;text-align:center;padding:1.5mm;flex:1;display:flex;align-items:center;justify-content:center}
+  .est-dir-info{background:${p.hdrCabec};font-size:5.5pt;text-align:center;padding:0.8mm;border-top:1px solid ${p.hdrPrincipal}}
 
   /* ===== TABELA MEDIÇÃO ===== */
   .t-med{width:100%;border-collapse:collapse;font-size:5.8pt}
@@ -103,8 +122,8 @@ function montarDoc(obra: Obra, medicao: Medicao, med: string, mem: string) {
   .tr-par{background:#FAFAFA}
   .tr-imp{background:#fff}
   .td-desc{text-align:left!important;white-space:normal!important;word-break:break-word;line-height:1.25}
-  .td-per{background:#C6EFCE;font-weight:bold}
-  .td-100{background:#70AD47;color:#fff}
+  .td-per{background:${p.memApagar};font-weight:bold}
+  .td-100{background:${p.thMed};color:#fff}
   .tr-tot{font-weight:bold}
   .num{text-align:right;white-space:nowrap}
   .ctr{text-align:center;white-space:nowrap}

@@ -14,6 +14,8 @@ import {
 import { gerarMedicaoExcel } from '../utils/excelExport'
 import { gerarMedicaoPDF } from '../utils/pdfExport'
 import { RelatorioFotografico } from '../components/RelatorioFotografico'
+import { ModeloExportModal } from '../components/ModeloExportModal'
+import type { ModeloPlanilha } from '../lib/modeloStore'
 
 const STATUS_CONFIG: Record<StatusLinhaMemoria, { label: string; color: string; icon: React.ReactNode }> = {
   'A pagar':      { label: 'A pagar',      color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: <Clock size={12}/> },
@@ -38,6 +40,7 @@ export function MemoriaPage() {
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set())
   const [mostraFotos, setMostraFotos] = useState(false)
   const [medicoesDaObra, setMedicoesDaObra] = useState<import('../types').Medicao[]>([])
+  const [exportModal, setExportModal] = useState<'xlsx'|'pdf'|null>(null)
   // null = todas; string = item do grupo (ex: "2")
   const [etapaFiltro, setEtapaFiltro] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -88,42 +91,48 @@ export function MemoriaPage() {
 
   async function handleExportXlsx() {
     if (!contratoAtivo || !obraAtiva || !medicaoAtiva) return
-    try {
-      await gerarMedicaoExcel(contratoAtivo, obraAtiva, medicaoAtiva, servicos, linhasPorServico, logoSelecionada)
-      toast.success('Excel exportado!')
-    } catch (err) { console.error(err); toast.error('Erro ao exportar Excel') }
+    setExportModal('xlsx')
   }
 
   async function handleExportPDF() {
     if (!contratoAtivo || !obraAtiva || !medicaoAtiva) return
-    try {
-      // Monta histórico de medições anteriores com valor calculado
-      const anteriores = medicoesDaObra
-        .filter(m => m.numero < medicaoAtiva.numero && m.status === 'APROVADA')
-        .sort((a, b) => a.numero - b.numero)
-        .map(m => ({
-          numero_extenso: m.numero_extenso,
-          valorPeriodo: 0, // será sobrescrito abaixo
-        }))
-      // Calcula valor real de cada medição anterior buscando suas linhas
-      const anterioresComValor: { numero_extenso: string; valorPeriodo: number }[] = []
-      for (const m of medicoesDaObra.filter(x => x.numero < medicaoAtiva.numero && x.status === 'APROVADA').sort((a,b) => a.numero - b.numero)) {
-        await fetchLinhasMedicao(m.id)
-        const st = useStore.getState()
-        const vals = calcValoresMedicao(servicos, st.linhasPorServico, obraAtiva)
-        anterioresComValor.push({ numero_extenso: m.numero_extenso, valorPeriodo: vals.valorPeriodo })
-      }
-      // Restaura linhas da medição atual
-      await fetchLinhasMedicao(medicaoAtiva.id)
+    setExportModal('pdf')
+  }
 
-      await gerarMedicaoPDF(
-        contratoAtivo, obraAtiva, medicaoAtiva,
-        servicos, linhasPorServico, logoSelecionada,
-        fotos.length > 0 ? fotos : undefined,
-        anterioresComValor.length > 0 ? anterioresComValor : undefined
-      )
-      toast.success('PDF gerado!')
-    } catch (err) { console.error(err); toast.error('Erro ao gerar PDF') }
+  async function confirmarExport(modelo: ModeloPlanilha) {
+    if (!contratoAtivo || !obraAtiva || !medicaoAtiva) return
+    const tipo = exportModal
+    setExportModal(null)
+
+    if (tipo === 'xlsx') {
+      try {
+        await gerarMedicaoExcel(contratoAtivo, obraAtiva, medicaoAtiva, servicos, linhasPorServico, logoSelecionada, modelo)
+        toast.success('Excel exportado!')
+      } catch (err) { console.error(err); toast.error('Erro ao exportar Excel') }
+    } else {
+      try {
+        const anteriores = medicoesDaObra
+          .filter(m => m.numero < medicaoAtiva.numero && m.status === 'APROVADA')
+          .sort((a, b) => a.numero - b.numero)
+        const anterioresComValor: { numero_extenso: string; valorPeriodo: number }[] = []
+        for (const m of anteriores) {
+          await fetchLinhasMedicao(m.id)
+          const st = useStore.getState()
+          const vals = calcValoresMedicao(servicos, st.linhasPorServico, obraAtiva)
+          anterioresComValor.push({ numero_extenso: m.numero_extenso, valorPeriodo: vals.valorPeriodo })
+        }
+        await fetchLinhasMedicao(medicaoAtiva.id)
+
+        await gerarMedicaoPDF(
+          contratoAtivo, obraAtiva, medicaoAtiva,
+          servicos, linhasPorServico, logoSelecionada,
+          fotos.length > 0 ? fotos : undefined,
+          anterioresComValor.length > 0 ? anterioresComValor : undefined,
+          modelo
+        )
+        toast.success('PDF gerado!')
+      } catch (err) { console.error(err); toast.error('Erro ao gerar PDF') }
+    }
   }
 
   if (!obraAtiva || !medicaoAtiva || !contratoAtivo) {
@@ -324,6 +333,15 @@ export function MemoriaPage() {
           />
         ))}
       </div>
+
+      {/* Modal seleção de modelo para exportação */}
+      {exportModal && (
+        <ModeloExportModal
+          tipo={exportModal}
+          onConfirmar={confirmarExport}
+          onFechar={() => setExportModal(null)}
+        />
+      )}
     </div>
   )
 }

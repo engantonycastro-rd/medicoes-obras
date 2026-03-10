@@ -262,6 +262,24 @@ async function gerarAbaESTADO(
 // Layout: 19 colunas A–S, exatamente como o modelo PREV 02
 // Novidades: cinza no cabeçalho, verde em PLANILHA DE MEDIÇÃO, verde nos dados
 // ═══════════════════════════════════════════════════════════════════════════════
+
+// Cores PREV 02 — prefeitura
+const PF_CINZA_LOGO   = 'F2F2F2'
+const PF_CINZA_HDR    = 'D4D4D4'
+const PF_VERDE_DADOS  = 'C6EFCE'
+const PF_VERDE_MED    = '70AD47'
+const PF_BRANCO       = 'FFFFFF'
+const PF_AZUL_TABCAB  = '8DB4E2'
+
+// Helpers de fonte/alinhamento para PREF (compactos, Arial 6-9pt)
+const pf6 = (bold = false): Partial<ExcelJS.Font> => ({ name:'Arial', size:6, bold })
+const pf8 = (bold = false): Partial<ExcelJS.Font> => ({ name:'Arial', size:8, bold })
+const pf9 = (bold = false): Partial<ExcelJS.Font> => ({ name:'Arial', size:9, bold })
+const pfAL: Partial<ExcelJS.Alignment>  = { horizontal:'left',   vertical:'middle', wrapText:true }
+const pfAC: Partial<ExcelJS.Alignment>  = { horizontal:'center', vertical:'middle', wrapText:true }
+const pfAR: Partial<ExcelJS.Alignment>  = { horizontal:'right',  vertical:'middle', wrapText:true }
+const pfALT: Partial<ExcelJS.Alignment> = { horizontal:'left',   vertical:'top',    wrapText:true }
+
 async function gerarAbaPREF(
   wb: ExcelJS.Workbook,
   contrato: Contrato,
@@ -624,21 +642,22 @@ async function gerarAbaMEM(
   medicao: Medicao,
   servicos: Servico[],
   linhasPorServico: Map<string, LinhaMemoria[]>,
-  palette: 'ESTADO' | 'PREFEITURA' = 'ESTADO'
+  modelo?: ModeloPlanilha
 ) {
-  const isPref = palette === 'PREFEITURA'
+  const m = modelo ?? MODELO_ESTADO_DEFAULT
+  const isPref = m.base === 'PREFEITURA'
 
-  // Paleta
-  const COR_TITULO    = isPref ? '375623' : AZ_ESCURO   // título principal
-  const COR_SUBTIT    = isPref ? '70AD47' : AZ_MEDIO    // subtítulo e cabeçalho
-  const COR_GRUPO     = isPref ? 'E2EFDA' : AZ_CLARO    // linha de grupo
-  const COR_GRUPO_FNT = isPref ? '375623' : AZ_ESCURO   // fonte do grupo
-  const COR_APAGAR    = isPref ? 'C6EFCE' : 'E2EFDA'    // A pagar
-  const COR_PAGO      = isPref ? 'BDD7EE' : 'DDEEFF'    // Pago
-  const COR_NEXEC     = 'FCE4D6'                          // Não executado
-  const COR_TOT_AC    = isPref ? 'A9D08E' : CINZA_SUB   // total acumulado
-  const COR_TOT_ANT   = isPref ? 'C6EFCE' : 'DDEEFF'    // total anterior
-  const COR_TOT_MES   = isPref ? 'FFEB9C' : 'FFF2CC'    // total mês
+  // Paleta — usa cores do modelo
+  const COR_TITULO    = m.cores.mem_titulo
+  const COR_SUBTIT    = m.cores.hdr_sub
+  const COR_GRUPO     = m.cores.mem_grupo
+  const COR_GRUPO_FNT = m.cores.mem_titulo
+  const COR_APAGAR    = m.cores.mem_apagar
+  const COR_PAGO      = m.cores.mem_pago
+  const COR_NEXEC     = 'FCE4D6'
+  const COR_TOT_AC    = m.cores.mem_tot_acum
+  const COR_TOT_ANT   = m.cores.mem_tot_ant
+  const COR_TOT_MES   = m.cores.mem_tot_mes
 
   const abaNome = `MEM ${String(medicao.numero).padStart(2,'0')}`
   const ws = wb.addWorksheet(abaNome)
@@ -648,7 +667,7 @@ async function gerarAbaMEM(
   // Faixa decorativa topo
   ws.getRow(1).height = 8
   for (let c = 1; c <= 14; c++)
-    ws.getCell(1, c).fill = solidFill(isPref ? '70AD47' : LARANJA)
+    ws.getCell(1, c).fill = solidFill(m.cores.hdr_topo)
 
   // Cabeçalho
   ws.mergeCells('A2:N2'); ws.getRow(2).height = 30
@@ -656,15 +675,16 @@ async function gerarAbaMEM(
   ws.mergeCells('A4:N4'); ws.getRow(4).height = 14
   ws.mergeCells('A5:N5'); ws.getRow(5).height = 22
 
-  setCell(ws,'A2', contrato.orgao_nome,              { font:{...fW(11), color:{argb:`FF${isPref?'FFFFFFFF':'FFFFFFFF'}`}}, fill:solidFill(COR_TITULO), align:align('center') })
-  setCell(ws,'A3', contrato.orgao_subdivisao||'',    { font:{bold:true,size:9,name:'Arial',color:{argb:`FF${isPref?'FFFFFFFF':'FFFFFFFF'}`}}, fill:solidFill(COR_SUBTIT), align:align('center') })
-  setCell(ws,'A4', obra.nome_obra,                    { font:fB(9), fill:solidFill(COR_GRUPO), align:align('center') })
-  setCell(ws,'A5','MEMÓRIA DE CÁLCULO',               { font:{bold:true,size:12,name:'Arial Narrow',color:{argb:'FFFFFFFF'}}, fill:solidFill(COR_TITULO), align:align('center') })
+  const { fW: mfW, fB: mfB, fN: mfN } = mkFont(m)
+  setCell(ws,'A2', contrato.orgao_nome,              { font:{...mfW(11), color:{argb:'FFFFFFFF'}}, fill:solidFill(COR_TITULO), align:align('center') })
+  setCell(ws,'A3', contrato.orgao_subdivisao||'',    { font:{bold:true,size:9,name:m.fonte.nome_cabec,color:{argb:'FFFFFFFF'}}, fill:solidFill(COR_SUBTIT), align:align('center') })
+  setCell(ws,'A4', obra.nome_obra,                    { font:mfB(9), fill:solidFill(COR_GRUPO), align:align('center') })
+  setCell(ws,'A5','MEMÓRIA DE CÁLCULO',               { font:{bold:true,size:12,name:m.fonte.nome_cabec,color:{argb:'FFFFFFFF'}}, fill:solidFill(COR_TITULO), align:align('center') })
 
   // Sub-info
   ws.mergeCells('A6:N6'); ws.getRow(6).height = 14
   setCell(ws,'A6',`${medicao.numero_extenso} Medição  |  ${obra.local_obra}  |  ${medicao.data_medicao ? new Date(medicao.data_medicao+'T00:00:00').toLocaleDateString('pt-BR') : ''}`,
-    { font:fN(8), fill:solidFill(isPref ? 'E2EFDA' : AZ_CABEC), align:align('center') }
+    { font:mfN(8), fill:solidFill(m.cores.hdr_cabec), align:align('center') }
   )
 
   // Cabeçalho da tabela
@@ -672,7 +692,7 @@ async function gerarAbaMEM(
   const hMEM = ['ITEM','DESCRIÇÃO','Larg.','Comp.','Altura','Perim.','Área','Vol.','Kg','Outros','Desc.','Qtde','TOTAL','OBSERVAÇÃO']
   hMEM.forEach((h, i) => {
     setCell(ws, `${String.fromCharCode(65+i)}8`, h, {
-      font: { bold:true, size:9, name:'Arial Narrow', color:{argb:'FFFFFFFF'} },
+      font: { bold:true, size:9, name:m.fonte.nome_cabec, color:{argb:'FFFFFFFF'} },
       fill: solidFill(COR_SUBTIT), align: align('center'), border: thinBorder(),
     })
   })
@@ -689,7 +709,7 @@ async function gerarAbaMEM(
     'ABCDEFGHIJKLMN'.split('').forEach(c => {
       const cell = ws.getCell(`${c}${row}`)
       cell.fill = solidFill(COR_GRUPO)
-      cell.font = { bold:true, size:9, name:'Arial Narrow', color:{argb:`FF${COR_GRUPO_FNT}`} }
+      cell.font = { bold:true, size:9, name:m.fonte.nome_cabec, color:{argb:`FF${COR_GRUPO_FNT}`} }
       cell.border = thinBorder()
     })
     ws.getCell(`A${row}`).value     = srv.item;     ws.getCell(`A${row}`).alignment = align('center')
@@ -724,7 +744,7 @@ async function gerarAbaMEM(
         const cell = ws.getCell(`${c}${row}`)
         cell.value     = v
         cell.fill      = sf
-        cell.font      = c === 'M' ? fB(9) : fN(c === 'A'||c === 'B'||c === 'N' ? 9 : 8)
+        cell.font      = c === 'M' ? mfB(9) : mfN(c === 'A'||c === 'B'||c === 'N' ? 9 : 8)
         cell.border    = thinBorder()
         cell.numFmt    = fmt
         cell.alignment = align(c === 'A'||c === 'B'||c === 'N' ? 'left' : 'right')
@@ -743,8 +763,8 @@ async function gerarAbaMEM(
     tots.forEach(([label, val, cor]) => {
       ws.getRow(row).height = 16
       ws.mergeCells(`A${row}:L${row}`)
-      setCell(ws,`A${row}`, label, { font:fB(9), fill:solidFill(cor), align:align('right'), border:thinBorder() })
-      setCell(ws,`M${row}`, val,   { font:fB(9), fill:solidFill(cor), align:align('right'), border:thinBorder(), numFmt:'#,##0.0000' })
+      setCell(ws,`A${row}`, label, { font:mfB(9), fill:solidFill(cor), align:align('right'), border:thinBorder() })
+      setCell(ws,`M${row}`, val,   { font:mfB(9), fill:solidFill(cor), align:align('right'), border:thinBorder(), numFmt:'#,##0.0000' })
       ws.getCell(`N${row}`).fill = solidFill(cor); ws.getCell(`N${row}`).border = thinBorder()
       row++
     })

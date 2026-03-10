@@ -11,6 +11,8 @@ import { Medicao } from '../types'
 import { formatDate, calcValoresMedicao } from '../utils/calculations'
 import { gerarMedicaoExcel } from '../utils/excelExport'
 import { gerarMedicaoPDF } from '../utils/pdfExport'
+import { ModeloExportModal } from '../components/ModeloExportModal'
+import type { ModeloPlanilha } from '../lib/modeloStore'
 
 export function MedicoesPage() {
   const {
@@ -24,6 +26,7 @@ export function MedicoesPage() {
   const [medicoes, setMedicoes] = useState<Medicao[]>([])
   const [carregando, setCarregando] = useState(false)
   const [confirmModal, setConfirmModal] = useState<{ tipo: 'efetivar'|'proxima'|'deletar'; medicao: Medicao } | null>(null)
+  const [exportModal, setExportModal] = useState<{ tipo: 'xlsx'|'pdf'; medicao: Medicao } | null>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -84,43 +87,53 @@ export function MedicoesPage() {
   async function handleExportXlsx(e: React.MouseEvent, m: Medicao) {
     e.stopPropagation()
     if (!obraAtiva || !contratoAtivo) return
-    try {
-      await fetchLinhasMedicao(m.id)
-      const state = useStore.getState()
-      await gerarMedicaoExcel(contratoAtivo, obraAtiva, m, state.servicos, state.linhasPorServico, state.logoSelecionada)
-      toast.success('Excel exportado!')
-    } catch (err) { console.error(err); toast.error('Erro ao exportar Excel') }
+    setExportModal({ tipo: 'xlsx', medicao: m })
   }
 
   async function handleExportPDF(e: React.MouseEvent, m: Medicao) {
     e.stopPropagation()
     if (!obraAtiva || !contratoAtivo) return
-    try {
-      // Busca fotos da medição
-      await fetchFotos(m.id)
-      // Busca medições da obra para histórico
-      const todasMedicoes = await fetchMedicoes(obraAtiva.id)
-      // Monta histórico de medições anteriores aprovadas com valor real
-      const anterioresComValor: { numero_extenso: string; valorPeriodo: number }[] = []
-      for (const ant of todasMedicoes.filter(x => x.numero < m.numero && x.status === 'APROVADA').sort((a,b) => a.numero - b.numero)) {
-        await fetchLinhasMedicao(ant.id)
-        const st = useStore.getState()
-        const vals = calcValoresMedicao(st.servicos, st.linhasPorServico, obraAtiva)
-        anterioresComValor.push({ numero_extenso: ant.numero_extenso, valorPeriodo: vals.valorPeriodo })
-      }
-      // Restaura linhas da medição solicitada
-      await fetchLinhasMedicao(m.id)
-      const state = useStore.getState()
-      const fotosAtuais = state.fotos
+    setExportModal({ tipo: 'pdf', medicao: m })
+  }
 
-      await gerarMedicaoPDF(
-        contratoAtivo, obraAtiva, m,
-        state.servicos, state.linhasPorServico, state.logoSelecionada,
-        fotosAtuais.length > 0 ? fotosAtuais : undefined,
-        anterioresComValor.length > 0 ? anterioresComValor : undefined
-      )
-      toast.success('PDF exportado!')
-    } catch (err) { console.error(err); toast.error('Erro ao exportar PDF') }
+  async function confirmarExport(modelo: ModeloPlanilha) {
+    if (!exportModal || !obraAtiva || !contratoAtivo) return
+    const m = exportModal.medicao
+    const tipo = exportModal.tipo
+    setExportModal(null)
+
+    if (tipo === 'xlsx') {
+      try {
+        await fetchLinhasMedicao(m.id)
+        const state = useStore.getState()
+        await gerarMedicaoExcel(contratoAtivo, obraAtiva, m, state.servicos, state.linhasPorServico, state.logoSelecionada, modelo)
+        toast.success('Excel exportado!')
+      } catch (err) { console.error(err); toast.error('Erro ao exportar Excel') }
+    } else {
+      try {
+        await fetchFotos(m.id)
+        const todasMedicoes = await fetchMedicoes(obraAtiva.id)
+        const anterioresComValor: { numero_extenso: string; valorPeriodo: number }[] = []
+        for (const ant of todasMedicoes.filter(x => x.numero < m.numero && x.status === 'APROVADA').sort((a,b) => a.numero - b.numero)) {
+          await fetchLinhasMedicao(ant.id)
+          const st = useStore.getState()
+          const vals = calcValoresMedicao(st.servicos, st.linhasPorServico, obraAtiva)
+          anterioresComValor.push({ numero_extenso: ant.numero_extenso, valorPeriodo: vals.valorPeriodo })
+        }
+        await fetchLinhasMedicao(m.id)
+        const state = useStore.getState()
+        const fotosAtuais = state.fotos
+
+        await gerarMedicaoPDF(
+          contratoAtivo, obraAtiva, m,
+          state.servicos, state.linhasPorServico, state.logoSelecionada,
+          fotosAtuais.length > 0 ? fotosAtuais : undefined,
+          anterioresComValor.length > 0 ? anterioresComValor : undefined,
+          modelo
+        )
+        toast.success('PDF exportado!')
+      } catch (err) { console.error(err); toast.error('Erro ao exportar PDF') }
+    }
   }
 
   const statusCfg: Record<string, { label: string; badge: string; icon: React.ReactNode }> = {
@@ -350,6 +363,15 @@ export function MedicoesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal seleção de modelo para exportação */}
+      {exportModal && (
+        <ModeloExportModal
+          tipo={exportModal.tipo}
+          onConfirmar={confirmarExport}
+          onFechar={() => setExportModal(null)}
+        />
       )}
     </div>
   )

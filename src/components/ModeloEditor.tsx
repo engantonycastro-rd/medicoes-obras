@@ -378,6 +378,195 @@ export function ModeloEditor() {
                   {/* Prévia planilha */}
                   <div className="rounded-xl overflow-hidden shadow-md border border-slate-300" style={{fontFamily:cur.fonte.nome_base, fontSize:8.5}}>
 
+                  {cur.base === 'PREFEITURA' ? (
+                    /* ── LAYOUT PREFEITURA (PREV 02) ─────────────────── */
+                    <>
+                      {/* Cabeçalho PREV 02: 3 blocos lado a lado */}
+                      <div style={{display:'flex',borderBottom:'1px solid #aaa'}}>
+                        {/* LOGO */}
+                        <div onClick={() => clicarZona('empresa_bg')} title="Bloco logo"
+                             style={zs('empresa_bg',{width:70,minHeight:80,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,borderRight:'1px solid #aaa'})}>
+                          <span style={{fontSize:8,opacity:0.6}}>[ LOGO ]</span>
+                          {zonaAtiva==='empresa_bg' && editing && <SelBadge/>}
+                        </div>
+
+                        {/* CENTRO: concedente, objetivo, boletim */}
+                        <div style={{flex:1,fontSize:7}}>
+                          <div style={{display:'flex',borderBottom:'1px solid #ddd'}}>
+                            <div style={{flex:1,padding:'3px 5px',borderRight:'1px solid #ddd'}}>
+                              <div style={{fontSize:6,color:'#888'}}>CONCEDENTE</div>
+                              <div onClick={() => clicarZona('hdr_principal')} title="Título principal"
+                                   style={{...zs('hdr_principal',{fontWeight:'bold',fontSize:7.5,padding:'1px 2px',background:'transparent',border:'none',cursor:'pointer'}),color:txtContrast(C.hdr_principal)==='#fff'?hx(C.hdr_principal):'#333'}}>
+                                PREFEITURA MUNICIPAL
+                                {zonaAtiva==='hdr_principal' && editing && <SelBadge/>}
+                              </div>
+                            </div>
+                            <div style={{padding:'3px 5px',borderRight:'1px solid #ddd'}}>
+                              <div style={{fontSize:6,color:'#888'}}>Data emissão BM</div>
+                              <div style={{fontWeight:'bold'}}>10/03/2026</div>
+                            </div>
+                            <div style={{padding:'3px 5px',borderRight:'1px solid #ddd'}}>
+                              <div style={{fontSize:6,color:'#888'}}>Período ref.</div>
+                              <div style={{fontWeight:'bold'}}>10/03/2026</div>
+                            </div>
+                            <div onClick={() => clicarZona('hdr_cabec')} title="Valor do contrato"
+                                 style={zs('hdr_cabec',{padding:'3px 5px',textAlign:'right',minWidth:85})}>
+                              <div style={{fontSize:6}}>VALOR DO CONTRATO</div>
+                              <div style={{fontWeight:'bold'}}>R$ 4.307.031,98</div>
+                              {zonaAtiva==='hdr_cabec' && editing && <SelBadge/>}
+                            </div>
+                          </div>
+                          <div style={{display:'flex',borderBottom:'1px solid #ddd'}}>
+                            <div style={{flex:1,padding:'3px 5px',borderRight:'1px solid #ddd'}}>
+                              <div style={{fontSize:6,color:'#888'}}>OBJETIVO DA ORDEM DE SERVIÇO</div>
+                              <div style={{fontWeight:'bold'}}>Construção Creche Ana Catarina</div>
+                            </div>
+                            <div onClick={() => clicarZona('hdr_cabec')} title="Valor acumulado"
+                                 style={zs('hdr_cabec',{padding:'3px 5px',textAlign:'right',minWidth:85})}>
+                              <div style={{fontSize:6}}>VALOR ACUMULADO</div>
+                              <div style={{fontWeight:'bold'}}>R$ 482.385,10</div>
+                              {zonaAtiva==='hdr_cabec' && editing && <SelBadge/>}
+                            </div>
+                          </div>
+                          <div style={{display:'flex',borderBottom:'1px solid #ddd'}}>
+                            <div style={{flex:1,padding:'3px 5px',borderRight:'1px solid #ddd'}}>
+                              <div style={{fontSize:6,color:'#888'}}>EMPRESA CONTRATADA</div>
+                              <div style={{fontWeight:'bold'}}>RD CONSTRUTORA LTDA</div>
+                            </div>
+                            <div onClick={() => clicarZona('hdr_cabec')} title="Saldo em contrato"
+                                 style={zs('hdr_cabec',{padding:'3px 5px',textAlign:'right',minWidth:85})}>
+                              <div style={{fontSize:6}}>SALDO EM CONTRATO</div>
+                              <div style={{fontWeight:'bold'}}>R$ 3.824.646,88</div>
+                              {zonaAtiva==='hdr_cabec' && editing && <SelBadge/>}
+                            </div>
+                          </div>
+                          <div style={{display:'flex'}}>
+                            <div style={{flex:1,padding:'3px 5px',borderRight:'1px solid #ddd'}}>
+                              <span style={{fontWeight:'bold'}}>BOLETIM DE MEDIÇÃO - N° 1</span>
+                              <span style={{marginLeft:8,fontSize:6,color:'#888'}}>EMISSÃO: 10/03/2026</span>
+                            </div>
+                            <div onClick={() => clicarZona('hdr_topo')} title="Valor medido no período"
+                                 style={zs('hdr_topo',{padding:'3px 5px',textAlign:'right',minWidth:85,fontWeight:'bold'})}>
+                              <div style={{fontSize:6}}>VALOR MEDIDO:</div>
+                              <div>R$ 482.385,10</div>
+                              {zonaAtiva==='hdr_topo' && editing && <SelBadge/>}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* EMPRESA (direita) */}
+                        <div onClick={() => clicarZona('hdr_cabec')} title="Bloco empresa"
+                             style={zs('hdr_cabec',{width:90,padding:'4px 6px',flexShrink:0,borderLeft:'1px solid #aaa',fontSize:6,lineHeight:'1.4'})}>
+                          <strong style={{fontSize:7}}>RD CONSTRUTORA</strong><br/>
+                          Rua Bela Vista, 874<br/>
+                          CNPJ: 43.357.757/0001-40<br/>
+                          rd_solucoes@outlook.com
+                          {zonaAtiva==='hdr_cabec' && editing && <SelBadge/>}
+                        </div>
+                      </div>
+
+                      {/* TH — PREV 02: PLANILHA BASE | PLANILHA DE MEDIÇÃO */}
+                      <div style={{display:'flex'}}>
+                        {[
+                          {l:'ITEM',    z:'th_base',    w:25},
+                          {l:'CÓDIGO',  z:'th_base',    w:40},
+                          {l:'DESCRIÇÃO',z:'th_base',   f:true},
+                          {l:'FONTE',   z:'th_base',    w:28},
+                          {l:'UNID',    z:'th_base',    w:22},
+                          {l:'QTD',     z:'th_base',    w:30},
+                          {l:'COM BDI', z:'th_base',    w:32},
+                          {l:'TOTAL',   z:'th_base',    w:35},
+                          {l:'DESC.',   z:'th_base',    w:32},
+                          {l:'ACUM.ANT',z:'th_medicao', w:35},
+                          {l:'PERÍODO', z:'th_medicao', w:35},
+                          {l:'(%)',     z:'th_medicao', w:22},
+                          {l:'ACUM.R$', z:'th_medicao', w:35},
+                          {l:'SALDO R$',z:'th_medicao', w:35},
+                          {l:'(%)',     z:'th_medicao', w:22},
+                        ].map((col,i) => (
+                          <div key={i} onClick={() => clicarZona(col.z)}
+                               style={{
+                                 ...zs(col.z,{padding:'4px 2px',textAlign:'center',fontWeight:'bold',fontSize:6.5}),
+                                 width:col.f?undefined:col.w, flex:col.f?1:undefined,
+                                 borderRight:'1px solid rgba(255,255,255,0.2)',
+                               }}>
+                            {col.l}
+                            {zonaAtiva===col.z && editing && <SelBadge/>}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Linhas dados */}
+                      {([
+                        {l:'1  SERVIÇOS PRELIMINARES',        zona:'linha_grupo',   grupo:true},
+                        {l:'1.1  Placa de obra',              zona:'linha_par',     grupo:false},
+                        {l:'1.2  Tapume metálico provisório', zona:'linha_periodo', grupo:false, bold:true},
+                        {l:'1.3  Limpeza do terreno',         zona:'linha_100pct',  grupo:false},
+                        {l:'2  FUNDAÇÕES',                    zona:'linha_grupo',   grupo:true},
+                        {l:'2.1  Escavação mecânica',         zona:'linha_impar',   grupo:false},
+                      ] as {l:string;zona:string;grupo:boolean;bold?:boolean}[]).map((row,ri) => (
+                        <div key={ri} onClick={() => clicarZona(row.zona)}
+                             style={{
+                               ...zs(row.zona,{borderBottom:'1px solid rgba(0,0,0,0.07)',fontWeight:row.grupo||row.bold?'bold':'normal'}),
+                               display:'flex',
+                             }}>
+                          {row.grupo ? (
+                            <div style={{padding:'4px 8px',width:'100%',fontSize:7.5}}>{row.l}</div>
+                          ) : (
+                            <>
+                              <div style={{width:25,padding:'3px 2px',textAlign:'center',borderRight:'1px solid rgba(0,0,0,0.05)',fontSize:7}}>{ri}</div>
+                              <div style={{width:40,padding:'3px 2px',textAlign:'center',borderRight:'1px solid rgba(0,0,0,0.05)',fontSize:7}}>97628</div>
+                              <div style={{flex:1,padding:'3px 4px',borderRight:'1px solid rgba(0,0,0,0.05)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:7}}>{row.l}</div>
+                              <div style={{width:28,padding:'3px 2px',textAlign:'center',borderRight:'1px solid rgba(0,0,0,0.05)',fontSize:7}}>SINAPI</div>
+                              <div style={{width:22,padding:'3px 2px',textAlign:'center',borderRight:'1px solid rgba(0,0,0,0.05)',fontSize:7}}>M²</div>
+                              <div style={{width:30,padding:'3px 2px',textAlign:'right',borderRight:'1px solid rgba(0,0,0,0.05)',fontSize:7}}>120,00</div>
+                              <div style={{width:32,padding:'3px 2px',textAlign:'right',borderRight:'1px solid rgba(0,0,0,0.05)',fontSize:7}}>45,20</div>
+                              <div style={{width:35,padding:'3px 2px',textAlign:'right',borderRight:'1px solid rgba(0,0,0,0.05)',fontSize:7}}>5.424,00</div>
+                              <div style={{width:32,padding:'3px 2px',textAlign:'right',borderRight:'1px solid rgba(0,0,0,0.05)',fontSize:7}}>5.424,00</div>
+                              <div style={{width:35,padding:'3px 2px',textAlign:'right',borderRight:'1px solid rgba(0,0,0,0.05)',fontSize:7}}>{row.zona==='linha_periodo'?'80,00':'0,00'}</div>
+                              <div style={{width:35,padding:'3px 2px',textAlign:'right',fontWeight:'bold',borderRight:'1px solid rgba(0,0,0,0.05)',fontSize:7}}>{row.zona==='linha_periodo'?'40,00':'0,00'}</div>
+                              <div style={{width:22,padding:'3px 2px',textAlign:'right',borderRight:'1px solid rgba(0,0,0,0.05)',fontSize:7}}>33%</div>
+                              <div style={{width:35,padding:'3px 2px',textAlign:'right',borderRight:'1px solid rgba(0,0,0,0.05)',fontSize:7}}>1.808,00</div>
+                              <div style={{width:35,padding:'3px 2px',textAlign:'right',borderRight:'1px solid rgba(0,0,0,0.05)',fontSize:7}}>3.616,00</div>
+                              <div style={{width:22,padding:'3px 2px',textAlign:'right',fontSize:7}}>{row.zona==='linha_100pct'?'100%':'67%'}</div>
+                            </>
+                          )}
+                          {zonaAtiva===row.zona && editing && <SelBadge/>}
+                        </div>
+                      ))}
+
+                      {/* Totais */}
+                      <div onClick={() => clicarZona('linha_total')}
+                           style={zs('linha_total',{padding:'5px 12px',fontWeight:'bold',fontSize:8,display:'flex',justifyContent:'space-between'})}>
+                        <span>TOTAIS GERAIS</span><span>R$ 4.307.031,98</span>
+                        {zonaAtiva==='linha_total' && editing && <SelBadge/>}
+                      </div>
+
+                      {/* Extenso */}
+                      <div onClick={() => clicarZona('extenso_bg')}
+                           style={zs('extenso_bg',{padding:'5px 12px',fontStyle:'italic',fontSize:8})}>
+                        A presente medição importa o valor de: QUATROCENTOS E OITENTA E DOIS MIL REAIS
+                        {zonaAtiva==='extenso_bg' && editing && <SelBadge/>}
+                      </div>
+
+                      {/* Demo */}
+                      <div onClick={() => clicarZona('demo_cabec')}
+                           style={zs('demo_cabec',{padding:'4px 12px',fontWeight:'bold',fontSize:8})}>
+                        DEMONSTRATIVO FINANCEIRO
+                        {zonaAtiva==='demo_cabec' && editing && <SelBadge/>}
+                      </div>
+                      <div style={{display:'flex',fontSize:8,background:'#fff'}}>
+                        <div style={{flex:1,padding:'3px 12px',borderRight:'1px solid #f1f5f9',borderBottom:'1px solid #f1f5f9',color:'#555'}}>VALOR TOTAL DO ORÇAMENTO</div>
+                        <div style={{width:110,padding:'3px 12px',textAlign:'right',fontWeight:'bold',color:'#333',borderBottom:'1px solid #f1f5f9'}}>R$ 4.307.031,98</div>
+                      </div>
+                      <div style={{display:'flex',fontSize:8,background:hx(C.hdr_cabec),opacity:0.7}}>
+                        <div style={{flex:1,padding:'3px 12px',borderRight:'1px solid #eee',color:'#555'}}>VALOR 1ª MEDIÇÃO</div>
+                        <div style={{width:110,padding:'3px 12px',textAlign:'right',fontWeight:'bold',color:'#333'}}>R$ 482.385,10</div>
+                      </div>
+                    </>
+                  ) : (
+                    /* ── LAYOUT ESTADO (azul/laranja) ────────────────── */
+                    <>
                     {/* Topo */}
                     <div onClick={() => clicarZona('hdr_topo')} title="Faixa topo / N° Medição"
                          style={zs('hdr_topo',{height:10})}/>
@@ -499,6 +688,8 @@ export function ModeloEditor() {
                       <div style={{flex:1,padding:'3px 12px',borderRight:'1px solid #eee',color:'#555'}}>VALOR 1ª MEDIÇÃO</div>
                       <div style={{width:110,padding:'3px 12px',textAlign:'right',fontWeight:'bold',color:'#333'}}>R$ 482.385,10</div>
                     </div>
+                    </>
+                  )}
                   </div>
 
                   {/* Prévia memória */}
