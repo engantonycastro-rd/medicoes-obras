@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight } from 'lucide-react'
+import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, LayoutDashboard } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { usePerfilStore } from '../../lib/perfilStore'
 import { useStore } from '../../lib/store'
+import { NotificacaoBell } from '../NotificacaoBell'
 import toast from 'react-hot-toast'
 
 export function AppLayout() {
@@ -22,9 +23,10 @@ export function AppLayout() {
   }
 
   const navBase = [
-    { to: '/',         icon: Building2,     label: 'Contratos' },
-    { to: '/servicos', icon: ClipboardList,  label: 'Serviços'  },
-    { to: '/medicoes', icon: FileText,       label: 'Medições'  },
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/',          icon: Building2,        label: 'Contratos' },
+    { to: '/servicos',  icon: ClipboardList,    label: 'Serviços'  },
+    { to: '/medicoes',  icon: FileText,         label: 'Medições'  },
   ]
   const navAdmin     = [{ to: '/usuarios', icon: Users, label: 'Usuários' }, { to: '/configuracoes', icon: Settings, label: 'Config.' }]
   const navEng       = [{ to: '/configuracoes', icon: Settings, label: 'Config.' }]
@@ -37,11 +39,12 @@ export function AppLayout() {
         <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-700">
           <div className="w-9 h-9 bg-amber-500 rounded-xl flex items-center justify-center shrink-0 font-black text-white text-sm shadow">RD</div>
           {sidebarOpen && (
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="font-bold text-white text-sm leading-tight truncate">RD - Medições</p>
               <p className="text-xs text-slate-400 truncate">de Obras</p>
             </div>
           )}
+          {sidebarOpen && <NotificacaoBell/>}
         </div>
 
         {/* Obra ativa */}
