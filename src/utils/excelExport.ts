@@ -198,15 +198,15 @@ async function gerarAbaESTADO(
       type CD = [string, ExcelJS.CellValue, string, ExcelJS.Alignment['horizontal']]
       const cols: CD[] = [
         ['A',srv.item,'@','center'],['B',srv.fonte,'@','center'],['C',srv.codigo||'','@','center'],
-        ['D',srv.descricao,'@','left'],['E',srv.unidade,'@','center'],['F',srv.quantidade,'#,##0.0000','right'],
-        ['G',srv.preco_unitario,'#,##0.00','right'],['H',pDesc,'#,##0.00','right'],['I',pBDI,'#,##0.00','right'],
-        ['J',pTotal,'#,##0.00','right'],['K',0,'0.00%','right'],
-        ['L',srv.quantidade,'#,##0.0000','right'],['M',qtdAnterior,'#,##0.0000','right'],
-        ['N',qtdPeriodo,'#,##0.0000','right'],['O',qtdAcumulada,'#,##0.0000','right'],['P',qtdSaldo,'#,##0.0000','right'],
-        ['Q',pDesc,'#,##0.00','right'],['R',pBDI,'#,##0.00','right'],
-        ['S',qtdAnterior*pBDI,'#,##0.00','right'],['T',qtdAcumulada*pBDI,'#,##0.00','right'],
-        ['U',qtdPeriodo*pBDI,'#,##0.00','right'],
-        ['V',pTotal - qtdAcumulada*pBDI,'#,##0.00','right'],
+        ['D',srv.descricao,'@','left'],['E',srv.unidade,'@','center'],['F',srv.quantidade,'#,##0.00','right'],
+        ['G',srv.preco_unitario,'R$ #,##0.00','right'],['H',pDesc,'R$ #,##0.00','right'],['I',pBDI,'R$ #,##0.00','right'],
+        ['J',pTotal,'R$ #,##0.00','right'],['K',0,'0.00%','right'],
+        ['L',srv.quantidade,'#,##0.00','right'],['M',qtdAnterior,'#,##0.00','right'],
+        ['N',qtdPeriodo,'#,##0.00','right'],['O',qtdAcumulada,'#,##0.00','right'],['P',qtdSaldo,'#,##0.00','right'],
+        ['Q',pDesc,'R$ #,##0.00','right'],['R',pBDI,'R$ #,##0.00','right'],
+        ['S',qtdAnterior*pBDI,'R$ #,##0.00','right'],['T',qtdAcumulada*pBDI,'R$ #,##0.00','right'],
+        ['U',qtdPeriodo*pBDI,'R$ #,##0.00','right'],
+        ['V',pTotal - qtdAcumulada*pBDI,'R$ #,##0.00','right'],
         ['W',pTotal > 0 ? (pTotal - qtdAcumulada*pBDI)/pTotal : 0,'0.00%','right'],
       ]
       cols.forEach(([col, val, fmt, al]) => {
@@ -227,7 +227,7 @@ async function gerarAbaESTADO(
   const vals = calcValoresMedicao(servicos, linhasPorServico, obra)
   ;[`J${rTot}`,`T${rTot}`,`U${rTot}`,`V${rTot}`].forEach((a, i) => {
     const v = [vals.totalOrcamento, vals.valorAcumulado, vals.valorPeriodo, vals.valorSaldo][i]
-    setCell(ws, a, v, { font:fW(9), fill:solidFill(C.linha_total), align:align('right'), border:bT, numFmt:'#,##0.00' })
+    setCell(ws, a, v, { font:fW(9), fill:solidFill(C.linha_total), align:align('right'), border:bT, numFmt:'R$ #,##0.00' })
   })
 
   const rExt = rTot + 2; ws.mergeCells(`A${rExt}:W${rExt}`); ws.getRow(rExt).height = 24
@@ -240,12 +240,12 @@ async function gerarAbaESTADO(
   ws.mergeCells(`A${rDemo-1}:E${rDemo-1}`); ws.getRow(rDemo-1).height = 18
   setCell(ws,`A${rDemo-1}`,'DEMONSTRATIVO FINANCEIRO', { font:fW(10), fill:solidFill(C.demo_cabec), align:align('center'), border:bT })
   const demo: [string, number, string][] = [
-    ['VALOR TOTAL DO ORÇAMENTO',         vals.totalOrcamento,      '#,##0.00'],
-    [`VALOR ${medicao.numero_extenso} MEDIÇÃO`, vals.valorPeriodo, '#,##0.00'],
+    ['VALOR TOTAL DO ORÇAMENTO',         vals.totalOrcamento,      'R$ #,##0.00'],
+    [`VALOR ${medicao.numero_extenso} MEDIÇÃO`, vals.valorPeriodo, 'R$ #,##0.00'],
     ['PERCENTUAL DA MEDIÇÃO',            vals.percentualPeriodo,   '0.00%'],
-    ['FATURADO ACUMULADO',               vals.valorAcumulado,      '#,##0.00'],
+    ['FATURADO ACUMULADO',               vals.valorAcumulado,      'R$ #,##0.00'],
     ['PERCENTUAL ACUMULADO',             vals.percentualAcumulado, '0.00%'],
-    ['SALDO DO CONTRATO',                vals.valorSaldo,          '#,##0.00'],
+    ['SALDO DO CONTRATO',                vals.valorSaldo,          'R$ #,##0.00'],
     ['PERCENTUAL DO SALDO',              vals.percentualSaldo,     '0.00%'],
   ]
   demo.forEach(([label, val, fmt], i) => {
@@ -301,13 +301,13 @@ async function gerarAbaPREF(
   const W = [12, 12, 52, 10, 6, 9, 8, 8, 13, 10, 10, 11, 8, 10, 10, 12, 12, 10, 8]
   W.forEach((w, i) => ws.getColumn(i + 1).width = w)
 
-  const N2 = '#,##0.00', N4 = '#,##0.0000', PCT = '0.00%', DAT = 'DD/MM/YYYY'
+  const N2 = '#,##0.00', R2 = 'R$ #,##0.00', PCT = '0.00%', DAT = 'DD/MM/YYYY'
   const dataEmissao = medicao.data_medicao ? new Date(medicao.data_medicao + 'T00:00:00') : new Date()
   const dtFim = medicao.data_medicao ? new Date(medicao.data_medicao+'T00:00:00').toLocaleDateString('pt-BR') : '—'
   const vals = calcValoresMedicao(servicos, linhasPorServico, obra)
 
   // ── BLOCO LOGO (A1:C9) — 3 colunas, espaço amplo ──────────────────────
-  ws.mergeCells('A1:C9')
+  ws.mergeCells('A1:B9')
   ws.getCell('A1').fill = solidFill(PF_CINZA_LOGO)
   ws.getCell('A1').border = thinBorder()
   if (logoBase64) {
@@ -315,7 +315,7 @@ async function gerarAbaPREF(
       const base64Data = logoBase64.split(',')[1] || logoBase64
       const ext = logoBase64.includes('png') ? 'png' : 'jpeg'
       const imgId = wb.addImage({ base64: base64Data, extension: ext as 'png'|'jpeg' })
-      ws.addImage(imgId, { tl:{col:0,row:0}, br:{col:3,row:9}, editAs:'oneCell' })
+      ws.addImage(imgId, { tl:{col:0,row:0}, br:{col:2,row:9}, editAs:'oneCell' })
     } catch {}
   }
 
@@ -476,18 +476,18 @@ async function gerarAbaPREF(
       setCell(ws,`C${r}`, srv.descricao,  { font:pf6(), align:pfAL, border:thinBorder(), fill:rowFill })
       setCell(ws,`D${r}`, srv.fonte,      { font:pf6(), align:pfAC, border:thinBorder(), fill:rowFill })
       setCell(ws,`E${r}`, srv.unidade,    { font:pf6(), align:pfAC, border:thinBorder(), fill:rowFill })
-      setCell(ws,`F${r}`, srv.quantidade, { font:pf6(), align:pfAR, border:thinBorder(), fill:rowFill, numFmt:N4 })
-      setCell(ws,`G${r}`, pDesc,          { font:pf6(), align:pfAR, border:thinBorder(), fill:rowFill, numFmt:N2 })
-      setCell(ws,`H${r}`, pBDI,           { font:pf6(), align:pfAR, border:thinBorder(), fill:rowFill, numFmt:N2 })
-      setCell(ws,`I${r}`, pTot,           { font:pf6(), align:pfAR, border:thinBorder(), fill:rowFill, numFmt:N2 })
+      setCell(ws,`F${r}`, srv.quantidade, { font:pf6(), align:pfAR, border:thinBorder(), fill:rowFill, numFmt:N2 })
+      setCell(ws,`G${r}`, pDesc,          { font:pf6(), align:pfAR, border:thinBorder(), fill:rowFill, numFmt:R2 })
+      setCell(ws,`H${r}`, pBDI,           { font:pf6(), align:pfAR, border:thinBorder(), fill:rowFill, numFmt:R2 })
+      setCell(ws,`I${r}`, pTot,           { font:pf6(), align:pfAR, border:thinBorder(), fill:rowFill, numFmt:R2 })
 
       ws.getCell(`J${r}`).value = { formula:`I${r}*(1-${obra.desconto_percentual})` } as any
       ws.getCell(`J${r}`).font = pf6() as ExcelJS.Font; ws.getCell(`J${r}`).alignment = pfAR as ExcelJS.Alignment
-      ws.getCell(`J${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`J${r}`).numFmt = N2; ws.getCell(`J${r}`).fill = rowFill
+      ws.getCell(`J${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`J${r}`).numFmt = R2; ws.getCell(`J${r}`).fill = rowFill
 
-      setCell(ws,`K${r}`, qtdAnterior, { font:pf6(), align:pfAC, border:thinBorder(), numFmt:N4,
+      setCell(ws,`K${r}`, qtdAnterior, { font:pf6(), align:pfAC, border:thinBorder(), numFmt:N2,
         fill: qtdAnterior > 0 ? solidFill(PF_VERDE_DADOS) : solidFill(PF_BRANCO) })
-      setCell(ws,`L${r}`, qtdPeriodo, { font:pf6(temPeriodo), align:pfAC, border:thinBorder(), numFmt:N4,
+      setCell(ws,`L${r}`, qtdPeriodo, { font:pf6(temPeriodo), align:pfAC, border:thinBorder(), numFmt:N2,
         fill: temPeriodo ? solidFill(PF_VERDE_DADOS) : solidFill(PF_BRANCO) })
 
       ws.getCell(`M${r}`).value = { formula:`IF(F${r}=0,0,L${r}/F${r})` } as any
@@ -497,24 +497,24 @@ async function gerarAbaPREF(
 
       ws.getCell(`N${r}`).value = { formula:`K${r}+L${r}` } as any
       ws.getCell(`N${r}`).font = pf6() as ExcelJS.Font; ws.getCell(`N${r}`).alignment = pfAC as ExcelJS.Alignment
-      ws.getCell(`N${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`N${r}`).numFmt = N4; ws.getCell(`N${r}`).fill = solidFill(PF_BRANCO)
+      ws.getCell(`N${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`N${r}`).numFmt = N2; ws.getCell(`N${r}`).fill = solidFill(PF_BRANCO)
 
       ws.getCell(`O${r}`).value = { formula:`F${r}-N${r}` } as any
       ws.getCell(`O${r}`).font = pf6() as ExcelJS.Font; ws.getCell(`O${r}`).alignment = pfAC as ExcelJS.Alignment
-      ws.getCell(`O${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`O${r}`).numFmt = N4; ws.getCell(`O${r}`).fill = solidFill(PF_BRANCO)
+      ws.getCell(`O${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`O${r}`).numFmt = N2; ws.getCell(`O${r}`).fill = solidFill(PF_BRANCO)
 
       ws.getCell(`P${r}`).value = { formula:`L${r}*H${r}*(1-${obra.desconto_percentual})` } as any
       ws.getCell(`P${r}`).font = pf6(temPeriodo) as ExcelJS.Font; ws.getCell(`P${r}`).alignment = pfAC as ExcelJS.Alignment
-      ws.getCell(`P${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`P${r}`).numFmt = N2
+      ws.getCell(`P${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`P${r}`).numFmt = R2
       ws.getCell(`P${r}`).fill = temPeriodo ? solidFill(PF_VERDE_DADOS) : solidFill(PF_BRANCO)
 
       ws.getCell(`Q${r}`).value = { formula:`N${r}*H${r}*(1-${obra.desconto_percentual})` } as any
       ws.getCell(`Q${r}`).font = pf6() as ExcelJS.Font; ws.getCell(`Q${r}`).alignment = pfAC as ExcelJS.Alignment
-      ws.getCell(`Q${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`Q${r}`).numFmt = N2; ws.getCell(`Q${r}`).fill = solidFill(PF_BRANCO)
+      ws.getCell(`Q${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`Q${r}`).numFmt = R2; ws.getCell(`Q${r}`).fill = solidFill(PF_BRANCO)
 
       ws.getCell(`R${r}`).value = { formula:`H${r}*O${r}*(1-${obra.desconto_percentual})` } as any
       ws.getCell(`R${r}`).font = pf6() as ExcelJS.Font; ws.getCell(`R${r}`).alignment = pfAC as ExcelJS.Alignment
-      ws.getCell(`R${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`R${r}`).numFmt = N2; ws.getCell(`R${r}`).fill = solidFill(PF_BRANCO)
+      ws.getCell(`R${r}`).border = thinBorder() as ExcelJS.Borders; ws.getCell(`R${r}`).numFmt = R2; ws.getCell(`R${r}`).fill = solidFill(PF_BRANCO)
 
       const pctAcum = srv.quantidade > 0 ? (qtdAnterior + qtdPeriodo) / srv.quantidade : 0
       ws.getCell(`S${r}`).value = { formula:`IF(F${r}=0,0,N${r}/F${r})` } as any
@@ -561,12 +561,12 @@ async function gerarAbaPREF(
   })
 
   const demo: [string, number, string][] = [
-    ['Valor Total Orçamento',                     vals.totalOrcamento,       N2],
-    [`${medicao.numero_extenso} Med. — Período`,  vals.valorPeriodo,         N2],
+    ['Valor Total Orçamento',                     vals.totalOrcamento,       R2],
+    [`${medicao.numero_extenso} Med. — Período`,  vals.valorPeriodo,         R2],
     ['% da Medição',                               vals.percentualPeriodo,   PCT],
-    ['Faturado Acumulado',                         vals.valorAcumulado,       N2],
+    ['Faturado Acumulado',                         vals.valorAcumulado,       R2],
     ['% Acumulado',                                vals.percentualAcumulado, PCT],
-    ['Saldo do Contrato',                          vals.valorSaldo,           N2],
+    ['Saldo do Contrato',                          vals.valorSaldo,           R2],
     ['% do Saldo',                                 vals.percentualSaldo,     PCT],
   ]
   demo.forEach(([label, val, fmt], i) => {
@@ -679,17 +679,17 @@ async function gerarAbaMEM(
       const campos: [string, ExcelJS.CellValue, string][] = [
         ['A', linha.sub_item,              '@'],
         ['B', linha.descricao_calculo,     '@'],
-        ['C', linha.largura??null,         '#,##0.0000'],
-        ['D', linha.comprimento??null,     '#,##0.0000'],
-        ['E', linha.altura??null,          '#,##0.0000'],
-        ['F', linha.perimetro??null,       '#,##0.0000'],
-        ['G', linha.area??null,            '#,##0.0000'],
-        ['H', linha.volume??null,          '#,##0.0000'],
-        ['I', linha.kg??null,              '#,##0.0000'],
-        ['J', linha.outros??null,          '#,##0.0000'],
-        ['K', linha.desconto_dim??null,    '#,##0.0000'],
-        ['L', linha.quantidade??null,      '#,##0.0000'],
-        ['M', linha.total,                 '#,##0.0000'],
+        ['C', linha.largura??null,         '#,##0.00'],
+        ['D', linha.comprimento??null,     '#,##0.00'],
+        ['E', linha.altura??null,          '#,##0.00'],
+        ['F', linha.perimetro??null,       '#,##0.00'],
+        ['G', linha.area??null,            '#,##0.00'],
+        ['H', linha.volume??null,          '#,##0.00'],
+        ['I', linha.kg??null,              '#,##0.00'],
+        ['J', linha.outros??null,          '#,##0.00'],
+        ['K', linha.desconto_dim??null,    '#,##0.00'],
+        ['L', linha.quantidade??null,      '#,##0.00'],
+        ['M', linha.total,                 '#,##0.00'],
         ['N', linha.status,                '@'],
       ]
       campos.forEach(([c, v, fmt]) => {
@@ -716,7 +716,7 @@ async function gerarAbaMEM(
       ws.getRow(row).height = 16
       ws.mergeCells(`A${row}:L${row}`)
       setCell(ws,`A${row}`, label, { font:mfB(9), fill:solidFill(cor), align:align('right'), border:thinBorder() })
-      setCell(ws,`M${row}`, val,   { font:mfB(9), fill:solidFill(cor), align:align('right'), border:thinBorder(), numFmt:'#,##0.0000' })
+      setCell(ws,`M${row}`, val,   { font:mfB(9), fill:solidFill(cor), align:align('right'), border:thinBorder(), numFmt:'#,##0.00' })
       ws.getCell(`N${row}`).fill = solidFill(cor); ws.getCell(`N${row}`).border = thinBorder()
       row++
     })
