@@ -97,6 +97,15 @@ export function MemoriaPage() {
   async function handleExportPDF() {
     if (!contratoAtivo || !obraAtiva || !medicaoAtiva) return
     try {
+      // Monta histórico de medições anteriores com valor calculado
+      const anteriores = medicoesDaObra
+        .filter(m => m.numero < medicaoAtiva.numero && m.status === 'APROVADA')
+        .sort((a, b) => a.numero - b.numero)
+        .map(m => ({
+          numero_extenso: m.numero_extenso,
+          valorPeriodo: 0, // será sobrescrito abaixo
+        }))
+      // Calcula valor real de cada medição anterior buscando suas linhas
       const anterioresComValor: { numero_extenso: string; valorPeriodo: number }[] = []
       for (const m of medicoesDaObra.filter(x => x.numero < medicaoAtiva.numero && x.status === 'APROVADA').sort((a,b) => a.numero - b.numero)) {
         await fetchLinhasMedicao(m.id)
@@ -104,7 +113,9 @@ export function MemoriaPage() {
         const vals = calcValoresMedicao(servicos, st.linhasPorServico, obraAtiva)
         anterioresComValor.push({ numero_extenso: m.numero_extenso, valorPeriodo: vals.valorPeriodo })
       }
+      // Restaura linhas da medição atual
       await fetchLinhasMedicao(medicaoAtiva.id)
+
       await gerarMedicaoPDF(
         contratoAtivo, obraAtiva, medicaoAtiva,
         servicos, linhasPorServico, logoSelecionada,
@@ -201,8 +212,8 @@ export function MemoriaPage() {
 
             {/* um chip por etapa */}
             {etapas.map(etapa => {
-              const ativo   = etapaFiltro === etapa.item
-              const cnt     = contagemPorEtapa.get(etapa.item)
+              const ativo  = etapaFiltro === etapa.item
+              const cnt    = contagemPorEtapa.get(etapa.item)
               const temLanc = (cnt?.comLinhas ?? 0) > 0
               return (
                 <button
@@ -412,6 +423,7 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
 
       {expandido && (
         <div className="border-t border-slate-100 p-4">
+          {/* Tabela de linhas */}
           {linhas.length > 0 && (
             <div className="mb-4 overflow-x-auto">
               <table className="w-full text-xs">
@@ -464,6 +476,7 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
             </div>
           )}
 
+          {/* Totais */}
           <div className="flex justify-end gap-6 text-sm mb-4 px-2">
             {[['TOTAL ACUMULADO:', qtdAnterior + qtdPeriodo], ['TOTAL ACUMULADO ANTERIOR:', qtdAnterior], ['TOTAL DO MÊS (A PAGAR):', qtdPeriodo]].map(([l, v]) => (
               <div key={l as string} className="text-right">
@@ -473,6 +486,7 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
             ))}
           </div>
 
+          {/* Nova linha */}
           <div className="bg-slate-50 rounded-xl p-3 border border-dashed border-slate-300">
             <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">+ Adicionar Linha</p>
             <div className="grid grid-cols-12 gap-1.5 items-end">

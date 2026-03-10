@@ -5,39 +5,22 @@ import {
   calcPrecoComDesconto, calcPrecoComBDI, calcPrecoTotal,
   calcResumoServico, calcValoresMedicao, valorPorExtenso,
 } from './calculations'
-
-// ─── PALETA ESTADO ────────────────────────────────────────────────────────────
-const AZ_ESCURO  = '1F3864'
-const AZ_MEDIO   = '2E75B6'
-const AZ_CLARO   = 'BDD7EE'
-const AZ_CABEC   = 'DEEAF1'
-const CINZA_SUB  = 'D9D9D9'
-const VERDE_OK   = '70AD47'
-const LARANJA    = 'ED7D31'
-
-// ─── PALETA PREFEITURA ────────────────────────────────────────────────────────
-const PF_CINZA_HDR  = 'D4D4D4'   // cabeçalho: VALOR DO CONTRATO, VALOR ACUMULADO, SALDO
-const PF_VERDE_MED  = '70AD47'   // "PLANILHA DE MEDIÇÃO" header verde
-const PF_VERDE_DADOS= 'E2EFDA'   // linhas com dados no período (verde claro)
-const PF_AZUL_TABCAB= 'DCE6F1'   // cabeçalho da tabela (ITEM, CÓDIGO, etc.)
-const PF_AZUL_PU    = 'DCE6F1'   // colunas PREÇO UNITÁRIO (G12, H12) = mesmo azul claro
-const PF_BRANCO     = 'FFFFFF'
-const PF_CINZA_LOGO = 'F2F2F2'   // bloco logo (A1:B9)
+import type { ModeloPlanilha, BorderStyle } from '../lib/modeloStore'
+import { MODELO_ESTADO_DEFAULT, MODELO_PREFEITURA_DEFAULT } from '../lib/modeloStore'
 
 // ─── HELPERS GENÉRICOS ───────────────────────────────────────────────────────
 function solidFill(hex: string): ExcelJS.Fill {
   return { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${hex}` } }
 }
 
-function thinBorder(): Partial<ExcelJS.Borders> {
-  const s = { style: 'thin' as ExcelJS.BorderStyle }
+function makeBorder(style: BorderStyle): Partial<ExcelJS.Borders> {
+  if (style === 'none') return {}
+  const s = { style: style as ExcelJS.BorderStyle }
   return { top: s, bottom: s, left: s, right: s }
 }
 
-function mediumBorder(): Partial<ExcelJS.Borders> {
-  const s = { style: 'medium' as ExcelJS.BorderStyle }
-  return { top: s, bottom: s, left: s, right: s }
-}
+function thinBorder()   { return makeBorder('thin')   }
+function mediumBorder() { return makeBorder('medium') }
 
 function align(h: ExcelJS.Alignment['horizontal'], v: ExcelJS.Alignment['vertical'] = 'middle'): Partial<ExcelJS.Alignment> {
   return { horizontal: h, vertical: v, wrapText: true }
@@ -56,21 +39,21 @@ function setCell(
   if (opts?.numFmt) c.numFmt    = opts.numFmt
 }
 
-// Fonts estado
-const fW  = (sz = 9) => ({ color: { argb: 'FFFFFFFF' }, bold: true,  size: sz, name: 'Arial Narrow' })
-const fB  = (sz = 9) => ({ bold: true,  size: sz, name: 'Arial Narrow' })
-const fN  = (sz = 9) => ({ bold: false, size: sz, name: 'Arial Narrow' })
-
-// Fonts prefeitura
-const pf8  = (bold = false): Partial<ExcelJS.Font> => ({ name: 'Arial', size: 8, bold })
-const pf9  = (bold = false): Partial<ExcelJS.Font> => ({ name: 'Arial', size: 9, bold })
-const pf6  = (bold = false): Partial<ExcelJS.Font> => ({ name: 'Arial', size: 6, bold })
-const pf10b= (): Partial<ExcelJS.Font> => ({ name: 'Arial', size: 10, bold: true })
-
-const pfAC = { horizontal: 'center', vertical: 'center', wrapText: true } as Partial<ExcelJS.Alignment>
-const pfAL = { horizontal: 'left',   vertical: 'center', wrapText: true } as Partial<ExcelJS.Alignment>
-const pfAR = { horizontal: 'right',  vertical: 'center', wrapText: true } as Partial<ExcelJS.Alignment>
-const pfALT= { horizontal: 'left',   vertical: 'top',    wrapText: true } as Partial<ExcelJS.Alignment>
+// ─── Font builders dinâmicos baseados no modelo ──────────────────────────────
+function mkFont(m: ModeloPlanilha) {
+  const base  = m.fonte.nome_base
+  const cabec = m.fonte.nome_cabec
+  const ds    = m.fonte.tamanho_dados
+  const ts    = m.fonte.tamanho_th
+  const cs    = m.fonte.tamanho_cabec
+  return {
+    // white bold para headers
+    fW: (sz = ts)  => ({ color: { argb: 'FFFFFFFF' }, bold: true,  size: sz, name: cabec }),
+    fB: (sz = ds)  => ({ bold: true,  size: sz, name: base }),
+    fN: (sz = ds)  => ({ bold: false, size: sz, name: base }),
+    fC: (sz = cs)  => ({ bold: true,  size: sz, name: cabec }),
+  }
+}
 
 // ─── ENTRADA PRINCIPAL ────────────────────────────────────────────────────────
 export async function gerarMedicaoExcel(
@@ -79,19 +62,27 @@ export async function gerarMedicaoExcel(
   medicao: Medicao,
   servicos: Servico[],
   linhasPorServico: Map<string, LinhaMemoria[]>,
-  logoBase64?: string | null
+  logoBase64?: string | null,
+  modelo?: ModeloPlanilha
 ): Promise<void> {
   const wb = new ExcelJS.Workbook()
   wb.creator = 'MediObras'
   wb.created = new Date()
 
-  if (contrato.tipo === 'PREFEITURA') {
-    // Apenas UMA aba: MED 01, MED 02, etc.
-    await gerarAbaPREF(wb, contrato, obra, medicao, servicos, linhasPorServico, logoBase64)
-    await gerarAbaMEM(wb, contrato, obra, medicao, servicos, linhasPorServico, 'PREFEITURA')
+  // Se não foi passado modelo, usa o padrão baseado no tipo do contrato
+  const mod = modelo ?? (
+    contrato.tipo === 'PREFEITURA' ? MODELO_PREFEITURA_DEFAULT : MODELO_ESTADO_DEFAULT
+  )
+
+  // Decide qual layout de aba usar baseado na "base" do modelo
+  const isPref = mod.base === 'PREFEITURA'
+
+  if (isPref) {
+    await gerarAbaPREF(wb, contrato, obra, medicao, servicos, linhasPorServico, logoBase64, mod)
+    await gerarAbaMEM(wb, contrato, obra, medicao, servicos, linhasPorServico, mod)
   } else {
-    await gerarAbaESTADO(wb, contrato, obra, medicao, servicos, linhasPorServico, logoBase64)
-    await gerarAbaMEM(wb, contrato, obra, medicao, servicos, linhasPorServico, 'ESTADO')
+    await gerarAbaESTADO(wb, contrato, obra, medicao, servicos, linhasPorServico, logoBase64, mod)
+    await gerarAbaMEM(wb, contrato, obra, medicao, servicos, linhasPorServico, mod)
   }
 
   const buffer = await wb.xlsx.writeBuffer()
@@ -102,7 +93,8 @@ export async function gerarMedicaoExcel(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ABA ESTADO (modelo azul/laranja existente — inalterada)
+// ABA ESTADO (modelo azul/laranja — usa cores dinâmicas do ModeloPlanilha)
+
 // ═══════════════════════════════════════════════════════════════════════════════
 async function gerarAbaESTADO(
   wb: ExcelJS.Workbook,
@@ -111,8 +103,17 @@ async function gerarAbaESTADO(
   medicao: Medicao,
   servicos: Servico[],
   linhasPorServico: Map<string, LinhaMemoria[]>,
-  logoBase64?: string | null
+  logoBase64?: string | null,
+  modelo?: ModeloPlanilha
 ) {
+  const m   = modelo ?? MODELO_ESTADO_DEFAULT
+  const { fW, fB, fN } = mkFont(m)
+  const C   = m.cores
+  const bD  = makeBorder(m.bordas.dados)
+  const bC  = makeBorder(m.bordas.cabec)
+  const bT  = makeBorder(m.bordas.totais)
+  const bE  = makeBorder(m.bordas.externo)
+
   const abaNome = `MED ${String(medicao.numero).padStart(2,'0')}`
   const ws = wb.addWorksheet(abaNome)
 
@@ -120,7 +121,7 @@ async function gerarAbaESTADO(
   larguras.forEach((w, i) => ws.getColumn(i + 1).width = w)
 
   ws.getRow(1).height = 8
-  for (let c = 1; c <= 23; c++) ws.getCell(1, c).fill = solidFill(LARANJA)
+  for (let c = 1; c <= 23; c++) ws.getCell(1, c).fill = solidFill(C.hdr_topo)
 
   ws.getRow(2).height = 36; ws.getRow(3).height = 20
   ws.getRow(4).height = 20; ws.getRow(5).height = 16
@@ -137,26 +138,26 @@ async function gerarAbaESTADO(
     } catch {}
   } else {
     setCell(ws, 'A2', contrato.empresa_executora, {
-      font: { ...fB(10), color: { argb: `FF${AZ_ESCURO}` } }, align: align('center'),
+      font: { ...fB(10), color: { argb: `FF${C.hdr_principal}` } }, align: align('center'),
     })
   }
 
   ws.mergeCells('D2:T2'); ws.mergeCells('D3:T3'); ws.mergeCells('D4:T4'); ws.mergeCells('D5:T5')
-  setCell(ws,'D2', contrato.orgao_nome,    { font:fW(11), fill:solidFill(AZ_ESCURO), align:align('center'), border:mediumBorder() })
-  setCell(ws,'D3', contrato.orgao_subdivisao||'', { font:fW(9), fill:solidFill(AZ_MEDIO), align:align('center') })
-  setCell(ws,'D4', `OBRA: ${obra.nome_obra}  |  LOCAL: ${obra.local_obra}`, { font:fB(9), fill:solidFill(AZ_CABEC), align:align('center') })
-  setCell(ws,'D5', `Contrato: ${obra.numero_contrato||'—'}  |  Empresa: ${contrato.empresa_executora}`, { font:fN(8), fill:solidFill(AZ_CABEC), align:align('center') })
+  setCell(ws,'D2', contrato.orgao_nome,    { font:fW(11), fill:solidFill(C.hdr_principal), align:align('center'), border:bE })
+  setCell(ws,'D3', contrato.orgao_subdivisao||'', { font:fW(9), fill:solidFill(C.hdr_sub), align:align('center') })
+  setCell(ws,'D4', `OBRA: ${obra.nome_obra}  |  LOCAL: ${obra.local_obra}`, { font:fB(9), fill:solidFill(C.hdr_cabec), align:align('center') })
+  setCell(ws,'D5', `Contrato: ${obra.numero_contrato||'—'}  |  Empresa: ${contrato.empresa_executora}`, { font:fN(8), fill:solidFill(C.hdr_cabec), align:align('center') })
 
   ws.mergeCells('U2:W2'); ws.mergeCells('U3:W3'); ws.mergeCells('U4:W4'); ws.mergeCells('U5:W5')
-  setCell(ws,'U2',`${medicao.numero_extenso} MEDIÇÃO`, { font:{...fW(14)}, fill:solidFill(LARANJA), align:align('center'), border:mediumBorder() })
-  setCell(ws,'U3',`Data: ${medicao.data_medicao ? new Date(medicao.data_medicao+'T00:00:00').toLocaleDateString('pt-BR') : '—'}`, { font:fN(8), fill:solidFill(AZ_CABEC), align:align('center') })
-  setCell(ws,'U4',`Desc: ${(obra.desconto_percentual*100).toFixed(2)}%  |  BDI: ${(obra.bdi_percentual*100).toFixed(2)}%`, { font:fN(8), fill:solidFill(AZ_CABEC), align:align('center') })
-  setCell(ws,'U5',`${obra.data_base_planilha||''}  |  Prazo: ${obra.prazo_execucao_dias}d`, { font:fN(8), fill:solidFill(AZ_CABEC), align:align('center') })
+  setCell(ws,'U2',`${medicao.numero_extenso} MEDIÇÃO`, { font:{...fW(14)}, fill:solidFill(C.hdr_topo), align:align('center'), border:bE })
+  setCell(ws,'U3',`Data: ${medicao.data_medicao ? new Date(medicao.data_medicao+'T00:00:00').toLocaleDateString('pt-BR') : '—'}`, { font:fN(8), fill:solidFill(C.hdr_cabec), align:align('center') })
+  setCell(ws,'U4',`Desc: ${(obra.desconto_percentual*100).toFixed(2)}%  |  BDI: ${(obra.bdi_percentual*100).toFixed(2)}%`, { font:fN(8), fill:solidFill(C.hdr_cabec), align:align('center') })
+  setCell(ws,'U5',`${obra.data_base_planilha||''}  |  Prazo: ${obra.prazo_execucao_dias}d`, { font:fN(8), fill:solidFill(C.hdr_cabec), align:align('center') })
 
   ws.getRow(6).height = 16
   ws.mergeCells('A6:K6'); ws.mergeCells('L6:W6')
-  setCell(ws,'A6','PLANILHA BASE',       { font:fW(9), fill:solidFill(AZ_ESCURO), align:align('center'), border:thinBorder() })
-  setCell(ws,'L6','PLANILHA DE MEDIÇÃO', { font:fW(9), fill:solidFill(AZ_MEDIO),  align:align('center'), border:thinBorder() })
+  setCell(ws,'A6','PLANILHA BASE',       { font:fW(9), fill:solidFill(C.th_base),    align:align('center'), border:bC })
+  setCell(ws,'L6','PLANILHA DE MEDIÇÃO', { font:fW(9), fill:solidFill(C.th_medicao), align:align('center'), border:bC })
 
   ws.getRow(7).height = 28; ws.getRow(8).height = 30
   const h7: [string,string][] = [
@@ -171,11 +172,10 @@ async function gerarAbaESTADO(
     ['O8','ACUMULADO'],['P8','SALDO\nCONTRATO'],['Q8','UNITÁRIO'],['R8','UNIT.\nC/ BDI'],
     ['S8','ANT.\nACUMULADO'],['T8','ACUMULADO'],['U8','NO PERIODO'],['V8','SALDO\nCONTRATO'],['W8','SALDO (%)'],
   ]
-  h7.forEach(([a,v]) => setCell(ws,a,v, { font:fW(8), fill:solidFill(AZ_ESCURO), align:align('center'), border:thinBorder() }))
-  h8.forEach(([a,v]) => setCell(ws,a,v, { font:fW(8), fill:solidFill(AZ_MEDIO),  align:align('center'), border:thinBorder() }))
+  h7.forEach(([a,v]) => setCell(ws,a,v, { font:fW(8), fill:solidFill(C.th_base),    align:align('center'), border:bC }))
+  h8.forEach(([a,v]) => setCell(ws,a,v, { font:fW(8), fill:solidFill(C.th_medicao), align:align('center'), border:bC }))
 
   let row = 9
-  const COR_GRUPO_ESTADO = AZ_CLARO
   for (const srv of [...servicos].sort((a,b) => a.ordem - b.ordem)) {
     const pDesc    = calcPrecoComDesconto(srv.preco_unitario, obra.desconto_percentual)
     const pBDI     = calcPrecoComBDI(pDesc, obra.bdi_percentual)
@@ -186,7 +186,7 @@ async function gerarAbaESTADO(
       ws.mergeCells(`D${row}:F${row}`)
       'ABCDEFGHIJKLMNOPQRSTUVW'.split('').forEach(c => {
         const cell = ws.getCell(`${c}${row}`)
-        cell.fill = solidFill(COR_GRUPO_ESTADO); cell.font = fB(9); cell.border = thinBorder()
+        cell.fill = solidFill(C.linha_grupo); cell.font = fB(9); cell.border = bD
       })
       ws.getCell(`A${row}`).value = srv.item;     ws.getCell(`A${row}`).alignment = align('center')
       ws.getCell(`D${row}`).value = srv.descricao; ws.getCell(`D${row}`).alignment = align('left')
@@ -194,7 +194,7 @@ async function gerarAbaESTADO(
     } else {
       const linhas = linhasPorServico.get(srv.id) || []
       const { qtdAnterior, qtdPeriodo, qtdAcumulada, qtdSaldo } = calcResumoServico(srv, linhas)
-      const rowFill = row % 2 === 0 ? solidFill('F2F7FC') : solidFill('FFFFFF')
+      const rowFill = row % 2 === 0 ? solidFill(C.linha_par) : solidFill(C.linha_impar)
       type CD = [string, ExcelJS.CellValue, string, ExcelJS.Alignment['horizontal']]
       const cols: CD[] = [
         ['A',srv.item,'@','center'],['B',srv.fonte,'@','center'],['C',srv.codigo||'','@','center'],
@@ -211,11 +211,11 @@ async function gerarAbaESTADO(
       ]
       cols.forEach(([col, val, fmt, al]) => {
         const c = ws.getCell(`${col}${row}`)
-        c.value = val; c.numFmt = fmt; c.font = fN(8); c.fill = rowFill; c.border = thinBorder(); c.alignment = align(al)
+        c.value = val; c.numFmt = fmt; c.font = fN(8); c.fill = rowFill; c.border = bD; c.alignment = align(al)
       })
-      if (qtdPeriodo > 0) { ws.getCell(`N${row}`).fill = solidFill('FFF2CC'); ws.getCell(`N${row}`).font = fB(8) }
+      if (qtdPeriodo > 0)   { ws.getCell(`N${row}`).fill = solidFill(C.linha_periodo); ws.getCell(`N${row}`).font = fB(8) }
       if (qtdAcumulada >= srv.quantidade && srv.quantidade > 0) {
-        ws.getCell(`W${row}`).fill = solidFill(VERDE_OK); ws.getCell(`W${row}`).font = fW(8)
+        ws.getCell(`W${row}`).fill = solidFill(C.linha_100pct); ws.getCell(`W${row}`).font = fW(8)
       }
     }
     row++
@@ -223,22 +223,22 @@ async function gerarAbaESTADO(
 
   const rTot = row; ws.getRow(rTot).height = 22
   ws.mergeCells(`A${rTot}:I${rTot}`)
-  setCell(ws,`A${rTot}`,'TOTAIS GERAIS DO ORÇAMENTO', { font:fW(10), fill:solidFill(AZ_ESCURO), align:align('center'), border:mediumBorder() })
+  setCell(ws,`A${rTot}`,'TOTAIS GERAIS DO ORÇAMENTO', { font:fW(10), fill:solidFill(C.linha_total), align:align('center'), border:bT })
   const vals = calcValoresMedicao(servicos, linhasPorServico, obra)
   ;[`J${rTot}`,`T${rTot}`,`U${rTot}`,`V${rTot}`].forEach((a, i) => {
     const v = [vals.totalOrcamento, vals.valorAcumulado, vals.valorPeriodo, vals.valorSaldo][i]
-    setCell(ws, a, v, { font:fW(9), fill:solidFill(AZ_ESCURO), align:align('right'), border:mediumBorder(), numFmt:'#,##0.00' })
+    setCell(ws, a, v, { font:fW(9), fill:solidFill(C.linha_total), align:align('right'), border:bT, numFmt:'#,##0.00' })
   })
 
   const rExt = rTot + 2; ws.mergeCells(`A${rExt}:W${rExt}`); ws.getRow(rExt).height = 24
   setCell(ws,`A${rExt}`,
     `A presente medição importa o valor de: ${valorPorExtenso(vals.valorPeriodo).toUpperCase()} — ${new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(vals.valorPeriodo)}`,
-    { font:fB(10), fill:solidFill('FFF8E7'), align:align('left'), border:{ bottom:{style:'medium',color:{argb:`FF${LARANJA}`}} } }
+    { font:fB(10), fill:solidFill(C.extenso_bg), align:align('left'), border:{ bottom:{style:'medium',color:{argb:`FF${C.extenso_borda}`}} } }
   )
 
   const rDemo = rExt + 3
   ws.mergeCells(`A${rDemo-1}:E${rDemo-1}`); ws.getRow(rDemo-1).height = 18
-  setCell(ws,`A${rDemo-1}`,'DEMONSTRATIVO FINANCEIRO', { font:fW(10), fill:solidFill(AZ_ESCURO), align:align('center'), border:mediumBorder() })
+  setCell(ws,`A${rDemo-1}`,'DEMONSTRATIVO FINANCEIRO', { font:fW(10), fill:solidFill(C.demo_cabec), align:align('center'), border:bT })
   const demo: [string, number, string][] = [
     ['VALOR TOTAL DO ORÇAMENTO',         vals.totalOrcamento,      '#,##0.00'],
     [`VALOR ${medicao.numero_extenso} MEDIÇÃO`, vals.valorPeriodo, '#,##0.00'],
@@ -251,9 +251,9 @@ async function gerarAbaESTADO(
   demo.forEach(([label, val, fmt], i) => {
     const r = rDemo + i; ws.getRow(r).height = 16
     ws.mergeCells(`A${r}:D${r}`)
-    const bg = i % 2 === 0 ? solidFill('EBF3FB') : solidFill('FFFFFF')
-    setCell(ws,`A${r}`,label, { font:fN(9), fill:bg, align:align('left'), border:thinBorder() })
-    setCell(ws,`E${r}`,val,   { font:fB(9), fill:bg, align:align('right'), border:thinBorder(), numFmt:fmt })
+    const bg = i % 2 === 0 ? solidFill(C.hdr_cabec) : solidFill('FFFFFF')
+    setCell(ws,`A${r}`,label, { font:fN(9), fill:bg, align:align('left'), border:bD })
+    setCell(ws,`E${r}`,val,   { font:fB(9), fill:bg, align:align('right'), border:bD, numFmt:fmt })
   })
 }
 
@@ -269,8 +269,15 @@ async function gerarAbaPREF(
   medicao: Medicao,
   servicos: Servico[],
   linhasPorServico: Map<string, LinhaMemoria[]>,
-  logoBase64?: string | null
+  logoBase64?: string | null,
+  modelo?: ModeloPlanilha
 ) {
+  const m  = modelo ?? MODELO_PREFEITURA_DEFAULT
+  const { fW, fB, fN } = mkFont(m)
+  const C  = m.cores
+  const bD = makeBorder(m.bordas.dados)
+  const bC = makeBorder(m.bordas.cabec)
+  const bT = makeBorder(m.bordas.totais)
   // Nome da aba = MED 01, MED 02…
   const abaNome = `MED ${String(medicao.numero).padStart(2,'0')}`
   const ws = wb.addWorksheet(abaNome)
