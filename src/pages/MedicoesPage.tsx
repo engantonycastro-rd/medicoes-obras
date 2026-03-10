@@ -104,33 +104,35 @@ export function MedicoesPage() {
     const medicaoId = exportModal.medicao.id
     setExportModal(null)
 
-    // Sempre busca medições frescas do DB para ter periodo_referencia atualizado
-    const todasMedicoes = await fetchMedicoes(obraAtiva.id)
-    const m = todasMedicoes.find(x => x.id === medicaoId) || exportModal.medicao
+    // Usa o estado LOCAL (tem periodo_referencia atualizado pelo salvarPeriodo)
+    // DB pode não ter a coluna ainda, então local é mais confiável
+    const mLocal = medicoes.find(x => x.id === medicaoId) || exportModal.medicao
 
     if (tipo === 'xlsx') {
       try {
-        await fetchLinhasMedicao(m.id)
+        await fetchLinhasMedicao(mLocal.id)
         const state = useStore.getState()
-        await gerarMedicaoExcel(contratoAtivo, obraAtiva, m, state.servicos, state.linhasPorServico, state.logoSelecionada, modelo)
+        await gerarMedicaoExcel(contratoAtivo, obraAtiva, mLocal, state.servicos, state.linhasPorServico, state.logoSelecionada, modelo)
         toast.success('Excel exportado!')
       } catch (err) { console.error(err); toast.error('Erro ao exportar Excel') }
     } else {
       try {
-        await fetchFotos(m.id)
+        await fetchFotos(mLocal.id)
+        // Busca todas as medições do DB apenas para calcular anteriores
+        const todasMedicoes = await fetchMedicoes(obraAtiva.id)
         const anterioresComValor: { numero_extenso: string; valorPeriodo: number }[] = []
-        for (const ant of todasMedicoes.filter(x => x.numero < m.numero && x.status === 'APROVADA').sort((a,b) => a.numero - b.numero)) {
+        for (const ant of todasMedicoes.filter(x => x.numero < mLocal.numero && x.status === 'APROVADA').sort((a,b) => a.numero - b.numero)) {
           await fetchLinhasMedicao(ant.id)
           const st = useStore.getState()
           const vals = calcValoresMedicao(st.servicos, st.linhasPorServico, obraAtiva)
           anterioresComValor.push({ numero_extenso: ant.numero_extenso, valorPeriodo: vals.valorPeriodo })
         }
-        await fetchLinhasMedicao(m.id)
+        await fetchLinhasMedicao(mLocal.id)
         const state = useStore.getState()
         const fotosAtuais = state.fotos
 
         await gerarMedicaoPDF(
-          contratoAtivo, obraAtiva, m,
+          contratoAtivo, obraAtiva, mLocal,
           state.servicos, state.linhasPorServico, state.logoSelecionada,
           fotosAtuais.length > 0 ? fotosAtuais : undefined,
           anterioresComValor.length > 0 ? anterioresComValor : undefined,

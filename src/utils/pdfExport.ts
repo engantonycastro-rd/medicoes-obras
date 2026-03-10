@@ -18,6 +18,7 @@ type Pal = {
   memTotAc:string; memTotAnt:string; memTotMes:string;
   thMem:string; faixaTopo:string;
   linhaPeriodo:string; linha100pct:string;
+  linhaPar:string; linhaImpar:string; empresaBg:string;
 }
 
 function modelToPal(m: ModeloPlanilha): Pal {
@@ -34,6 +35,8 @@ function modelToPal(m: ModeloPlanilha): Pal {
     memTotMes:`#${m.cores.mem_tot_mes}`, thMem:`#${m.cores.mem_titulo}`,
     faixaTopo:`#${m.cores.hdr_topo}`,
     linhaPeriodo:`#${m.cores.linha_periodo}`, linha100pct:`#${m.cores.linha_100pct}`,
+    linhaPar:`#${m.cores.linha_par}`, linhaImpar:`#${m.cores.linha_impar}`,
+    empresaBg:`#${m.cores.empresa_bg}`,
   }
 }
 
@@ -76,7 +79,7 @@ html,body{width:289mm;max-width:289mm;overflow-x:hidden;font-family:Arial,Helvet
 .pf-cab td{padding:0.4mm 0.7mm;vertical-align:middle;border:0.3px solid #000}
 .pf-lbl{color:#555;font-size:4.5pt;white-space:nowrap}
 .pf-val{font-weight:bold;font-size:5pt}
-.pf-hl{background:#D4D4D4;font-weight:bold;text-align:right;font-size:5pt}
+.pf-hl{background:${p.hdrCabec};font-weight:bold;text-align:right;font-size:5pt}
 .pf-hl-val{font-weight:bold;text-align:right;font-size:5.5pt}
 .pf-verde{background:${p.linhaPeriodo};font-weight:bold;text-align:right;font-size:5.5pt}
 .pf-logo-cell{width:28mm;text-align:center;vertical-align:middle;border-right:0.6px solid #000}
@@ -102,7 +105,7 @@ html,body{width:289mm;max-width:289mm;overflow-x:hidden;font-family:Arial,Helvet
 .t-med th,.t-med td{border:0.3px solid #000;padding:0.2mm 0.35mm;vertical-align:middle;overflow:hidden;text-overflow:ellipsis}
 .th-b{color:#fff;font-weight:bold;text-align:center;font-size:4pt;line-height:1.15;white-space:normal;word-break:break-word}
 .th-m{color:#fff;font-weight:bold;text-align:center;font-size:4pt;line-height:1.15;white-space:normal;word-break:break-word}
-.tr-par{background:#FAFAFA} .tr-imp{background:#fff}
+.tr-par{background:${p.linhaPar}} .tr-imp{background:${p.linhaImpar}}
 .td-desc{text-align:left!important;white-space:normal!important;word-break:break-word;line-height:1.15;max-width:0}
 .td-per{background:${p.linhaPeriodo};font-weight:bold}
 .td-100{background:${p.linha100pct};color:#fff}
@@ -150,6 +153,7 @@ function gerarHTMLMED(
   const fN = (n:number, d=2) => n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d})
   const fC = (n:number) => `R$ ${fN(n)}`
   const dataFmt = medicao.data_medicao ? new Date(medicao.data_medicao+'T00:00:00').toLocaleDateString('pt-BR') : '—'
+  const periodoRef = medicao.periodo_referencia || dataFmt
   const vals = calcValoresMedicao(servicos, linhasPorServico, obra)
   const desc = obra.desconto_percentual
 
@@ -161,7 +165,7 @@ function gerarHTMLMED(
     cab = `<table class="pf-cab">
   <tr>${logoCell}<td class="pf-lbl">CONCEDENTE</td><td class="pf-lbl">Data emissão BM</td><td class="pf-lbl">Período ref.</td><td class="pf-hl" colspan="2">VALOR DO CONTRATO</td>
     <td class="pf-empresa" rowspan="9"><strong>RD CONSTRUTORA LTDA</strong><br/>RUA BELA VISTA, 874, JARDINS,<br/>SÃO GONÇALO DO AMARANTE/RN<br/>CEP: 59293-576<br/>CNPJ: 43.357.757/0001-40<br/>rd_solucoes@outlook.com<br/>(84) 99641-8124</td></tr>
-  <tr><td class="pf-val">${contrato.orgao_nome||''}</td><td class="pf-val">${dataFmt}</td><td class="pf-val">${dataFmt}</td><td class="pf-hl-val" colspan="2">${fC(vals.totalOrcamento)}</td></tr>
+  <tr><td class="pf-val">${contrato.orgao_nome||''}</td><td class="pf-val">${dataFmt}</td><td class="pf-val">${periodoRef}</td><td class="pf-hl-val" colspan="2">${fC(vals.totalOrcamento)}</td></tr>
   <tr><td class="pf-lbl">CONVENENTE</td><td colspan="2" class="pf-lbl">OBJETIVO DA O.S.</td><td class="pf-lbl" colspan="2">VALOR O.S. ${contrato.numero_contrato||''}</td></tr>
   <tr><td class="pf-val">${contrato.orgao_nome||''}</td><td colspan="2" class="pf-val">${obra.nome_obra||''}</td><td class="pf-hl-val" colspan="2">${fC(vals.totalOrcamento)}</td></tr>
   <tr><td class="pf-lbl">PROC. LICITATÓRIO</td><td colspan="2" class="pf-val">${obra.numero_contrato||''}</td><td class="pf-hl" colspan="2">VALOR ACUMULADO</td></tr>
@@ -183,6 +187,7 @@ function gerarHTMLMED(
   <div class="est-dir">
     <div class="est-dir-num">${medicao.numero_extenso} MED.</div>
     <div class="est-dir-info">Data: ${dataFmt}</div>
+    <div class="est-dir-info">Período: ${periodoRef}</div>
     <div class="est-dir-info">Desc: ${(desc*100).toFixed(2)}% | BDI: ${(obra.bdi_percentual*100).toFixed(2)}%</div>
   </div>
 </div>`
@@ -260,11 +265,11 @@ function gerarHTMLMED(
     `<tr class="d-par"><td><strong>Valor Total Orçamento</strong></td><td class="d-val">${fC(vals.totalOrcamento)}</td></tr>`,
     antRows,
     vals.valorAcumulado-vals.valorPeriodo>0?`<tr class="d-imp"><td><strong>Total Fat. Anterior</strong></td><td class="d-val">${fC(vals.valorAcumulado-vals.valorPeriodo)}</td></tr>`:'',
-    `<tr style="background:${isPref?p.linhaPeriodo:'#FFF2CC'}"><td><strong>${medicao.numero_extenso} Med. — Período</strong></td><td class="d-val" style="color:${isPref?p.hdrPrincipal:'#C00000'}">${fC(vals.valorPeriodo)}</td></tr>`,
+    `<tr style="background:${p.linhaPeriodo}"><td><strong>${medicao.numero_extenso} Med. — Período</strong></td><td class="d-val" style="color:${p.hdrPrincipal}">${fC(vals.valorPeriodo)}</td></tr>`,
     `<tr class="d-par"><td>% da Medição</td><td class="d-val">${fN(vals.percentualPeriodo*100)}%</td></tr>`,
     `<tr class="d-imp"><td><strong>Faturado Acumulado</strong></td><td class="d-val">${fC(vals.valorAcumulado)}</td></tr>`,
     `<tr class="d-par"><td>% Acumulado</td><td class="d-val">${fN(vals.percentualAcumulado*100)}%</td></tr>`,
-    `<tr style="background:#E2EFDA"><td><strong>Saldo do Contrato</strong></td><td class="d-val" style="color:#375623">${fC(vals.valorSaldo)}</td></tr>`,
+    `<tr style="background:${p.trGrupo}"><td><strong>Saldo do Contrato</strong></td><td class="d-val" style="color:${p.hdrPrincipal}">${fC(vals.valorSaldo)}</td></tr>`,
     `<tr class="d-imp"><td>% do Saldo</td><td class="d-val">${fN(vals.percentualSaldo*100)}%</td></tr>`,
   ].join('')
 
@@ -283,6 +288,7 @@ function gerarHTMLMEM(
 ): string {
   const fN = (n:number|null|undefined, d=2) => n==null?'—':n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d})
   const dataFmt = medicao.data_medicao ? new Date(medicao.data_medicao+'T00:00:00').toLocaleDateString('pt-BR') : '—'
+  const periodoRef = medicao.periodo_referencia || dataFmt
   let rows = ''
   for (const srv of servicos.filter(s=>!s.is_grupo).sort((a,b)=>a.ordem-b.ordem)) {
     const linhas = (linhasPorServico.get(srv.id)||[]).sort((a,b)=>a.sub_item.localeCompare(b.sub_item))
@@ -299,7 +305,7 @@ function gerarHTMLMEM(
       <tr class="tr-tme" style="background:${p.memTotMes}"><td colspan="12" style="text-align:right">TOTAL MÊS (A PAGAR):</td><td class="num">${fN(qtdPer)}</td><td></td></tr>
       <tr><td colspan="14" style="height:1mm"></td></tr>`
   }
-  return `<div class="mem-tit" style="background:${p.memGrupo};color:${p.memTitulo};border-color:${p.memTitulo}">MEMÓRIA DE CÁLCULO &nbsp;|&nbsp; ${obra.nome_obra} &nbsp;|&nbsp; ${medicao.numero_extenso} MEDIÇÃO &nbsp;|&nbsp; ${dataFmt}</div>
+  return `<div class="mem-tit" style="background:${p.memGrupo};color:${p.memTitulo};border-color:${p.memTitulo}">MEMÓRIA DE CÁLCULO &nbsp;|&nbsp; ${obra.nome_obra} &nbsp;|&nbsp; ${medicao.numero_extenso} MEDIÇÃO &nbsp;|&nbsp; ${periodoRef}</div>
 <table class="t-mem"><colgroup><col style="width:4%"/><col style="width:22%"/><col style="width:5.5%"/><col style="width:5.5%"/><col style="width:5.5%"/><col style="width:5.5%"/><col style="width:5.5%"/><col style="width:5.5%"/><col style="width:5.5%"/><col style="width:5.5%"/><col style="width:5.5%"/><col style="width:5.5%"/><col style="width:7%"/><col style="width:7%"/></colgroup>
   <thead><tr><th class="th-mem" style="background:${p.thMem}">ITEM</th><th class="th-mem" style="background:${p.thMem}">DESCRIÇÃO</th><th class="th-mem" style="background:${p.thMem}">Larg.</th><th class="th-mem" style="background:${p.thMem}">Comp.</th><th class="th-mem" style="background:${p.thMem}">Alt.</th><th class="th-mem" style="background:${p.thMem}">Perim.</th><th class="th-mem" style="background:${p.thMem}">Área</th><th class="th-mem" style="background:${p.thMem}">Vol.</th><th class="th-mem" style="background:${p.thMem}">Kg</th><th class="th-mem" style="background:${p.thMem}">Outros</th><th class="th-mem" style="background:${p.thMem}">Desc.</th><th class="th-mem" style="background:${p.thMem}">Qtde</th><th class="th-mem" style="background:${p.thMem}">TOTAL</th><th class="th-mem" style="background:${p.thMem}">STATUS</th></tr></thead>
   <tbody>${rows}</tbody></table>`

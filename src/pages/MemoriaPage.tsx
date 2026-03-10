@@ -106,19 +106,19 @@ export function MemoriaPage() {
     const tipo = exportModal
     setExportModal(null)
 
-    // Re-busca medições frescas do DB para garantir periodo_referencia atualizado
-    const todasMedicoes = await fetchMedicoes(obraAtiva.id)
-    const medFresh = todasMedicoes.find(x => x.id === medicaoAtiva.id) || medicaoAtiva
+    // Usa medicaoAtiva diretamente (estado local, tem periodo_referencia)
+    const med = medicaoAtiva
 
     if (tipo === 'xlsx') {
       try {
-        await gerarMedicaoExcel(contratoAtivo, obraAtiva, medFresh, servicos, linhasPorServico, logoSelecionada, modelo)
+        await gerarMedicaoExcel(contratoAtivo, obraAtiva, med, servicos, linhasPorServico, logoSelecionada, modelo)
         toast.success('Excel exportado!')
       } catch (err) { console.error(err); toast.error('Erro ao exportar Excel') }
     } else {
       try {
+        const todasMedicoes = await fetchMedicoes(obraAtiva.id)
         const anteriores = todasMedicoes
-          .filter(m => m.numero < medFresh.numero && m.status === 'APROVADA')
+          .filter(m => m.numero < med.numero && m.status === 'APROVADA')
           .sort((a, b) => a.numero - b.numero)
         const anterioresComValor: { numero_extenso: string; valorPeriodo: number }[] = []
         for (const m of anteriores) {
@@ -127,10 +127,10 @@ export function MemoriaPage() {
           const vals = calcValoresMedicao(servicos, st.linhasPorServico, obraAtiva)
           anterioresComValor.push({ numero_extenso: m.numero_extenso, valorPeriodo: vals.valorPeriodo })
         }
-        await fetchLinhasMedicao(medFresh.id)
+        await fetchLinhasMedicao(med.id)
 
         await gerarMedicaoPDF(
-          contratoAtivo, obraAtiva, medFresh,
+          contratoAtivo, obraAtiva, med,
           servicos, linhasPorServico, logoSelecionada,
           fotos.length > 0 ? fotos : undefined,
           anterioresComValor.length > 0 ? anterioresComValor : undefined,
