@@ -32,7 +32,9 @@ export function NotificacaoBell() {
   const { notificacoes, naoLidas, fetchNotificacoes, marcarComoLida, marcarTodasComoLidas,
     deletarNotificacao, limparLidas, iniciarRealtime } = useNotificacaoStore()
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ top: 0, left: 0 })
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -43,11 +45,20 @@ export function NotificacaoBell() {
   // Close on click outside
   useEffect(() => {
     function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (panelRef.current && !panelRef.current.contains(e.target as Node) &&
+          btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false)
     }
     if (open) document.addEventListener('mousedown', handle)
     return () => document.removeEventListener('mousedown', handle)
   }, [open])
+
+  function toggleOpen() {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      setPos({ top: rect.bottom + 6, left: rect.left })
+    }
+    setOpen(!open)
+  }
 
   function handleClick(n: Notificacao) {
     if (!n.lida) marcarComoLida(n.id)
@@ -55,8 +66,8 @@ export function NotificacaoBell() {
   }
 
   return (
-    <div className="relative" ref={ref}>
-      <button onClick={() => setOpen(!open)}
+    <>
+      <button ref={btnRef} onClick={toggleOpen}
         className="relative p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors">
         <Bell size={18} className="text-slate-400"/>
         {naoLidas > 0 && (
@@ -68,8 +79,8 @@ export function NotificacaoBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-10 w-80 bg-white rounded-xl shadow-2xl border border-slate-200
-          z-50 overflow-hidden" style={{ maxHeight: '70vh' }}>
+        <div ref={panelRef} className="fixed w-80 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden"
+          style={{ top: pos.top, left: Math.max(8, pos.left), maxHeight: '70vh', zIndex: 9999 }}>
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50">
             <p className="font-bold text-sm text-slate-800">Notificações</p>
@@ -127,6 +138,6 @@ export function NotificacaoBell() {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
