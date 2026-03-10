@@ -40,7 +40,11 @@ export function ServicosPage() {
       await salvarServicos(obraAtiva.id, contratoAtivo.id, preview)
       setPreview([])
       toast.success('Orçamento salvo com sucesso!')
-    } catch { toast.error('Erro ao salvar') }
+    } catch (err: any) {
+      const msg = err?.message || 'Erro desconhecido ao salvar'
+      toast.error(msg, { duration: 5000 })
+      console.error('Erro salvarServicos:', err)
+    }
     finally { setSaving(false) }
   }
 

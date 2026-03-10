@@ -83,7 +83,7 @@ function parseServicos(ws: ExcelJS.Worksheet): ServicoImportado[] {
       quantidade: grupo ? 0 : qtd,
       preco_unitario: grupo ? 0 : precoUn,
       is_grupo: grupo,
-      grupo_item: grupo ? undefined : getGrupoItem(item),
+      grupo_item: grupo ? null : getGrupoItem(item) || null,
       ordem: ordem++,
     })
   })

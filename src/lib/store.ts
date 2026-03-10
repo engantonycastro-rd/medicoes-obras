@@ -138,16 +138,56 @@ export const useStore = create<Store>((set, get) => ({
   },
   salvarServicos: async (obraId, contratoId, importados) => {
     set({ loading: true })
-    await supabase.from('servicos').delete().eq('obra_id', obraId)
-    const rows = importados.map(s => ({
-      contrato_id: contratoId, obra_id: obraId,
-      item: s.item, fonte: s.fonte, codigo: s.codigo || null,
-      descricao: s.descricao, unidade: s.unidade, quantidade: s.quantidade,
-      preco_unitario: s.preco_unitario, is_grupo: s.is_grupo, grupo_item: s.grupo_item || null, ordem: s.ordem,
+
+    // 1. Deleta serviços existentes (verifica erro)
+    const { error: delErr } = await supabase.from('servicos').delete().eq('obra_id', obraId)
+    if (delErr) {
+      console.warn('Erro ao limpar serviços antigos (pode ser obra nova):', delErr.message)
+      // Tenta com RPC se RLS bloquear
+      try {
+        await supabase.rpc('delete_servicos_obra', { p_obra_id: obraId })
+      } catch {}
+    }
+
+    // 2. Deduplica por item (mantém a primeira ocorrência)
+    const seen = new Set<string>()
+    const unicos = importados.filter(s => {
+      const key = s.item.trim()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+
+    // 3. Monta rows com valores explícitos (nunca undefined)
+    const rows = unicos.map(s => ({
+      contrato_id: contratoId,
+      obra_id: obraId,
+      item: s.item,
+      fonte: s.fonte || 'SINAPI',
+      codigo: s.codigo || null,
+      descricao: s.descricao,
+      unidade: s.unidade || 'UN',
+      quantidade: s.quantidade ?? 0,
+      preco_unitario: s.preco_unitario ?? 0,
+      is_grupo: s.is_grupo ?? false,
+      grupo_item: s.grupo_item ?? null,
+      ordem: s.ordem ?? 0,
     }))
-    const { data, error } = await supabase.from('servicos').insert(rows).select()
-    if (error) { set({ error: error.message, loading: false }); throw error }
-    set({ servicos: (data || []) as Servico[], loading: false })
+
+    // 4. Insere em chunks de 50 para evitar limites do Supabase
+    const CHUNK = 50
+    let allData: any[] = []
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const chunk = rows.slice(i, i + CHUNK)
+      const { data, error } = await supabase.from('servicos').insert(chunk).select()
+      if (error) {
+        set({ error: `Erro ao importar (lote ${Math.floor(i/CHUNK)+1}): ${error.message}`, loading: false })
+        throw error
+      }
+      if (data) allData = [...allData, ...data]
+    }
+
+    set({ servicos: allData as Servico[], loading: false })
   },
 
   // ── MEDIÇÕES ──────────────────────────────────────────────────────────────────
