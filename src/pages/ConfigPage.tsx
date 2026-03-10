@@ -1,15 +1,17 @@
 import { useEffect, useState, useRef } from 'react'
-import { Settings, Image, Plus, Trash2, CheckCircle2, Upload, Crown, Lock, TableProperties } from 'lucide-react'
+import { Settings, Image, Plus, Trash2, CheckCircle2, Upload, Crown, Lock, TableProperties, FileSpreadsheet, ToggleLeft, ToggleRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
 import { usePerfilStore } from '../lib/perfilStore'
+import { useModeloStore } from '../lib/modeloStore'
 import { ModeloEditor } from '../components/ModeloEditor'
 
-type Aba = 'logos' | 'modelos'
+type Aba = 'logos' | 'modelos' | 'exportacao'
 
 export function ConfigPage() {
   const { logos, fetchLogos, adicionarLogo, deletarLogo, logoSelecionada, setLogoSelecionada } = useStore()
   const { perfilAtual } = usePerfilStore()
+  const { excelHabilitado, setExcelHabilitado } = useModeloStore()
   const isAdmin = perfilAtual?.role === 'ADMIN'
 
   const [abaAtiva,  setAbaAtiva]  = useState<Aba>('logos')
@@ -81,6 +83,17 @@ export function ConfigPage() {
             }`}>
             <TableProperties size={15}/> Modelos de Planilha
             <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded-md text-[10px] font-bold">ADMIN</span>
+          </button>
+        )}
+        {isAdmin && (
+          <button onClick={() => setAbaAtiva('exportacao')}
+            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium -mb-px border-b-2 transition-colors ${
+              abaAtiva === 'exportacao'
+                ? 'border-emerald-500 text-emerald-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}>
+            <FileSpreadsheet size={15}/> Exportação
+            <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-600 rounded-md text-[10px] font-bold">ADMIN</span>
           </button>
         )}
       </div>
@@ -197,6 +210,70 @@ export function ConfigPage() {
       {/* ── ABA MODELOS (só admin) ────────────────────────────────────────── */}
       {abaAtiva === 'modelos' && isAdmin && (
         <ModeloEditor/>
+      )}
+
+      {/* ── ABA EXPORTAÇÃO (só admin) ─────────────────────────────────────── */}
+      {abaAtiva === 'exportacao' && isAdmin && (
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+          <div className="flex items-center gap-3 p-5 border-b border-slate-100">
+            <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center">
+              <FileSpreadsheet size={18} className="text-emerald-600"/>
+            </div>
+            <div>
+              <h2 className="font-bold text-slate-800">Configurações de Exportação</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Controle quais formatos de exportação estão disponíveis para os usuários</p>
+            </div>
+          </div>
+
+          <div className="p-5 space-y-4">
+            {/* Toggle Excel */}
+            <div className="flex items-center justify-between p-4 border border-slate-200 rounded-xl bg-white">
+              <div className="flex items-center gap-4">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  excelHabilitado ? 'bg-emerald-100' : 'bg-slate-100'
+                }`}>
+                  <FileSpreadsheet size={20} className={excelHabilitado ? 'text-emerald-600' : 'text-slate-400'}/>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-800 text-sm">Exportação Excel (.xlsx)</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {excelHabilitado
+                      ? 'Habilitado — botões de exportar Excel visíveis nas páginas de Medições e Memória'
+                      : 'Desabilitado — botões de exportar Excel ocultos para todos os usuários'
+                    }
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setExcelHabilitado(!excelHabilitado)
+                  toast.success(excelHabilitado ? 'Exportação Excel desabilitada' : 'Exportação Excel habilitada')
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                  excelHabilitado
+                    ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                    : 'bg-slate-200 hover:bg-slate-300 text-slate-600'
+                }`}>
+                {excelHabilitado ? <ToggleRight size={18}/> : <ToggleLeft size={18}/>}
+                {excelHabilitado ? 'Habilitado' : 'Desabilitado'}
+              </button>
+            </div>
+
+            {/* Info PDF */}
+            <div className="flex items-center justify-between p-4 border border-slate-200 rounded-xl bg-white">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-red-100">
+                  <Settings size={20} className="text-red-500"/>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-800 text-sm">Exportação PDF</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Sempre habilitado — formato padrão de entrega das medições</p>
+                </div>
+              </div>
+              <span className="px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold">Sempre Ativo</span>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

@@ -199,11 +199,13 @@ export const MODELO_PREFEITURA_DEFAULT: ModeloPlanilha = {
 
 interface ModeloState {
   modelos: ModeloPlanilha[]
+  excelHabilitado: boolean
   // CRUD
   salvarModelo:  (m: ModeloPlanilha) => void
   deletarModelo: (id: string) => void
   clonarModelo:  (id: string, novoNome: string) => ModeloPlanilha
   resetModelo:   (id: string) => void
+  setExcelHabilitado: (v: boolean) => void
   // Helpers
   getModelo:     (id: string) => ModeloPlanilha | undefined
 }
@@ -212,6 +214,7 @@ export const useModeloStore = create<ModeloState>()(
   persist(
     (set, get) => ({
       modelos: [MODELO_ESTADO_DEFAULT, MODELO_PREFEITURA_DEFAULT],
+      excelHabilitado: true,
 
       salvarModelo: (m) => set(state => ({
         modelos: state.modelos.some(x => x.id === m.id)
@@ -248,6 +251,8 @@ export const useModeloStore = create<ModeloState>()(
           modelos: state.modelos.map(m => m.id === id ? { ...def, editado_em: new Date().toISOString() } : m),
         }))
       },
+
+      setExcelHabilitado: (v) => set({ excelHabilitado: v }),
 
       getModelo: (id) => get().modelos.find(m => m.id === id),
     }),

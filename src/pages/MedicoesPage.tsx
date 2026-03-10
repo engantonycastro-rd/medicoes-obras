@@ -13,11 +13,12 @@ import { gerarMedicaoExcel } from '../utils/excelExport'
 import { gerarMedicaoPDF } from '../utils/pdfExport'
 import { ModeloExportModal } from '../components/ModeloExportModal'
 import type { ModeloPlanilha } from '../lib/modeloStore'
+import { useModeloStore } from '../lib/modeloStore'
 
 export function MedicoesPage() {
   const {
     contratoAtivo, obraAtiva, fetchMedicoes, criarMedicao, criarProximaMedicao,
-    efetuarMedicao, deletarMedicao, setMedicaoAtiva, fetchServicos,
+    efetuarMedicao, deletarMedicao, atualizarMedicao, setMedicaoAtiva, fetchServicos,
     fetchLinhasMedicao, servicos, linhasPorServico, logos, fetchLogos,
     logoSelecionada, setLogoSelecionada, loading, fetchFotos,
   } = useStore()
@@ -27,6 +28,7 @@ export function MedicoesPage() {
   const [carregando, setCarregando] = useState(false)
   const [confirmModal, setConfirmModal] = useState<{ tipo: 'efetivar'|'proxima'|'deletar'; medicao: Medicao } | null>(null)
   const [exportModal, setExportModal] = useState<{ tipo: 'xlsx'|'pdf'; medicao: Medicao } | null>(null)
+  const { excelHabilitado } = useModeloStore()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -134,6 +136,13 @@ export function MedicoesPage() {
         toast.success('PDF exportado!')
       } catch (err) { console.error(err); toast.error('Erro ao exportar PDF') }
     }
+  }
+
+  async function salvarPeriodo(medicao: Medicao, periodo: string) {
+    try {
+      await atualizarMedicao(medicao.id, { periodo_referencia: periodo || null } as any)
+      setMedicoes(prev => prev.map(m => m.id === medicao.id ? { ...m, periodo_referencia: periodo || null } : m))
+    } catch { toast.error('Erro ao salvar período') }
   }
 
   const statusCfg: Record<string, { label: string; badge: string; icon: React.ReactNode }> = {
@@ -272,17 +281,24 @@ export function MedicoesPage() {
                     </div>
                     <div className="flex items-center gap-4 text-sm text-slate-500">
                       <span className="flex items-center gap-1.5"><Calendar size={13}/>{formatDate(m.data_medicao)}</span>
+                      {m.periodo_referencia && (
+                        <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+                          Período: {m.periodo_referencia}
+                        </span>
+                      )}
                       {m.observacoes && <span className="truncate max-w-xs">{m.observacoes}</span>}
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    {/* Exportar Excel */}
-                    <button onClick={e => handleExportXlsx(e, m)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200
-                        text-slate-600 text-xs hover:border-emerald-300 hover:text-emerald-600 hover:bg-emerald-50 transition-all">
-                      <Download size={13}/> .xlsx
-                    </button>
+                    {/* Exportar Excel — só se habilitado */}
+                    {excelHabilitado && (
+                      <button onClick={e => handleExportXlsx(e, m)}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200
+                          text-slate-600 text-xs hover:border-emerald-300 hover:text-emerald-600 hover:bg-emerald-50 transition-all">
+                        <Download size={13}/> .xlsx
+                      </button>
+                    )}
                     {/* Exportar PDF */}
                     <button onClick={e => handleExportPDF(e, m)}
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200
@@ -303,8 +319,8 @@ export function MedicoesPage() {
                         <ArrowRight size={13}/> Criar {ordEN[medicoes.length + 1] || `${medicoes.length+1}ª`} Med.
                       </button>
                     )}
-                    {/* Deletar — só admin, só aprovadas */}
-                    {isAdmin && isAprovada && (
+                    {/* Deletar — admin pode deletar qualquer medição */}
+                    {isAdmin && (
                       <button onClick={() => setConfirmModal({ tipo: 'deletar', medicao: m })}
                         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-red-200
                           text-red-600 text-xs hover:bg-red-50 transition-all">
@@ -314,6 +330,29 @@ export function MedicoesPage() {
                     <ChevronRight size={18} className="text-slate-300 hover:text-amber-400 cursor-pointer ml-1"
                       onClick={() => abrirMedicao(m)} />
                   </div>
+                </div>
+
+                {/* Campo período de referência */}
+                <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-3">
+                  <label className="text-xs text-slate-500 font-medium shrink-0 flex items-center gap-1.5">
+                    <Calendar size={12}/> Período:
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: 02/03/2026 à 10/03/2026"
+                    defaultValue={m.periodo_referencia || ''}
+                    onBlur={e => {
+                      const val = e.target.value.trim()
+                      if (val !== (m.periodo_referencia || '')) salvarPeriodo(m, val)
+                    }}
+                    onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                    className="flex-1 max-w-xs border border-slate-200 rounded-lg px-3 py-1.5 text-xs
+                      focus:outline-none focus:ring-1 focus:ring-amber-400 focus:border-amber-400
+                      placeholder:text-slate-300"
+                  />
+                  {m.periodo_referencia && (
+                    <span className="text-xs text-emerald-500 flex items-center gap-1"><CheckCircle2 size={11}/> Salvo</span>
+                  )}
                 </div>
               </div>
             )

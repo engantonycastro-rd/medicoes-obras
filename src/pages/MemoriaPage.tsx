@@ -16,6 +16,7 @@ import { gerarMedicaoPDF } from '../utils/pdfExport'
 import { RelatorioFotografico } from '../components/RelatorioFotografico'
 import { ModeloExportModal } from '../components/ModeloExportModal'
 import type { ModeloPlanilha } from '../lib/modeloStore'
+import { useModeloStore } from '../lib/modeloStore'
 
 const STATUS_CONFIG: Record<StatusLinhaMemoria, { label: string; color: string; icon: React.ReactNode }> = {
   'A pagar':      { label: 'A pagar',      color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: <Clock size={12}/> },
@@ -41,6 +42,7 @@ export function MemoriaPage() {
   const [mostraFotos, setMostraFotos] = useState(false)
   const [medicoesDaObra, setMedicoesDaObra] = useState<import('../types').Medicao[]>([])
   const [exportModal, setExportModal] = useState<'xlsx'|'pdf'|null>(null)
+  const { excelHabilitado } = useModeloStore()
   // null = todas; string = item do grupo (ex: "2")
   const [etapaFiltro, setEtapaFiltro] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -189,10 +191,12 @@ export function MemoriaPage() {
             }`}>
             <Camera size={13}/> Fotos
           </button>
-          <button onClick={handleExportXlsx}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:border-emerald-300 hover:text-emerald-600 hover:bg-emerald-50 transition-all">
-            <Download size={13}/> .xlsx
-          </button>
+          {excelHabilitado && (
+            <button onClick={handleExportXlsx}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:border-emerald-300 hover:text-emerald-600 hover:bg-emerald-50 transition-all">
+              <Download size={13}/> .xlsx
+            </button>
+          )}
           <button onClick={handleExportPDF}
             className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-all">
             <FileDown size={13}/> .pdf

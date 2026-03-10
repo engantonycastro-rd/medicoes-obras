@@ -64,6 +64,7 @@ export interface Servico {
 export interface Medicao {
   id: string; contrato_id: string; obra_id: string | null; created_at: string; updated_at: string
   numero: number; numero_extenso: string; data_medicao: string; status: StatusMedicao; observacoes: string | null
+  periodo_referencia: string | null
 }
 
 export interface LinhaMemoria {
