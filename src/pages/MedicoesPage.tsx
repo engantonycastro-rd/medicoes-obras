@@ -100,9 +100,13 @@ export function MedicoesPage() {
 
   async function confirmarExport(modelo: ModeloPlanilha) {
     if (!exportModal || !obraAtiva || !contratoAtivo) return
-    const m = exportModal.medicao
     const tipo = exportModal.tipo
+    const medicaoId = exportModal.medicao.id
     setExportModal(null)
+
+    // Sempre busca medições frescas do DB para ter periodo_referencia atualizado
+    const todasMedicoes = await fetchMedicoes(obraAtiva.id)
+    const m = todasMedicoes.find(x => x.id === medicaoId) || exportModal.medicao
 
     if (tipo === 'xlsx') {
       try {
@@ -114,7 +118,6 @@ export function MedicoesPage() {
     } else {
       try {
         await fetchFotos(m.id)
-        const todasMedicoes = await fetchMedicoes(obraAtiva.id)
         const anterioresComValor: { numero_extenso: string; valorPeriodo: number }[] = []
         for (const ant of todasMedicoes.filter(x => x.numero < m.numero && x.status === 'APROVADA').sort((a,b) => a.numero - b.numero)) {
           await fetchLinhasMedicao(ant.id)
