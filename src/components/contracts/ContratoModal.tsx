@@ -123,12 +123,16 @@ export function ContratoModal({ contrato, onClose }: Props) {
               add.map(gid => ({ contrato_id: contratoId, gestor_id: gid }))
             )
             for (const gid of add) {
-              supabase.rpc('criar_notificacao', {
-                p_user_id: gid, p_tipo: 'info',
-                p_titulo: `Novo contrato atribuído: ${data.nome_obra}`,
-                p_mensagem: `Você foi designado como gestor do contrato "${data.nome_obra}" (${data.cidade || data.estado || ''}).`,
-                p_link: '/',
-              }).catch(() => {})
+              try {
+                await supabase.rpc('criar_notificacao', {
+                  p_user_id: gid, p_tipo: 'info',
+                  p_titulo: `Novo contrato atribuído: ${data.nome_obra}`,
+                  p_mensagem: `Você foi designado como gestor do contrato "${data.nome_obra}" (${data.cidade || data.estado || ''}).`,
+                  p_link: '/',
+                })
+              } catch (notifErr) {
+                console.warn('Erro ao notificar gestor:', notifErr)
+              }
             }
           }
         } catch (gestorErr) {
