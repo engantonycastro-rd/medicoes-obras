@@ -12,7 +12,7 @@ export interface Perfil {
 
 export interface Contrato {
   id: string; created_at: string; updated_at: string
-  nome_obra: string            // nome do contrato/cliente (ex: "FUNDASE")
+  nome_obra: string
   local_obra: string
   numero_contrato: string | null
   tipo: TipoContrato
@@ -26,6 +26,8 @@ export interface Contrato {
   data_ordem_servico: string | null
   prazo_execucao_dias: number | null
   status: 'ATIVO' | 'CONCLUIDO' | 'SUSPENSO'
+  estado: string | null
+  cidade: string | null
   user_id: string
 }
 
@@ -44,6 +46,7 @@ export interface Obra {
   data_ordem_servico: string | null
   status: StatusObra
   centro_custo: string | null
+  ordem: number
 }
 
 export interface LogoSistema {

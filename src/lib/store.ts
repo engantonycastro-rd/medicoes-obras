@@ -30,6 +30,7 @@ interface Store {
   criarObra:     (d: Omit<Obra,'id'|'created_at'|'updated_at'>) => Promise<Obra>
   atualizarObra: (id: string, d: Partial<Obra>) => Promise<void>
   deletarObra:   (id: string) => Promise<void>
+  moverObra:     (obraId: string, novoContratoId: string) => Promise<void>
 
   // Serviços
   fetchServicos:  (obraId: string) => Promise<void>
@@ -129,6 +130,13 @@ export const useStore = create<Store>((set, get) => ({
     const { error } = await supabase.from('obras').delete().eq('id', id)
     if (error) { set({ error: error.message }); throw error }
     set(s => ({ obras: s.obras.filter(o => o.id !== id), obraAtiva: s.obraAtiva?.id === id ? null : s.obraAtiva }))
+  },
+  moverObra: async (obraId, novoContratoId) => {
+    const { error } = await supabase.from('obras').update({ contrato_id: novoContratoId }).eq('id', obraId)
+    if (error) { set({ error: error.message }); throw error }
+    // Atualiza também os serviços e medições vinculados
+    await supabase.from('servicos').update({ contrato_id: novoContratoId }).eq('obra_id', obraId)
+    await supabase.from('medicoes').update({ contrato_id: novoContratoId }).eq('obra_id', obraId)
   },
 
   // ── SERVIÇOS ──────────────────────────────────────────────────────────────────
