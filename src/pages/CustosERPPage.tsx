@@ -191,6 +191,18 @@ export function CustosERPPage() {
     toast.success(`${qtd} custos da obra "${obraNome}" apagados!`)
   }
 
+  async function apagarTodosCustos() {
+    if (!confirm(`ATENÇÃO: Apagar TODOS os ${custos.length} registros de custos de TODAS as obras?\n\nEsta ação não pode ser desfeita!`)) return
+    if (!confirm(`Tem certeza? Serão excluídos ${custos.length} lançamentos permanentemente.`)) return
+    const ids = custos.map(c => c.id)
+    for (let i = 0; i < ids.length; i += 100) {
+      const { error } = await supabase.from('custos_erp').delete().in('id', ids.slice(i, i + 100))
+      if (error) { toast.error(error.message); return }
+    }
+    setCustos([])
+    toast.success(`Todos os ${ids.length} registros apagados!`)
+  }
+
   // ── STATS ─────────────────────────────────────────────────────────────────
 
   const custosFiltrados = useMemo(() => {
@@ -350,6 +362,12 @@ export function CustosERPPage() {
             if (o) apagarCustosDaObra(o.id, o.nome_obra)
           }} className="flex items-center gap-1.5 px-3 py-1.5 border border-red-200 rounded-lg text-xs text-red-600 hover:bg-red-50 ml-auto">
             <Trash2 size={12}/> Apagar custos desta obra
+          </button>
+        )}
+        {isAdmin && obraFiltro === 'todas' && custos.length > 0 && (
+          <button onClick={apagarTodosCustos}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-red-200 rounded-lg text-xs text-red-600 hover:bg-red-50 ml-auto">
+            <Trash2 size={12}/> Apagar todos ({custos.length})
           </button>
         )}
       </div>
