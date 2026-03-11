@@ -109,36 +109,39 @@ export function ContratoModal({ contrato, onClose }: Props) {
         contratoId = novo.id
       }
 
-      // Atualiza gestores atribuídos
-      if (isAdmin) {
-        const add = gestoresSelecionados.filter(g => !gestoresAtuais.includes(g))
-        const rem = gestoresAtuais.filter(g => !gestoresSelecionados.includes(g))
+      // Atualiza gestores (separado — não bloqueia a criação)
+      if (isAdmin && gestores.length > 0) {
+        try {
+          const add = gestoresSelecionados.filter(g => !gestoresAtuais.includes(g))
+          const rem = gestoresAtuais.filter(g => !gestoresSelecionados.includes(g))
 
-        if (rem.length > 0) {
           for (const gid of rem) {
             await supabase.from('contrato_gestores').delete().eq('contrato_id', contratoId).eq('gestor_id', gid)
           }
-        }
-        if (add.length > 0) {
-          await supabase.from('contrato_gestores').insert(
-            add.map(gid => ({ contrato_id: contratoId, gestor_id: gid }))
-          )
-          // Notifica gestores adicionados
-          for (const gid of add) {
-            supabase.rpc('criar_notificacao', {
-              p_user_id: gid, p_tipo: 'info',
-              p_titulo: `Novo contrato atribuído: ${data.nome_obra}`,
-              p_mensagem: `Você foi designado como gestor do contrato "${data.nome_obra}" (${data.cidade || data.estado || ''}).`,
-              p_link: '/',
-            }).catch(() => {})
+          if (add.length > 0) {
+            await supabase.from('contrato_gestores').insert(
+              add.map(gid => ({ contrato_id: contratoId, gestor_id: gid }))
+            )
+            for (const gid of add) {
+              supabase.rpc('criar_notificacao', {
+                p_user_id: gid, p_tipo: 'info',
+                p_titulo: `Novo contrato atribuído: ${data.nome_obra}`,
+                p_mensagem: `Você foi designado como gestor do contrato "${data.nome_obra}" (${data.cidade || data.estado || ''}).`,
+                p_link: '/',
+              }).catch(() => {})
+            }
           }
+        } catch (gestorErr) {
+          console.warn('Erro ao atribuir gestores (contrato foi criado):', gestorErr)
         }
       }
 
       toast.success(contrato ? 'Contrato atualizado!' : 'Contrato criado!')
       await fetchContratos()
       onClose()
-    } catch { toast.error('Erro ao salvar contrato') }
+    } catch {
+      toast.error('Erro ao salvar contrato')
+    }
   }
 
   const cls = "w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
