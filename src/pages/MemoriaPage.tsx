@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Trash2, ChevronDown, ChevronUp, AlertCircle,
@@ -66,7 +66,6 @@ export function MemoriaPage() {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault()
         toast.success('Salvamento forçado', { icon: '💾', duration: 1500 })
-        // Dispara blur em inputs ativos para forçar save
         const active = document.activeElement as HTMLElement
         if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
           active.blur()
@@ -76,7 +75,8 @@ export function MemoriaPage() {
       // Ctrl+E — expandir/recolher todos
       if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
         e.preventDefault()
-        setExpandidos(prev => prev.size > 0 ? new Set() : new Set(servicosOrdenados.map(s => s.id)))
+        const srvIds = servicos.filter(s => !s.is_grupo).map(s => s.id)
+        setExpandidos(prev => prev.size > 0 ? new Set() : new Set(srvIds))
       }
       // ? — mostrar atalhos
       if (e.key === '?' && !e.ctrlKey && !e.metaKey && document.activeElement?.tagName !== 'INPUT') {
@@ -85,7 +85,7 @@ export function MemoriaPage() {
     }
     window.addEventListener('keydown', handleGlobalKey)
     return () => window.removeEventListener('keydown', handleGlobalKey)
-  }, [servicosOrdenados])
+  }, [servicos])
 
   // Todos os grupos (etapas) em ordem
   const etapas = useMemo(
