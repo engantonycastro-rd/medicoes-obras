@@ -10,7 +10,7 @@ interface Props { contratoId: string; obra?: Obra | null; onClose: () => void; o
 interface FormData {
   nome_obra: string; local_obra: string; numero_contrato: string; orgao_subdivisao: string
   desconto_percentual: number; bdi_percentual: number; data_base_planilha: string
-  prazo_execucao_dias: number; status: Obra['status']
+  prazo_execucao_dias: number; status: Obra['status']; centro_custo: string
 }
 
 export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
@@ -19,7 +19,7 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
     defaultValues: {
       nome_obra: '', local_obra: '', numero_contrato: '', orgao_subdivisao: '',
       desconto_percentual: 0, bdi_percentual: 25, data_base_planilha: '',
-      prazo_execucao_dias: 120, status: 'ATIVA',
+      prazo_execucao_dias: 120, status: 'ATIVA', centro_custo: '',
     }
   })
 
@@ -33,6 +33,7 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
       data_base_planilha: obra.data_base_planilha || '',
       prazo_execucao_dias: obra.prazo_execucao_dias || 120,
       status: obra.status,
+      centro_custo: obra.centro_custo || '',
     })
   }, [obra])
 
@@ -40,7 +41,7 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
     try {
       const payload = {
         contrato_id: contratoId,
-        user_id: '',  // preenchido no store
+        user_id: '',
         nome_obra: data.nome_obra,
         local_obra: data.local_obra,
         numero_contrato: data.numero_contrato || null,
@@ -51,6 +52,7 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
         prazo_execucao_dias: Number(data.prazo_execucao_dias),
         data_ordem_servico: null,
         status: data.status,
+        centro_custo: data.centro_custo?.trim() || null,
       }
       let salva: Obra
       if (obra) {
@@ -116,6 +118,11 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
                 <option value="SUSPENSA">SUSPENSA</option>
                 <option value="CONCLUIDA">CONCLUÍDA</option>
               </select>
+            </div>
+            <div className="col-span-2">
+              <label className="text-xs font-semibold text-slate-600 mb-1 block">Centro de Custo (TOTVS RM)</label>
+              <input {...register('centro_custo')} placeholder="Ex: 4.15.004" className={field} />
+              <p className="text-[10px] text-slate-400 mt-0.5">Código do centro de custo no TOTVS RM — usado para importação automática de custos</p>
             </div>
           </div>
           <div className="flex gap-3 pt-2">

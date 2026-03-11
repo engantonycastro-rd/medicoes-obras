@@ -43,6 +43,7 @@ export interface Obra {
   prazo_execucao_dias: number | null
   data_ordem_servico: string | null
   status: StatusObra
+  centro_custo: string | null
 }
 
 export interface LogoSistema {
