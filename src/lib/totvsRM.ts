@@ -116,25 +116,97 @@ async function callRM(
 
 // ─── CONSULTAS SQL (via consultaSQL endpoint) ────────────────────────────────
 
-/**
- * Executa uma consulta SQL no banco do RM via endpoint consultaSQL.
- * Este é o método mais flexível do TOTVS RM API Framework.
- */
-async function executarConsultaSQL(config: TOTVSConfig, sql: string, params?: Record<string, any>): Promise<any[]> {
-  const result = await callRM(config, 'api/framework/v1/consultaSQL', 'POST', {
-    codSentenca: '',        // vazio = SQL direto
-    codColigada: config.coligada,
-    codFilial: config.filial,
-    parameters: params || {},
-    sqlStatement: sql,
-  })
+// Endpoints possíveis da API do RM (varia por versão e Cloud vs On-Premise)
+const SQL_ENDPOINTS = [
+  'api/framework/v1/consultaSQLServer/RealizarConsultaSQL',
+  'api/framework/v1/consultaSQL',
+  'api/framework/v1/consultaSQLServer',
+  'api/ctree/v1/consultaSQL',
+]
 
-  // O RM retorna em formatos variados dependendo da versão
+// Body formats que o RM aceita (varia por versão)
+function buildSQLBodies(config: TOTVSConfig, sql: string) {
+  return [
+    // Formato 1: Cloud/Novo
+    { codSentenca: '', codColigada: config.coligada, codFilial: config.filial, parameters: '', sqlStatement: sql },
+    // Formato 2: On-Premise clássico
+    { codSentenca: '', codColigada: config.coligada, codFilial: config.filial, parameters: {}, sqlStatement: sql },
+    // Formato 3: Simplificado
+    { sql, codColigada: config.coligada },
+  ]
+}
+
+// Cache do endpoint que funcionou (evita re-descobrir em cada chamada)
+let cachedEndpoint: string | null = null
+let cachedBodyIndex: number = 0
+
+/**
+ * Executa uma consulta SQL no banco do RM.
+ * Tenta automaticamente vários endpoints e formatos de body.
+ */
+async function executarConsultaSQL(config: TOTVSConfig, sql: string): Promise<any[]> {
+  // Se já descobriu o endpoint, usa direto
+  if (cachedEndpoint) {
+    const bodies = buildSQLBodies(config, sql)
+    const result = await callRM(config, cachedEndpoint, 'POST', bodies[cachedBodyIndex])
+    return extractData(result)
+  }
+
+  // Tenta cada combinação endpoint + body
+  const bodies = buildSQLBodies(config, sql)
+  const erros: string[] = []
+
+  for (const endpoint of SQL_ENDPOINTS) {
+    for (let bi = 0; bi < bodies.length; bi++) {
+      try {
+        const result = await callRM(config, endpoint, 'POST', bodies[bi])
+        // Funcionou! Cacheia para próximas chamadas
+        cachedEndpoint = endpoint
+        cachedBodyIndex = bi
+        console.log(`[TOTVS] Endpoint descoberto: ${endpoint} (formato ${bi})`)
+        return extractData(result)
+      } catch (err: any) {
+        const msg = err.message || ''
+        // 404 = endpoint errado, tenta o próximo
+        if (msg.includes('[404]') || msg.includes('Not Found')) continue
+        // 405 = método errado, tenta o próximo
+        if (msg.includes('[405]')) continue
+        // 401/403 = autenticação falhou (endpoint existe mas credenciais erradas)
+        if (msg.includes('[401]') || msg.includes('[403]')) {
+          throw new Error(`Credenciais inválidas ou sem permissão. Verifique usuário/senha do RM. (endpoint: ${endpoint})`)
+        }
+        // 400 = endpoint existe, body errado, tenta próximo formato
+        if (msg.includes('[400]') || msg.includes('Bad Request')) {
+          erros.push(`${endpoint} [formato ${bi}]: ${msg}`)
+          continue
+        }
+        // Outro erro (rede, timeout) — não tenta mais
+        throw err
+      }
+    }
+  }
+
+  throw new Error(
+    'Nenhum endpoint de consulta SQL encontrado no TOTVS RM.\n' +
+    'Endpoints testados: ' + SQL_ENDPOINTS.join(', ') + '\n' +
+    (erros.length > 0 ? 'Detalhes: ' + erros.join(' | ') : '') + '\n' +
+    'Verifique com a TI se a API REST do RM está habilitada.'
+  )
+}
+
+function extractData(result: any): any[] {
   if (Array.isArray(result)) return result
   if (result?.data && Array.isArray(result.data)) return result.data
   if (result?.items && Array.isArray(result.items)) return result.items
   if (result?.result && Array.isArray(result.result)) return result.result
-  return []
+  // Às vezes retorna um objeto com os dados diretamente
+  if (result && typeof result === 'object' && !Array.isArray(result)) {
+    // Procura a primeira propriedade que seja array
+    for (const key of Object.keys(result)) {
+      if (Array.isArray(result[key]) && result[key].length > 0) return result[key]
+    }
+  }
+  return result ? [result] : []
 }
 
 // ─── QUERIES ESPECÍFICAS ─────────────────────────────────────────────────────
@@ -321,16 +393,52 @@ export async function buscarCentrosCusto(config: TOTVSConfig): Promise<TOTVSSync
 }
 
 /**
- * Testa a conexão com o TOTVS RM
+ * Testa a conexão com o TOTVS RM.
+ * 1. Verifica se o host responde
+ * 2. Descobre o endpoint correto da API
+ * 3. Testa uma consulta SQL simples
  */
 export async function testarConexao(config: TOTVSConfig): Promise<{ ok: boolean; mensagem: string }> {
+  // Reset cache para forçar redescoberta
+  cachedEndpoint = null
+  cachedBodyIndex = 0
+
+  // Passo 1: Testa se o proxy/host responde
+  try {
+    const healthUrl = `${config.host.replace(/\/+$/, '')}/health`
+    const healthRes = await fetch(healthUrl, { signal: AbortSignal.timeout(5000) }).catch(() => null)
+    if (!healthRes) {
+      return { ok: false, mensagem: 'Proxy não está rodando ou inacessível. Verifique se o node totvs-proxy.mjs está ativo.' }
+    }
+  } catch {}
+
+  // Passo 2: Testa se o RM responde (via proxy)
+  try {
+    await callRM(config, 'api/framework/v1/', 'GET')
+  } catch (err: any) {
+    const msg = err.message || ''
+    // "No HTTP resource" ou qualquer resposta JSON = RM está respondendo
+    if (msg.includes('[404]') || msg.includes('No HTTP resource')) {
+      // OK, RM respondeu — segue para testar SQL
+    } else if (msg.includes('[401]') || msg.includes('[403]')) {
+      return { ok: false, mensagem: 'RM respondeu, mas as credenciais estão incorretas. Verifique usuário e senha.' }
+    } else if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Timeout')) {
+      return { ok: false, mensagem: `Proxy OK, mas não conseguiu conectar ao TOTVS RM. Verifique a URL do RM no proxy.` }
+    }
+    // Ignora outros erros e tenta SQL direto
+  }
+
+  // Passo 3: Testa consulta SQL (descobre endpoint automaticamente)
   try {
     const sql = `SELECT GETDATE() AS data_servidor, @@SERVERNAME AS servidor`
     const dados = await executarConsultaSQL(config, sql)
+    const endpoint = cachedEndpoint || '(auto)'
     if (dados.length > 0) {
-      return { ok: true, mensagem: `Conectado ao servidor ${dados[0].servidor || 'RM'} em ${dados[0].data_servidor || 'OK'}` }
+      const srv = dados[0].servidor || dados[0].SERVIDOR || ''
+      const dt = dados[0].data_servidor || dados[0].DATA_SERVIDOR || ''
+      return { ok: true, mensagem: `Conectado! Servidor: ${srv || 'RM Cloud'}${dt ? ' — ' + dt : ''} (via ${endpoint})` }
     }
-    return { ok: true, mensagem: 'Conexão OK' }
+    return { ok: true, mensagem: `Conexão OK (via ${endpoint})` }
   } catch (err: any) {
     return { ok: false, mensagem: err.message }
   }
