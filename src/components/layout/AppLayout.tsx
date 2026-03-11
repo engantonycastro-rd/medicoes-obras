@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, LayoutDashboard, DollarSign, History } from 'lucide-react'
+import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, LayoutDashboard, DollarSign, History, Moon, Sun } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { usePerfilStore } from '../../lib/perfilStore'
 import { useStore } from '../../lib/store'
+import { useModeloStore } from '../../lib/modeloStore'
 import { NotificacaoBell } from '../NotificacaoBell'
 import toast from 'react-hot-toast'
 
@@ -11,10 +12,16 @@ export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { perfilAtual, fetchPerfilAtual } = usePerfilStore()
   const { contratoAtivo, obraAtiva } = useStore()
+  const { temaEscuro, setTemaEscuro } = useModeloStore()
   const navigate = useNavigate()
   const isAdmin = perfilAtual?.role === 'ADMIN'
 
   useEffect(() => { fetchPerfilAtual() }, [])
+
+  // Aplica dark mode ao carregar (hydrate do localStorage)
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', temaEscuro)
+  }, [temaEscuro])
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -38,10 +45,10 @@ export function AppLayout() {
   const nav = [...navBase, ...(isAdmin ? navAdmin : navEng)]
 
   return (
-    <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
-      <aside className={`flex flex-col bg-slate-900 text-white transition-all duration-300 shrink-0 ${sidebarOpen ? 'w-56' : 'w-16'}`}>
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 font-sans overflow-hidden transition-colors duration-300">
+      <aside className={`flex flex-col bg-slate-900 dark:bg-slate-950 dark:border-r dark:border-slate-800 text-white transition-all duration-300 shrink-0 ${sidebarOpen ? 'w-56' : 'w-16'}`}>
         {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-700">
+        <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-700 dark:border-slate-800">
           <div className="w-9 h-9 bg-amber-500 rounded-xl flex items-center justify-center shrink-0 font-black text-white text-sm shadow">RD</div>
           {sidebarOpen && (
             <div className="min-w-0 flex-1">
@@ -49,7 +56,15 @@ export function AppLayout() {
               <p className="text-xs text-slate-400 truncate">de Obras</p>
             </div>
           )}
-          {sidebarOpen && <NotificacaoBell/>}
+          {sidebarOpen && (
+            <div className="flex items-center gap-1">
+              <NotificacaoBell/>
+              <button onClick={() => setTemaEscuro(!temaEscuro)} title={temaEscuro ? 'Modo claro' : 'Modo escuro'}
+                className="p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors">
+                {temaEscuro ? <Sun size={16} className="text-amber-400"/> : <Moon size={16} className="text-slate-400"/>}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Obra ativa */}
@@ -77,7 +92,7 @@ export function AppLayout() {
 
         {/* Perfil */}
         {sidebarOpen && perfilAtual && (
-          <div className="px-3 py-3 border-t border-slate-700">
+          <div className="px-3 py-3 border-t border-slate-700 dark:border-slate-800">
             <div className="flex items-center gap-2 px-2 py-1.5">
               <div className="w-7 h-7 bg-slate-700 rounded-full flex items-center justify-center shrink-0 text-xs font-bold text-white">
                 {(perfilAtual.nome || perfilAtual.email).charAt(0).toUpperCase()}
@@ -100,7 +115,7 @@ export function AppLayout() {
         )}
 
         {/* Logout + toggle */}
-        <div className="px-2 pb-3 flex items-center gap-1 border-t border-slate-700 pt-2">
+        <div className="px-2 pb-3 flex items-center gap-1 border-t border-slate-700 dark:border-slate-800 pt-2">
           <button onClick={handleLogout}
             className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-red-400 transition-all text-sm flex-1">
             <LogOut size={16} className="shrink-0"/>
@@ -113,8 +128,10 @@ export function AppLayout() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto">
-        <Outlet />
+      <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+        <div className="dark:text-slate-200">
+          <Outlet />
+        </div>
       </main>
     </div>
   )

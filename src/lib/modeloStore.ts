@@ -201,6 +201,7 @@ interface ModeloState {
   modelos: ModeloPlanilha[]
   excelHabilitado: boolean
   medir100Habilitado: boolean
+  temaEscuro: boolean
   // CRUD
   salvarModelo:  (m: ModeloPlanilha) => void
   deletarModelo: (id: string) => void
@@ -208,6 +209,7 @@ interface ModeloState {
   resetModelo:   (id: string) => void
   setExcelHabilitado: (v: boolean) => void
   setMedir100Habilitado: (v: boolean) => void
+  setTemaEscuro: (v: boolean) => void
   // Helpers
   getModelo:     (id: string) => ModeloPlanilha | undefined
 }
@@ -218,6 +220,7 @@ export const useModeloStore = create<ModeloState>()(
       modelos: [MODELO_ESTADO_DEFAULT, MODELO_PREFEITURA_DEFAULT],
       excelHabilitado: true,
       medir100Habilitado: false,
+      temaEscuro: false,
 
       salvarModelo: (m) => set(state => ({
         modelos: state.modelos.some(x => x.id === m.id)
@@ -257,6 +260,10 @@ export const useModeloStore = create<ModeloState>()(
 
       setExcelHabilitado: (v) => set({ excelHabilitado: v }),
       setMedir100Habilitado: (v) => set({ medir100Habilitado: v }),
+      setTemaEscuro: (v) => {
+        set({ temaEscuro: v })
+        document.documentElement.classList.toggle('dark', v)
+      },
 
       getModelo: (id) => get().modelos.find(m => m.id === id),
     }),

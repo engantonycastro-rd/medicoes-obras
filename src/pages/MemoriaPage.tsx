@@ -1,8 +1,8 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Trash2, ChevronDown, ChevronUp, AlertCircle,
-  Save, Download, CheckCircle2, Clock, XCircle, Camera, FileDown, Filter, Zap,
+  Save, Download, CheckCircle2, Clock, XCircle, Camera, FileDown, Filter, Zap, Keyboard,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
@@ -48,6 +48,7 @@ export function MemoriaPage() {
   const isAdmin = perfilAtual?.role === 'ADMIN'
   // null = todas; string = item do grupo (ex: "2")
   const [etapaFiltro, setEtapaFiltro] = useState<string | null>(null)
+  const [mostrarAtalhos, setMostrarAtalhos] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -57,6 +58,34 @@ export function MemoriaPage() {
     fetchFotos(medicaoAtiva.id)
     fetchMedicoes(obraAtiva.id).then(setMedicoesDaObra).catch(() => {})
   }, [obraAtiva, medicaoAtiva])
+
+  // ── ATALHOS GLOBAIS ──────────────────────────────────────────────────────
+  useEffect(() => {
+    function handleGlobalKey(e: KeyboardEvent) {
+      // Ctrl+S — salva forçado (flush debounced updates)
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        toast.success('Salvamento forçado', { icon: '💾', duration: 1500 })
+        // Dispara blur em inputs ativos para forçar save
+        const active = document.activeElement as HTMLElement
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+          active.blur()
+          setTimeout(() => active.focus(), 50)
+        }
+      }
+      // Ctrl+E — expandir/recolher todos
+      if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+        e.preventDefault()
+        setExpandidos(prev => prev.size > 0 ? new Set() : new Set(servicosOrdenados.map(s => s.id)))
+      }
+      // ? — mostrar atalhos
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey && document.activeElement?.tagName !== 'INPUT') {
+        setMostrarAtalhos(p => !p)
+      }
+    }
+    window.addEventListener('keydown', handleGlobalKey)
+    return () => window.removeEventListener('keydown', handleGlobalKey)
+  }, [servicosOrdenados])
 
   // Todos os grupos (etapas) em ordem
   const etapas = useMemo(
@@ -278,6 +307,10 @@ export function MemoriaPage() {
             className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-all">
             <FileDown size={13}/> .pdf
           </button>
+          <button onClick={() => setMostrarAtalhos(true)} title="Atalhos de teclado (?)"
+            className="p-1.5 border border-slate-200 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all">
+            <Keyboard size={14}/>
+          </button>
         </div>
       </div>
 
@@ -423,6 +456,39 @@ export function MemoriaPage() {
           onFechar={() => setExportModal(null)}
         />
       )}
+
+      {/* Modal atalhos de teclado */}
+      {mostrarAtalhos && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setMostrarAtalhos(false)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center gap-3">
+              <Keyboard size={20} className="text-amber-500"/>
+              <h2 className="font-bold text-lg text-slate-800 dark:text-slate-200">Atalhos de Teclado</h2>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              {[
+                ['Ctrl + S', 'Forçar salvamento de todas as alterações pendentes'],
+                ['Ctrl + E', 'Expandir / Recolher todos os serviços'],
+                ['Enter', 'Salvar nova linha de memória e limpar para a próxima'],
+                ['Tab', 'Navegar entre campos na linha de memória'],
+                ['Shift + Tab', 'Voltar para o campo anterior'],
+                ['?', 'Abrir/fechar este painel de atalhos'],
+              ].map(([tecla, desc]) => (
+                <div key={tecla} className="flex items-center gap-3">
+                  <span className="kbd-hint shrink-0 min-w-24 text-center">{tecla}</span>
+                  <span className="text-sm text-slate-600 dark:text-slate-400">{desc}</span>
+                </div>
+              ))}
+            </div>
+            <div className="px-6 py-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 text-center">
+              <button onClick={() => setMostrarAtalhos(false)}
+                className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold">
+                Entendi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -438,6 +504,7 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
   const [novaLinha, setNovaLinha] = useState<Partial<LinhaMemoria>>({})
   const [salvandoNova, setSalvandoNova] = useState(false)
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle'|'saving'|'saved'>('idle')
+  const descInputRef = useRef<HTMLInputElement>(null)
 
   // ── Debounced update for existing lines ──────────────────────────────────
   // Updates UI immediately via store, debounces DB writes
@@ -551,11 +618,13 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
     finally { setSalvandoNova(false) }
   }
 
-  // Manual save (Enter key or button click)
+  // Manual save (Enter key or button click) — refocuses description for quick entry
   async function handleSalvarManual() {
     if (autoCreateTimerRef.current) clearTimeout(autoCreateTimerRef.current)
     if (!novaLinha.descricao_calculo?.trim()) { toast.error('Descrição obrigatória'); return }
     await autoCreateLinha(novaLinha)
+    // Refoca no campo descrição para digitar a próxima linha
+    setTimeout(() => descInputRef.current?.focus(), 100)
   }
 
   const fieldCls = "w-full border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
@@ -689,12 +758,12 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
           <div className="bg-slate-50 rounded-xl p-3 border border-dashed border-slate-300">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">+ Adicionar Linha</p>
-              <span className="text-[10px] text-slate-400">Preencha descrição + qualquer valor → salva automaticamente</span>
+              <span className="text-[10px] text-slate-400">Auto-salva • <span className="kbd-hint">Enter</span> salvar • <span className="kbd-hint">Tab</span> próximo campo</span>
             </div>
             <div className="grid grid-cols-12 gap-1.5 items-end">
               <div className="col-span-3">
                 <label className="text-xs text-slate-500 mb-1 block">Descrição *</label>
-                <input value={novaLinha.descricao_calculo || ''}
+                <input ref={descInputRef} value={novaLinha.descricao_calculo || ''}
                   onChange={e => handleNovaLinhaChange({ descricao_calculo: e.target.value })}
                   onKeyDown={e => { if (e.key === 'Enter') handleSalvarManual() }}
                   placeholder="Ex: Parede sala" className={fieldCls} />
