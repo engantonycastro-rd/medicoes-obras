@@ -43,6 +43,7 @@ interface Store {
   efetuarMedicao:      (medicaoId: string) => Promise<void>
   criarProximaMedicao: (obraId: string, contratoId: string, medicaoAtualId: string) => Promise<Medicao>
   deletarMedicao:      (id: string) => Promise<void>
+  importarMedicaoAnterior: (obraId: string, contratoId: string, numero: number, items: {item:string;quantidade:number}[]) => Promise<Medicao>
 
   // Memória
   fetchLinhasMedicao: (medicaoId: string) => Promise<void>
@@ -237,6 +238,62 @@ export const useStore = create<Store>((set, get) => ({
     const { error } = await supabase.from('medicoes').delete().eq('id', id)
     if (error) { set({ error: error.message }); throw error }
   },
+
+  importarMedicaoAnterior: async (obraId, contratoId, numero, items) => {
+    set({ loading: true })
+    const ord = ['1ª','2ª','3ª','4ª','5ª','6ª','7ª','8ª','9ª','10ª','11ª','12ª','13ª','14ª','15ª']
+
+    // 1. Cria a medição como APROVADA
+    const { data: medData, error: medErr } = await supabase.from('medicoes').insert({
+      contrato_id: contratoId, obra_id: obraId, numero,
+      numero_extenso: ord[numero-1] || `${numero}ª`,
+      data_medicao: new Date().toISOString().split('T')[0],
+      status: 'APROVADA',
+      observacoes: 'Medição anterior importada',
+    }).select().single()
+    if (medErr) { set({ error: medErr.message, loading: false }); throw medErr }
+    const medicao = medData as Medicao
+
+    // 2. Busca serviços da obra para mapear item → servico_id
+    const { data: servData } = await supabase.from('servicos').select('*').eq('obra_id', obraId)
+    const servicos = (servData || []) as Array<{ id: string; item: string; is_grupo: boolean; quantidade: number }>
+
+    const servicoMap = new Map<string, typeof servicos[0]>()
+    for (const s of servicos) servicoMap.set(s.item, s)
+
+    // 3. Cria linhas de memória como "Pago"
+    const linhas: any[] = []
+    let ignorados = 0
+    for (const imp of items) {
+      const srv = servicoMap.get(imp.item)
+      if (!srv || srv.is_grupo) { ignorados++; continue }
+
+      linhas.push({
+        medicao_id: medicao.id,
+        servico_id: srv.id,
+        sub_item: `${imp.item}.1`,
+        descricao_calculo: 'MEDIÇÃO ANTERIOR',
+        largura: null, comprimento: null, altura: null,
+        perimetro: null, area: null, volume: null,
+        kg: null, outros: null, desconto_dim: null,
+        quantidade: imp.quantidade,
+        total: imp.quantidade,
+        status: 'Pago',
+        observacao: 'Importado de medição anterior',
+      })
+    }
+
+    if (linhas.length > 0) {
+      for (let i = 0; i < linhas.length; i += 50) {
+        const { error } = await supabase.from('linhas_memoria').insert(linhas.slice(i, i + 50))
+        if (error) { set({ error: error.message, loading: false }); throw error }
+      }
+    }
+
+    set({ loading: false })
+    return medicao
+  },
+
   criarProximaMedicao: async (obraId, contratoId, medicaoAtualId) => {
     set({ loading: true })
     await get().efetuarMedicao(medicaoAtualId)

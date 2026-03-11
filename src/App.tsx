@@ -8,6 +8,7 @@ import { LoginPage } from './pages/LoginPage'
 import { ContratosPage } from './pages/ContratosPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { CustosERPPage } from './pages/CustosERPPage'
+import { AuditoriaPage } from './pages/AuditoriaPage'
 import { ServicosPage } from './pages/ServicosPage'
 import { MedicoesPage } from './pages/MedicoesPage'
 import { MemoriaPage } from './pages/MemoriaPage'
@@ -78,6 +79,7 @@ export default function App() {
           <Route index element={<ContratosPage />} />
           <Route path="dashboard"     element={<DashboardPage />} />
           <Route path="custos-erp"    element={<CustosERPPage />} />
+          <Route path="auditoria"     element={<AuditoriaPage />} />
           <Route path="servicos"      element={<ServicosPage />} />
           <Route path="medicoes"      element={<MedicoesPage />} />
           <Route path="memoria"       element={<MemoriaPage />} />

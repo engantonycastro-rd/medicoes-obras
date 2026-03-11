@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Plus, FileText, Calendar, ChevronRight, AlertCircle, Download,
-  CheckCircle2, ArrowRight, Lock, Clock, Trash2, Image
+  CheckCircle2, ArrowRight, Lock, Clock, Trash2, Image, Upload
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
@@ -14,6 +14,7 @@ import { gerarMedicaoPDF } from '../utils/pdfExport'
 import { ModeloExportModal } from '../components/ModeloExportModal'
 import type { ModeloPlanilha } from '../lib/modeloStore'
 import { useModeloStore } from '../lib/modeloStore'
+import { importarMedicaoAnterior, MedicaoAnteriorItem } from '../utils/importMedicaoAnterior'
 
 export function MedicoesPage() {
   const {
@@ -21,15 +22,23 @@ export function MedicoesPage() {
     efetuarMedicao, deletarMedicao, atualizarMedicao, setMedicaoAtiva, fetchServicos,
     fetchLinhasMedicao, servicos, linhasPorServico, logos, fetchLogos,
     logoSelecionada, setLogoSelecionada, loading, fetchFotos,
+    importarMedicaoAnterior: importarMedAnteriorStore,
   } = useStore()
   const { perfilAtual } = usePerfilStore()
   const isAdmin = perfilAtual?.role === 'ADMIN'
+  const isGestor = perfilAtual?.role === 'GESTOR'
   const [medicoes, setMedicoes] = useState<Medicao[]>([])
   const [carregando, setCarregando] = useState(false)
   const [confirmModal, setConfirmModal] = useState<{ tipo: 'efetivar'|'proxima'|'deletar'; medicao: Medicao } | null>(null)
   const [exportModal, setExportModal] = useState<{ tipo: 'xlsx'|'pdf'; medicao: Medicao } | null>(null)
   const { excelHabilitado } = useModeloStore()
   const navigate = useNavigate()
+
+  // Import medição anterior
+  const importFileRef = useRef<HTMLInputElement>(null)
+  const [importPreview, setImportPreview] = useState<MedicaoAnteriorItem[]>([])
+  const [importNumero, setImportNumero] = useState(1)
+  const [importando, setImportando] = useState(false)
 
   useEffect(() => {
     if (!obraAtiva || !contratoAtivo) return
@@ -59,6 +68,34 @@ export function MedicoesPage() {
       toast.success(`${nova.numero_extenso} Medição criada!`)
       await load()
     } catch { toast.error('Erro ao criar medição') }
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const items = await importarMedicaoAnterior(file)
+      setImportPreview(items)
+      // Sugere o número da próxima medição
+      const existentes = medicoes.map(m => m.numero)
+      let next = 1
+      while (existentes.includes(next)) next++
+      setImportNumero(next)
+      toast.success(`${items.length} itens carregados — revise e confirme.`)
+    } catch (err: any) { toast.error(err.message || 'Erro ao ler arquivo') }
+    e.target.value = ''
+  }
+
+  async function confirmarImportAnterior() {
+    if (!obraAtiva || !contratoAtivo || importPreview.length === 0) return
+    setImportando(true)
+    try {
+      const med = await importarMedAnteriorStore(obraAtiva.id, contratoAtivo.id, importNumero, importPreview)
+      toast.success(`${med.numero_extenso} Medição anterior importada com ${importPreview.length} itens!`)
+      setImportPreview([])
+      await load()
+    } catch (err: any) { toast.error(err.message || 'Erro ao importar') }
+    setImportando(false)
   }
 
   async function confirmarAcao() {
@@ -190,6 +227,15 @@ export function MedicoesPage() {
             className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-600 font-medium rounded-lg text-sm hover:bg-slate-50">
             Ver Serviços
           </button>
+          {(isAdmin || isGestor) && medicoes.length === 0 && (
+            <>
+              <button onClick={() => importFileRef.current?.click()}
+                className="flex items-center gap-2 px-4 py-2 border border-purple-200 text-purple-600 font-medium rounded-lg text-sm hover:bg-purple-50">
+                <Upload size={15}/> Importar Anterior
+              </button>
+              <input ref={importFileRef} type="file" accept=".xlsx,.xls" onChange={handleImportFile} className="hidden"/>
+            </>
+          )}
           {(!ultimaMedicao || ultimaMedicao.status === 'APROVADA') && (
             <button onClick={handleCriar} disabled={loading}
               className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm shadow-sm disabled:opacity-50">
@@ -416,6 +462,77 @@ export function MedicoesPage() {
           onConfirmar={confirmarExport}
           onFechar={() => setExportModal(null)}
         />
+      )}
+
+      {/* Modal importação de medição anterior */}
+      {importPreview.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setImportPreview([])}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                <Upload size={20} className="text-purple-600"/>
+              </div>
+              <div>
+                <h2 className="font-bold text-lg text-slate-800">Importar Medição Anterior</h2>
+                <p className="text-xs text-slate-500">{importPreview.length} serviços detectados — serão criados como "Pago"</p>
+              </div>
+            </div>
+
+            <div className="px-6 py-3 bg-purple-50 border-b border-purple-200 flex items-center gap-4">
+              <label className="text-sm font-medium text-purple-800">Nº da medição:</label>
+              <input type="number" min={1} value={importNumero} onChange={e => setImportNumero(Number(e.target.value))}
+                className="w-20 border border-purple-300 rounded-lg px-3 py-1.5 text-sm text-center font-bold bg-white"/>
+              <p className="text-xs text-purple-600">Esta medição será criada como APROVADA com todas as linhas status "Pago"</p>
+            </div>
+
+            <div className="flex-1 overflow-auto px-6 py-3">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-500">
+                    <th className="py-2 text-left font-semibold w-20">Item</th>
+                    <th className="py-2 text-left font-semibold">Serviço</th>
+                    <th className="py-2 text-right font-semibold w-28">Qtd Medida</th>
+                    <th className="py-2 text-right font-semibold w-28">Qtd Prevista</th>
+                    <th className="py-2 text-center font-semibold w-16">%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {importPreview.map((imp, i) => {
+                    const srv = servicos.find(s => s.item === imp.item)
+                    const pct = srv && srv.quantidade > 0 ? (imp.quantidade / srv.quantidade * 100) : 0
+                    return (
+                      <tr key={i} className={`border-b border-slate-50 ${!srv ? 'bg-red-50' : pct > 100 ? 'bg-amber-50' : ''}`}>
+                        <td className="py-2 font-mono font-medium text-slate-700">{imp.item}</td>
+                        <td className="py-2 text-slate-600 truncate max-w-64">{srv?.descricao || <span className="text-red-500 font-medium">Serviço não encontrado</span>}</td>
+                        <td className="py-2 text-right font-bold text-slate-800">{imp.quantidade.toFixed(2)}</td>
+                        <td className="py-2 text-right text-slate-500">{srv?.quantidade.toFixed(2) || '—'}</td>
+                        <td className="py-2 text-center">
+                          {srv ? <span className={`text-[10px] font-bold ${pct > 100 ? 'text-red-500' : pct >= 100 ? 'text-emerald-600' : 'text-slate-600'}`}>{pct.toFixed(0)}%</span> : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              {importPreview.some(imp => !servicos.find(s => s.item === imp.item)) && (
+                <p className="text-xs text-red-500 mt-2 bg-red-50 px-3 py-2 rounded-lg">
+                  ⚠ Itens em vermelho não foram encontrados nos serviços desta obra e serão ignorados.
+                </p>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-200 flex gap-3">
+              <button onClick={() => setImportPreview([])}
+                className="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
+                Cancelar
+              </button>
+              <button onClick={confirmarImportAnterior} disabled={importando}
+                className="flex-1 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg text-sm disabled:opacity-50">
+                {importando ? 'Importando...' : `Confirmar (${importPreview.filter(imp => servicos.find(s => s.item === imp.item)).length} itens)`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
