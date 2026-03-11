@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast'
 import { supabase } from './lib/supabase'
 import { usePerfilStore } from './lib/perfilStore'
 import { AppLayout } from './components/layout/AppLayout'
+import { GeoGuard } from './components/GeoGuard'
 import { LoginPage } from './pages/LoginPage'
 import { ContratosPage } from './pages/ContratosPage'
 import { DashboardPage } from './pages/DashboardPage'
@@ -75,7 +76,7 @@ export default function App() {
       }} />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={<RequireAuth><AppLayout /></RequireAuth>}>
+        <Route path="/" element={<RequireAuth><GeoGuard><AppLayout /></GeoGuard></RequireAuth>}>
           <Route index element={<ContratosPage />} />
           <Route path="dashboard"     element={<DashboardPage />} />
           <Route path="custos-erp"    element={<CustosERPPage />} />

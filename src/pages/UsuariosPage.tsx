@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import { usePerfilStore } from '../lib/perfilStore'
 import { Perfil, RolePerfil } from '../types'
 import { formatDate } from '../utils/calculations'
+import { ZonasAcessoManager } from '../components/ZonasAcessoManager'
 
 export function UsuariosPage() {
   const {
@@ -367,6 +368,11 @@ export function UsuariosPage() {
             <div className="text-center py-8 text-slate-400 text-sm border-2 border-dashed border-slate-200 rounded-xl">Nenhum outro usuário ativo ainda.</div>
           )}
         </div>
+      </div>
+
+      {/* ═══ ZONAS DE ACESSO ═══ */}
+      <div className="mt-8">
+        <ZonasAcessoManager perfis={perfis}/>
       </div>
     </div>
   )
