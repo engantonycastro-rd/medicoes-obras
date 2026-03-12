@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, LayoutDashboard, DollarSign, History, Moon, Sun, Wallet, FileSpreadsheet } from 'lucide-react'
+import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, LayoutDashboard, DollarSign, History, Moon, Sun, Wallet, FileSpreadsheet, KanbanSquare } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { usePerfilStore } from '../../lib/perfilStore'
 import { useStore } from '../../lib/store'
@@ -34,6 +34,7 @@ export function AppLayout() {
     { to: '/',          icon: Building2,        label: 'Contratos' },
     { to: '/servicos',  icon: ClipboardList,    label: 'Serviços'  },
     { to: '/medicoes',  icon: FileText,         label: 'Medições'  },
+    { to: '/kanban',    icon: KanbanSquare,     label: 'Planejamento' },
   ]
   const navAdmin     = [
     { to: '/custos-erp', icon: DollarSign, label: 'Custos ERP' },
