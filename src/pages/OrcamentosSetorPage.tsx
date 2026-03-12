@@ -5,6 +5,7 @@ import {
   TrendingUp, BarChart3, FileDown, Filter,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ExcelJS from 'exceljs'
 import { usePerfilStore } from '../lib/perfilStore'
 import { formatDate, formatCurrency } from '../utils/calculations'
 import { supabase } from '../lib/supabase'
@@ -133,6 +134,80 @@ export function OrcamentosSetorPage() {
     } catch (err: any) { toast.error(err.message) }
   }
 
+  async function exportarRelatorio() {
+    if (relConcluidos.length === 0) { toast.error('Nenhum orçamento concluído para exportar'); return }
+    const wb = new ExcelJS.Workbook()
+    wb.creator = 'MediObras — Setor de Orçamentos'
+
+    // ═══ ABA RESUMO ═══
+    const wsR = wb.addWorksheet('Resumo')
+    wsR.columns = [{ width: 30 }, { width: 25 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 15 }]
+    const tStyle = { font: { bold: true, size: 14, color: { argb: 'FF1E293B' } } }
+    const hStyle = { font: { bold: true, size: 10, color: { argb: 'FFFFFFFF' } }, fill: { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF1E293B' } }, alignment: { horizontal: 'center' as const } }
+    const cStyle = { font: { size: 10 }, alignment: { horizontal: 'center' as const } }
+
+    wsR.mergeCells('A1:F1'); const t = wsR.getCell('A1'); t.value = 'RELATÓRIO — SETOR DE ORÇAMENTOS'; Object.assign(t, tStyle)
+    const periodo = relDataInicio || relDataFim ? `Período: ${relDataInicio ? formatDate(relDataInicio) : '—'} a ${relDataFim ? formatDate(relDataFim) : '—'}` : 'Período: Todos'
+    wsR.mergeCells('A2:F2'); wsR.getCell('A2').value = periodo; wsR.getCell('A2').font = { size: 10, color: { argb: 'FF64748B' } }
+    wsR.mergeCells('A3:F3'); wsR.getCell('A3').value = `Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`; wsR.getCell('A3').font = { size: 9, color: { argb: 'FF94A3B8' } }
+
+    // Métricas
+    wsR.getRow(5).values = ['Revisões Concluídas', 'Total Alterações', 'Economia Gerada', 'Aumento Total', 'Impacto do Setor', 'Impacto %']
+    wsR.getRow(5).eachCell(c => Object.assign(c, hStyle))
+    const pctImpacto = relStats.valorOrigTotal > 0 ? ((relStats.impacto / relStats.valorOrigTotal) * 100).toFixed(2) + '%' : '—'
+    wsR.getRow(6).values = [relStats.total, relStats.alteracoesTotal, relStats.economiaTotal, relStats.aumentoTotal, relStats.impacto, pctImpacto]
+    wsR.getRow(6).eachCell((c, ci) => { if (ci >= 3 && ci <= 5) c.numFmt = '#,##0.00' })
+
+    // Tabela
+    wsR.getRow(8).values = ['Orçamento', 'Solicitante', 'Revisor', 'Valor Original', 'Valor Revisado', 'Diferença', 'Dif. %', 'Alterações', 'Data Conclusão']
+    wsR.getRow(8).eachCell(c => Object.assign(c, hStyle))
+    wsR.columns = [{ width: 35 }, { width: 22 }, { width: 22 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 12 }, { width: 12 }, { width: 16 }]
+
+    relConcluidos.forEach((o, i) => {
+      const r = wsR.getRow(9 + i)
+      r.values = [o.titulo, nome(o.solicitante_id), nome(o.revisor_id), o.valor_original, o.valor_revisado, o.diferenca_valor, `${Math.abs(o.diferenca_percentual).toFixed(1)}%`, o.qtd_alteracoes, o.data_conclusao ? formatDate(o.data_conclusao) : '—']
+      r.getCell(4).numFmt = '#,##0.00'; r.getCell(5).numFmt = '#,##0.00'; r.getCell(6).numFmt = '#,##0.00'
+      if (o.diferenca_valor < 0) { r.getCell(6).font = { color: { argb: 'FF047857' }, bold: true }; r.getCell(7).font = { color: { argb: 'FF047857' } } }
+      else if (o.diferenca_valor > 0) { r.getCell(6).font = { color: { argb: 'FFB91C1C' }, bold: true }; r.getCell(7).font = { color: { argb: 'FFB91C1C' } } }
+    })
+
+    // Total
+    const totalRow = wsR.getRow(9 + relConcluidos.length)
+    totalRow.values = [`TOTAL (${relConcluidos.length} orçamentos)`, '', '', relStats.valorOrigTotal, relStats.valorRevTotal, relStats.impacto > 0 ? -relStats.impacto : Math.abs(relStats.impacto), '', relStats.alteracoesTotal, '']
+    totalRow.eachCell(c => { c.font = { bold: true }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } } })
+    totalRow.getCell(4).numFmt = '#,##0.00'; totalRow.getCell(5).numFmt = '#,##0.00'; totalRow.getCell(6).numFmt = '#,##0.00'
+
+    // ═══ ABA DETALHAMENTO ═══
+    const wsD = wb.addWorksheet('Detalhamento')
+    wsD.columns = [{ width: 30 }, { width: 10 }, { width: 60 }]
+    wsD.getRow(1).values = ['Orçamento', 'Tipo', 'Alteração Realizada']
+    wsD.getRow(1).eachCell(c => Object.assign(c, hStyle))
+
+    let dRow = 2
+    for (const o of relConcluidos) {
+      if (!o.comparativo_resumo?.length) continue
+      for (const item of o.comparativo_resumo) {
+        const desc = item.descricao || item
+        const isA = String(desc).startsWith('✚'), isR = String(desc).startsWith('✖')
+        const tipo = isR ? 'Removido' : isA ? 'Adicionado' : 'Alterado'
+        const r = wsD.getRow(dRow++)
+        r.values = [o.titulo, tipo, String(desc).replace(/^[✚✖✎]\s*/, '')]
+        if (isR) r.getCell(2).font = { color: { argb: 'FFDC2626' } }
+        else if (isA) r.getCell(2).font = { color: { argb: 'FF16A34A' } }
+        else r.getCell(2).font = { color: { argb: 'FFD97706' } }
+      }
+    }
+
+    // Download
+    const buffer = await wb.xlsx.writeBuffer()
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url
+    const periodoFile = relDataInicio || relDataFim ? `_${relDataInicio || 'inicio'}_${relDataFim || 'fim'}` : ''
+    a.download = `Relatorio_Setor_Orcamentos${periodoFile}.xlsx`; a.click(); URL.revokeObjectURL(url)
+    toast.success('Relatório exportado!')
+  }
+
   async function downloadArquivo(path: string, nome: string) {
     const { data, error } = await supabase.storage.from('orcamentos').download(path)
     if (error || !data) { toast.error('Erro ao baixar'); return }
@@ -206,6 +281,12 @@ export function OrcamentosSetorPage() {
             <span className="text-xs text-slate-400">até</span>
             <input type="date" value={relDataFim} onChange={e => setRelDataFim(e.target.value)} className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-white"/>
             {(relDataInicio || relDataFim) && <button onClick={() => { setRelDataInicio(''); setRelDataFim('') }} className="text-[10px] text-amber-600 hover:underline">Limpar</button>}
+            <div className="ml-auto">
+              <button onClick={exportarRelatorio} disabled={relConcluidos.length === 0}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg text-sm shadow-sm disabled:opacity-40">
+                <FileDown size={14}/> Exportar Relatório Excel
+              </button>
+            </div>
           </div>
 
           {/* Dashboard */}
@@ -352,17 +433,23 @@ export function OrcamentosSetorPage() {
                         </div>
 
                         {/* Complementares */}
-                        {orc.arquivos_complementares && orc.arquivos_complementares.length > 0 && (
-                          <div className="flex items-center gap-2 mt-2 flex-wrap">
-                            <span className="text-[10px] text-slate-400 font-semibold">📎 Complementares:</span>
-                            {orc.arquivos_complementares.map((ac, i) => (
-                              <button key={i} onClick={() => downloadArquivo(ac.path, ac.nome)}
-                                className="text-[10px] px-2 py-0.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600 flex items-center gap-1">
-                                <Download size={8}/> {ac.nome}
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                        {(() => {
+                          const comps = Array.isArray(orc.arquivos_complementares) ? orc.arquivos_complementares : (typeof orc.arquivos_complementares === 'string' ? JSON.parse(orc.arquivos_complementares || '[]') : [])
+                          return comps.length > 0 ? (
+                            <div className="mt-2 bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+                              <p className="text-[10px] text-slate-500 font-bold mb-1.5">📎 Arquivos Complementares ({comps.length})</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {comps.map((ac: any, i: number) => (
+                                  <button key={i} onClick={() => downloadArquivo(ac.path, ac.nome)}
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 rounded-lg text-[11px] text-slate-700 font-medium transition-colors shadow-sm">
+                                    <Download size={10} className="text-blue-500"/> {ac.nome}
+                                    <span className="text-[9px] text-slate-400">({(ac.size / 1024).toFixed(0)}KB)</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null
+                        })()}
 
                         {/* Concluído — comparativo visual */}
                         {orc.status === 'CONCLUIDO' && (
