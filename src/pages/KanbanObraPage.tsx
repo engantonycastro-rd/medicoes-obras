@@ -391,6 +391,7 @@ export function KanbanObraPage() {
 }
 
 // ─── Subcomponente: adicionar item inline ──────────────────────────────────
+// teste
 
 function AddItemInline({ cardId, onAdd }: { cardId: string; onAdd: (desc: string) => void }) {
   const [adding, setAdding] = useState(false)
