@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
 import { usePerfilStore } from '../lib/perfilStore'
 import { Contrato, Obra } from '../types'
-import { formatDate } from '../utils/calculations'
+import { formatDate, formatCurrency } from '../utils/calculations'
 import { ContratoModal } from '../components/contracts/ContratoModal'
 import { ObraModal } from '../components/contracts/ObraModal'
 import { supabase } from '../lib/supabase'
@@ -28,6 +28,7 @@ export function ContratosPage() {
   const [modalObra, setModalObra] = useState<{ contratoId: string; obra?: Obra } | null>(null)
   const [moverModal, setMoverModal] = useState<{ obra: Obra; contratoAtual: string } | null>(null)
   const [gestoresPorContrato, setGestoresPorContrato] = useState<Record<string, string[]>>({})
+  const [valorPorObra, setValorPorObra] = useState<Record<string, number>>({})
   const navigate = useNavigate()
 
   useEffect(() => { fetchContratos() }, [])
@@ -55,6 +56,23 @@ export function ContratosPage() {
           map[cid].push(r.perfis?.nome || r.perfis?.email || 'Gestor')
         }
         setGestoresPorContrato(map)
+      }
+
+      // Carrega valor total dos serviços por obra (para consumo do contrato)
+      const allObraIds = Object.values(result).flat().map(o => o.id)
+      if (allObraIds.length > 0 && !cancelled) {
+        const vMap: Record<string, number> = {}
+        for (let i = 0; i < allObraIds.length; i += 50) {
+          const chunk = allObraIds.slice(i, i + 50)
+          const { data: srvData } = await supabase.from('servicos').select('obra_id, quantidade, preco_unitario, is_grupo').in('obra_id', chunk)
+          if (srvData) {
+            for (const s of srvData as any[]) {
+              if (s.is_grupo) continue
+              vMap[s.obra_id] = (vMap[s.obra_id] || 0) + (s.quantidade * s.preco_unitario)
+            }
+          }
+        }
+        if (!cancelled) setValorPorObra(vMap)
       }
     }
     loadAll()
@@ -216,6 +234,11 @@ export function ContratosPage() {
             const expandido = expandidos.has(contrato.id)
             const obsContrato = obrasPorContrato[contrato.id] || []
             const gestoresNomes = gestoresPorContrato[contrato.id] || []
+            const consumido = obsContrato.reduce((s, o) => s + (valorPorObra[o.id] || 0), 0)
+            const valorContrato = contrato.valor_contrato || 0
+            const saldo = valorContrato - consumido
+            const pctConsumo = valorContrato > 0 ? (consumido / valorContrato) * 100 : 0
+            const diasValidade = contrato.data_validade ? Math.ceil((new Date(contrato.data_validade).getTime() - Date.now()) / 86400000) : null
             return (
               <div key={contrato.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                 <div onClick={() => toggleExpandir(contrato.id)} className="p-5 flex items-center gap-4 cursor-pointer hover:bg-slate-50 transition-colors">
@@ -236,6 +259,11 @@ export function ContratosPage() {
                           <MapPin size={9}/> {contrato.cidade ? `${contrato.cidade}/${contrato.estado}` : contrato.estado}
                         </span>
                       )}
+                      {diasValidade !== null && diasValidade <= 30 && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${diasValidade <= 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {diasValidade <= 0 ? 'VENCIDO' : `${diasValidade}d p/ vencer`}
+                        </span>
+                      )}
                     </div>
                     <div className="flex gap-4 text-xs text-slate-500 mt-1 flex-wrap">
                       <span>{contrato.orgao_nome}</span>
@@ -247,6 +275,30 @@ export function ContratosPage() {
                         </span>
                       )}
                     </div>
+                    {/* Consumo do contrato */}
+                    {valorContrato > 0 && (
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between text-[10px] mb-0.5">
+                          <span className="text-slate-400">Consumo: <strong className="text-slate-600">{formatCurrency(consumido)}</strong> de {formatCurrency(valorContrato)}</span>
+                          <span className={`font-bold ${pctConsumo > 90 ? 'text-red-600' : pctConsumo > 70 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                            {pctConsumo.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-2">
+                          <div className={`h-2 rounded-full transition-all ${
+                            pctConsumo > 90 ? 'bg-red-500' : pctConsumo > 70 ? 'bg-amber-500' : 'bg-emerald-500'
+                          }`} style={{ width: `${Math.min(pctConsumo, 100)}%` }}/>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] mt-0.5">
+                          <span className={`font-medium ${saldo < 0 ? 'text-red-600' : 'text-slate-400'}`}>
+                            Saldo: {saldo < 0 ? '−' : ''}{formatCurrency(Math.abs(saldo))}
+                          </span>
+                          {contrato.data_validade && (
+                            <span className="text-slate-400">Validade: {formatDate(contrato.data_validade)}</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {isAdmin && <>
@@ -298,6 +350,9 @@ export function ContratosPage() {
                                 <span>{obra.local_obra}</span>
                                 <span>Desc: {(obra.desconto_percentual*100).toFixed(2)}%</span>
                                 <span>BDI: {(obra.bdi_percentual*100).toFixed(2)}%</span>
+                                {valorPorObra[obra.id] > 0 && (
+                                  <span className="font-medium text-amber-600">OS: {formatCurrency(valorPorObra[obra.id])}</span>
+                                )}
                               </div>
                             </div>
                             <div className="flex items-center gap-0.5 shrink-0">

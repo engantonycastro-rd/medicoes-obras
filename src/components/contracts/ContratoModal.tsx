@@ -26,6 +26,7 @@ interface FormData {
   data_base_planilha: string; data_ordem_servico: string
   prazo_execucao_dias: number; status: string
   estado: string; cidade: string
+  valor_contrato: string; data_validade: string
 }
 
 export function ContratoModal({ contrato, onClose }: Props) {
@@ -58,6 +59,8 @@ export function ContratoModal({ contrato, onClose }: Props) {
         status: contrato.status,
         estado: contrato.estado || '',
         cidade: contrato.cidade || '',
+        valor_contrato: contrato.valor_contrato ? String(contrato.valor_contrato) : '',
+        data_validade: contrato.data_validade || '',
       })
       // Carrega gestores atribuídos
       supabase.from('contrato_gestores').select('gestor_id').eq('contrato_id', contrato.id)
@@ -74,6 +77,7 @@ export function ContratoModal({ contrato, onClose }: Props) {
         prazo_execucao_dias: 120, estado: 'RN', cidade: '',
         empresa_executora: '', nome_obra: '', numero_contrato: '',
         data_base_planilha: '', data_ordem_servico: '',
+        valor_contrato: '', data_validade: '',
       })
       setGestoresSelecionados([])
       setGestoresAtuais([])
@@ -98,6 +102,8 @@ export function ContratoModal({ contrato, onClose }: Props) {
         data_ordem_servico: data.data_ordem_servico || null,
         estado: data.estado || null,
         cidade: data.cidade || null,
+        valor_contrato: Number(String(data.valor_contrato).replace(/[^\d.,]/g, '').replace(',', '.')) || 0,
+        data_validade: data.data_validade || null,
       }
 
       let contratoId: string
@@ -227,6 +233,19 @@ export function ContratoModal({ contrato, onClose }: Props) {
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Prazo (dias)</label>
               <input type="number" {...register('prazo_execucao_dias')} className={cls}/>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Valor do Contrato (R$)</label>
+              <input {...register('valor_contrato')} placeholder="Ex: 5000000.00" className={cls}/>
+              <p className="text-[10px] text-slate-400 mt-0.5">Valor total do contrato firmado</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Data de Validade</label>
+              <input type="date" {...register('data_validade')} className={cls}/>
+              <p className="text-[10px] text-slate-400 mt-0.5">Prazo de vigência do contrato</p>
             </div>
           </div>
 

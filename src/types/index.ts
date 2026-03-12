@@ -29,6 +29,8 @@ export interface Contrato {
   estado: string | null
   cidade: string | null
   user_id: string
+  valor_contrato: number
+  data_validade: string | null
 }
 
 export interface Obra {
