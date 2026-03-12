@@ -64,8 +64,20 @@ export function CustosERPPage() {
 
   async function fetchCustos() {
     setLoading(true)
-    const { data } = await supabase.from('custos_erp').select('*').order('data_emissao', { ascending: false }).limit(2000)
-    if (data) setCustos(data as CustoRow[])
+    const all: CustoRow[] = []
+    let from = 0
+    const pageSize = 1000
+    while (true) {
+      const { data } = await supabase.from('custos_erp').select('*')
+        .order('data_emissao', { ascending: false })
+        .range(from, from + pageSize - 1)
+      if (data && data.length > 0) {
+        all.push(...(data as CustoRow[]))
+        from += data.length
+        if (data.length < pageSize) break
+      } else break
+    }
+    setCustos(all)
     setLoading(false)
   }
 

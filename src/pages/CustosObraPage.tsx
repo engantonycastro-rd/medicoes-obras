@@ -47,22 +47,39 @@ export function CustosObraPage() {
         for (const o of obs) all.push({ ...o, contrato_nome: c.nome_obra })
       }
       setMinhasObras(all)
-      // Busca custos das obras visíveis
       if (all.length > 0) {
         const ids = all.map(o => o.id)
-        const { data } = await supabase.from('custos_erp').select('*').in('obra_id', ids).order('data_emissao', { ascending: false }).limit(1000)
-        if (data) setCustos(data as CustoRow[])
+        const custos = await fetchCustosPaginado(ids)
+        setCustos(custos)
       }
       setLoading(false)
     })
   }, [])
 
+  async function fetchCustosPaginado(ids: string[]): Promise<CustoRow[]> {
+    const all: CustoRow[] = []
+    let from = 0
+    const pageSize = 1000
+    while (true) {
+      const { data } = await supabase.from('custos_erp').select('*')
+        .in('obra_id', ids)
+        .order('data_emissao', { ascending: false })
+        .range(from, from + pageSize - 1)
+      if (data && data.length > 0) {
+        all.push(...(data as CustoRow[]))
+        from += data.length
+        if (data.length < pageSize) break
+      } else break
+    }
+    return all
+  }
+
   async function refresh() {
     setLoading(true)
     if (minhasObras.length > 0) {
       const ids = minhasObras.map(o => o.id)
-      const { data } = await supabase.from('custos_erp').select('*').in('obra_id', ids).order('data_emissao', { ascending: false }).limit(1000)
-      if (data) setCustos(data as CustoRow[])
+      const custos = await fetchCustosPaginado(ids)
+      setCustos(custos)
     }
     setLoading(false)
   }
