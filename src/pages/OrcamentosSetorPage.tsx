@@ -50,6 +50,7 @@ export function OrcamentosSetorPage() {
 
   // Relatório
   const [relDataInicio, setRelDataInicio] = useState(''); const [relDataFim, setRelDataFim] = useState('')
+  const [relOrcFiltro, setRelOrcFiltro] = useState('todos')
 
   useEffect(() => { fetchAll() }, [])
 
@@ -152,11 +153,12 @@ export function OrcamentosSetorPage() {
     wsR.mergeCells('A3:F3'); wsR.getCell('A3').value = `Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`; wsR.getCell('A3').font = { size: 9, color: { argb: 'FF94A3B8' } }
 
     // Métricas
-    wsR.getRow(5).values = ['Revisões Concluídas', 'Total Alterações', 'Economia Gerada', 'Aumento Total', 'Impacto do Setor', 'Impacto %']
+    wsR.getRow(5).values = ['Revisões Concluídas', 'Total Alterações', 'Impacto do Setor (R$)', 'Impacto %']
     wsR.getRow(5).eachCell(c => Object.assign(c, hStyle))
-    const pctImpacto = relStats.valorOrigTotal > 0 ? ((relStats.impacto / relStats.valorOrigTotal) * 100).toFixed(2) + '%' : '—'
-    wsR.getRow(6).values = [relStats.total, relStats.alteracoesTotal, relStats.economiaTotal, relStats.aumentoTotal, relStats.impacto, pctImpacto]
-    wsR.getRow(6).eachCell((c, ci) => { if (ci >= 3 && ci <= 5) c.numFmt = '#,##0.00' })
+    const pctImpacto = relStats.valorOrigTotal > 0 ? Math.abs(relStats.impactoPct).toFixed(2) + '%' : '—'
+    wsR.getRow(6).values = [relStats.total, relStats.alteracoesTotal, Math.abs(relStats.impacto), pctImpacto]
+    wsR.getRow(6).getCell(3).numFmt = '#,##0.00'
+    wsR.getRow(6).getCell(3).font = { bold: true, color: { argb: 'FF047857' } }
 
     // Tabela
     wsR.getRow(8).values = ['Orçamento', 'Solicitante', 'Revisor', 'Valor Original', 'Valor Revisado', 'Diferença', 'Dif. %', 'Alterações', 'Data Conclusão']
@@ -173,7 +175,7 @@ export function OrcamentosSetorPage() {
 
     // Total
     const totalRow = wsR.getRow(9 + relConcluidos.length)
-    totalRow.values = [`TOTAL (${relConcluidos.length} orçamentos)`, '', '', relStats.valorOrigTotal, relStats.valorRevTotal, relStats.impacto > 0 ? -relStats.impacto : Math.abs(relStats.impacto), '', relStats.alteracoesTotal, '']
+    totalRow.values = [`TOTAL (${relConcluidos.length} orçamentos)`, '', '', relStats.valorOrigTotal, relStats.valorRevTotal, Math.abs(relStats.impacto), `${Math.abs(relStats.impactoPct).toFixed(1)}%`, relStats.alteracoesTotal, '']
     totalRow.eachCell(c => { c.font = { bold: true }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } } })
     totalRow.getCell(4).numFmt = '#,##0.00'; totalRow.getCell(5).numFmt = '#,##0.00'; totalRow.getCell(6).numFmt = '#,##0.00'
 
@@ -226,8 +228,9 @@ export function OrcamentosSetorPage() {
     let list = concluidos
     if (relDataInicio) list = list.filter(o => (o.data_conclusao || '') >= relDataInicio)
     if (relDataFim) list = list.filter(o => (o.data_conclusao || '') <= relDataFim + 'T23:59:59')
+    if (relOrcFiltro !== 'todos') list = list.filter(o => o.id === relOrcFiltro)
     return list
-  }, [concluidos, relDataInicio, relDataFim])
+  }, [concluidos, relDataInicio, relDataFim, relOrcFiltro])
 
   const relStats = useMemo(() => {
     const total = relConcluidos.length
@@ -236,7 +239,7 @@ export function OrcamentosSetorPage() {
     const valorOrigTotal = relConcluidos.reduce((s, o) => s + (o.valor_original || 0), 0)
     const valorRevTotal = relConcluidos.reduce((s, o) => s + (o.valor_revisado || 0), 0)
     const alteracoesTotal = relConcluidos.reduce((s, o) => s + (o.qtd_alteracoes || 0), 0)
-    return { total, economiaTotal, aumentoTotal, valorOrigTotal, valorRevTotal, alteracoesTotal, impacto: valorOrigTotal - valorRevTotal }
+    return { total, economiaTotal, aumentoTotal, valorOrigTotal, valorRevTotal, alteracoesTotal, impacto: valorOrigTotal - valorRevTotal, impactoPct: valorOrigTotal > 0 ? ((valorOrigTotal - valorRevTotal) / valorOrigTotal) * 100 : 0 }
   }, [relConcluidos])
 
   const lista = abaAtiva === 'PENDENTE' ? pendentes : abaAtiva === 'EM_REVISAO' ? emRevisao : abaAtiva === 'CONCLUIDO' ? concluidos : []
@@ -280,7 +283,11 @@ export function OrcamentosSetorPage() {
             <input type="date" value={relDataInicio} onChange={e => setRelDataInicio(e.target.value)} className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-white"/>
             <span className="text-xs text-slate-400">até</span>
             <input type="date" value={relDataFim} onChange={e => setRelDataFim(e.target.value)} className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-white"/>
-            {(relDataInicio || relDataFim) && <button onClick={() => { setRelDataInicio(''); setRelDataFim('') }} className="text-[10px] text-amber-600 hover:underline">Limpar</button>}
+            <select value={relOrcFiltro} onChange={e => setRelOrcFiltro(e.target.value)} className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-white max-w-52">
+              <option value="todos">Todos os orçamentos</option>
+              {concluidos.map(o => <option key={o.id} value={o.id}>{o.titulo}</option>)}
+            </select>
+            {(relDataInicio || relDataFim || relOrcFiltro !== 'todos') && <button onClick={() => { setRelDataInicio(''); setRelDataFim(''); setRelOrcFiltro('todos') }} className="text-[10px] text-amber-600 hover:underline">Limpar filtros</button>}
             <div className="ml-auto">
               <button onClick={exportarRelatorio} disabled={relConcluidos.length === 0}
                 className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg text-sm shadow-sm disabled:opacity-40">
@@ -290,7 +297,7 @@ export function OrcamentosSetorPage() {
           </div>
 
           {/* Dashboard */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-3 gap-3 mb-6">
             <div className="bg-white rounded-xl border border-slate-200 p-4">
               <p className="text-[10px] text-slate-400 uppercase font-semibold">Revisões Concluídas</p>
               <p className="text-2xl font-bold text-slate-800">{relStats.total}</p>
@@ -300,13 +307,9 @@ export function OrcamentosSetorPage() {
               <p className="text-2xl font-bold text-slate-800">{relStats.alteracoesTotal}</p>
             </div>
             <div className="bg-emerald-50 rounded-xl border border-emerald-200 p-4">
-              <p className="text-[10px] text-emerald-600 uppercase font-semibold flex items-center gap-1"><TrendingDown size={10}/> Economia Gerada</p>
-              <p className="text-2xl font-bold text-emerald-700">{formatCurrency(relStats.economiaTotal)}</p>
-            </div>
-            <div className={`rounded-xl border p-4 ${relStats.impacto > 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
-              <p className="text-[10px] uppercase font-semibold" style={{ color: relStats.impacto > 0 ? '#047857' : '#b91c1c' }}>Impacto do Setor</p>
-              <p className={`text-2xl font-bold ${relStats.impacto > 0 ? 'text-emerald-700' : 'text-red-700'}`}>{formatCurrency(Math.abs(relStats.impacto))}</p>
-              <p className="text-[10px] text-slate-400">{relStats.impacto > 0 ? 'redução nos orçamentos' : 'aumento nos orçamentos'}</p>
+              <p className="text-[10px] text-emerald-600 uppercase font-semibold flex items-center gap-1"><TrendingDown size={10}/> Impacto do Setor</p>
+              <p className="text-2xl font-bold text-emerald-700">{formatCurrency(Math.abs(relStats.impacto))}</p>
+              <p className="text-[10px] text-emerald-500">{Math.abs(relStats.impactoPct).toFixed(2)}% de otimização nos orçamentos</p>
             </div>
           </div>
 
@@ -381,8 +384,8 @@ export function OrcamentosSetorPage() {
                     <td className="px-3 py-2" colSpan={3}>TOTAL ({relConcluidos.length} orçamentos)</td>
                     <td className="px-3 py-2 text-right">{formatCurrency(relStats.valorOrigTotal)}</td>
                     <td className="px-3 py-2 text-right">{formatCurrency(relStats.valorRevTotal)}</td>
-                    <td className={`px-3 py-2 text-right ${relStats.impacto > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {relStats.impacto > 0 ? '−' : '+'}{formatCurrency(Math.abs(relStats.impacto))}
+                    <td className="px-3 py-2 text-right text-emerald-600">
+                      {formatCurrency(Math.abs(relStats.impacto))}
                     </td>
                     <td className="px-3 py-2 text-center">{relStats.alteracoesTotal}</td>
                     <td/>
