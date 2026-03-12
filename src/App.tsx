@@ -16,6 +16,8 @@ import { MedicoesPage } from './pages/MedicoesPage'
 import { MemoriaPage } from './pages/MemoriaPage'
 import { UsuariosPage } from './pages/UsuariosPage'
 import { ConfigPage } from './pages/ConfigPage'
+import { OrcamentosSolicitarPage } from './pages/OrcamentosSolicitarPage'
+import { OrcamentosSetorPage } from './pages/OrcamentosSetorPage'
 import { AlertCircle } from 'lucide-react'
 
 export { ContratoModal } from './components/contracts/ContratoModal'
@@ -88,6 +90,8 @@ export default function App() {
           <Route path="memoria"       element={<MemoriaPage />} />
           <Route path="usuarios"      element={<UsuariosPage />} />
           <Route path="configuracoes" element={<ConfigPage />} />
+          <Route path="orcamentos"    element={<OrcamentosSolicitarPage />} />
+          <Route path="setor-orcamentos" element={<OrcamentosSetorPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
