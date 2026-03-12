@@ -364,12 +364,10 @@ export function KanbanObraPage() {
                               <CheckCircle2 size={10}/> Concluir
                             </button>
                           )}
-                          {card.status !== 'CONCLUIDO' && (
-                            <button onClick={() => deletarCard(card)}
-                              className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg">
-                              <Trash2 size={12}/>
-                            </button>
-                          )}
+                          <button onClick={() => deletarCard(card)}
+                            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                            <Trash2 size={12}/>
+                          </button>
                         </div>
                       </div>
                     )
@@ -391,7 +389,6 @@ export function KanbanObraPage() {
 }
 
 // ─── Subcomponente: adicionar item inline ──────────────────────────────────
-// teste
 
 function AddItemInline({ cardId, onAdd }: { cardId: string; onAdd: (desc: string) => void }) {
   const [adding, setAdding] = useState(false)
