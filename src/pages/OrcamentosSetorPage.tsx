@@ -120,9 +120,9 @@ export function OrcamentosSetorPage() {
 
       const modoLabel = resultado.modo === 'EXCEL' ? 'célula por célula' : 'por texto extraído'
       toast.success(`Comparativo (${modoLabel}): ${resultado.alteracoes.length} diferença(s)`)
-    } catch (err) {
-      console.warn('Comparação automática falhou:', err)
-      toast('Comparação automática falhou — preencha manualmente', { icon: 'ℹ️' })
+    } catch (err: any) {
+      console.warn('Comparação automática falhou:', err?.message || err)
+      toast(`Comparação automática falhou — preencha manualmente`, { icon: 'ℹ️' })
     }
     setComparando(false)
   }

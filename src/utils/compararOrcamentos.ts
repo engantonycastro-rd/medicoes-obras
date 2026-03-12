@@ -1,8 +1,8 @@
 import ExcelJS from 'exceljs'
 import * as pdfjsLib from 'pdfjs-dist'
 
-// Worker do PDF.js via CDN
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+// Worker do PDF.js via unpkg (mais confiável que cdnjs para versões específicas)
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`
 
 export interface Alteracao {
   tipo: 'ADICIONADO' | 'REMOVIDO' | 'ALTERADO'
@@ -171,20 +171,27 @@ function diffCelulas(orig: RowData, rev: RowData): string[] {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function extrairTextoPDF(buffer: ArrayBuffer): Promise<string[]> {
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise
+  // Tenta com worker, se falhar tenta sem worker
+  let pdf
+  try {
+    pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise
+  } catch {
+    // Fallback: desativa worker e tenta novamente
+    pdfjsLib.GlobalWorkerOptions.workerSrc = ''
+    pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer), useWorkerFetch: false, isEvalSupported: false } as any).promise
+  }
+
   const linhas: string[] = []
   for (let p = 1; p <= pdf.numPages; p++) {
     const page = await pdf.getPage(p)
     const content = await page.getTextContent()
-    // Agrupa por posição Y (mesma linha)
     const yMap = new Map<number, string[]>()
     for (const item of content.items as any[]) {
       if (!item.str?.trim()) continue
-      const y = Math.round(item.transform[5])  // posição Y
+      const y = Math.round(item.transform[5])
       if (!yMap.has(y)) yMap.set(y, [])
       yMap.get(y)!.push(item.str.trim())
     }
-    // Ordena por Y (top to bottom)
     const sorted = [...yMap.entries()].sort((a, b) => b[0] - a[0])
     for (const [, words] of sorted) {
       const line = words.join(' ').trim()
