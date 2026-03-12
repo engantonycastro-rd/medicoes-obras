@@ -1,272 +1,254 @@
 import { useEffect, useState, useMemo } from 'react'
 import {
-  History, RefreshCw, Filter, Plus, Pencil, Trash2,
-  FileText, Clock, ChevronDown, ChevronRight, User, Search,
-  AlertCircle, CheckCircle2, ArrowRight,
+  History, Building2, HardHat, FileText, ClipboardList, FileSpreadsheet,
+  RefreshCw, Filter, ChevronDown, ChevronUp, Plus, Trash2, Edit3,
+  CheckCircle2, Eye, Clock, ArrowRightLeft, Search,
 } from 'lucide-react'
-import { useStore } from '../lib/store'
 import { usePerfilStore } from '../lib/perfilStore'
-import { Obra } from '../types'
 import { formatDate } from '../utils/calculations'
 import { supabase } from '../lib/supabase'
 
-interface AuditRow {
-  id: string; created_at: string
-  user_email: string|null; user_nome: string|null
+interface AuditEntry {
+  id: string; created_at: string; user_email: string | null; user_nome: string | null
   tabela: string; registro_id: string; acao: string
-  obra_id: string|null; contrato_id: string|null; medicao_id: string|null
-  dados_antes: any; dados_depois: any; campos_alterados: string[]|null
-  resumo: string|null
+  obra_id: string | null; contrato_id: string | null; medicao_id: string | null
+  dados_antes: any; dados_depois: any; campos_alterados: string[] | null; resumo: string | null
 }
 
-const ACAO_ICON: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-  INSERT: { icon: <Plus size={12}/>,    color: 'bg-emerald-100 text-emerald-600 border-emerald-200', label: 'Criação' },
-  UPDATE: { icon: <Pencil size={12}/>,  color: 'bg-blue-100 text-blue-600 border-blue-200',         label: 'Alteração' },
-  DELETE: { icon: <Trash2 size={12}/>,  color: 'bg-red-100 text-red-600 border-red-200',            label: 'Exclusão' },
+const TABELA_CONFIG: Record<string, { label: string; icon: any; color: string }> = {
+  contratos:          { label: 'Contrato',       icon: Building2,       color: 'bg-blue-100 text-blue-700' },
+  obras:              { label: 'Obra',            icon: HardHat,         color: 'bg-amber-100 text-amber-700' },
+  medicoes:           { label: 'Medição',         icon: FileText,        color: 'bg-emerald-100 text-emerald-700' },
+  linhas_memoria:     { label: 'Linha Memória',   icon: ClipboardList,   color: 'bg-slate-100 text-slate-600' },
+  orcamentos_revisao: { label: 'Orçamento',       icon: FileSpreadsheet, color: 'bg-purple-100 text-purple-700' },
+  servicos:           { label: 'Serviço',         icon: ClipboardList,   color: 'bg-cyan-100 text-cyan-700' },
 }
 
-const TABELA_LABEL: Record<string, string> = {
-  medicoes: 'Medição',
-  linhas_memoria: 'Linha de Memória',
-  servicos: 'Serviço',
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const min = Math.floor(diff / 60000)
-  if (min < 1) return 'agora'
-  if (min < 60) return `${min} min atrás`
-  const h = Math.floor(min / 60)
-  if (h < 24) return `${h}h atrás`
-  const d = Math.floor(h / 24)
-  if (d < 7) return `${d} dia${d > 1 ? 's' : ''} atrás`
-  return new Date(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+const ACAO_CONFIG: Record<string, { label: string; icon: any; color: string }> = {
+  INSERT: { label: 'Criado',    icon: Plus,   color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  UPDATE: { label: 'Alterado',  icon: Edit3,  color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  DELETE: { label: 'Excluído',  icon: Trash2, color: 'bg-red-100 text-red-700 border-red-200' },
 }
 
 export function AuditoriaPage() {
-  const { contratos, fetchContratos, fetchObras } = useStore()
   const { perfilAtual } = usePerfilStore()
-  const isAdmin = perfilAtual?.role === 'ADMIN'
-
-  const [registros, setRegistros] = useState<AuditRow[]>([])
+  const [entries, setEntries] = useState<AuditEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [todasObras, setTodasObras] = useState<(Obra & { contrato_nome: string })[]>([])
-  const [expandido, setExpandido] = useState<string|null>(null)
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(0)
+  const [expandido, setExpandido] = useState<string | null>(null)
 
   // Filtros
-  const [obraFiltro, setObraFiltro] = useState('todas')
-  const [acaoFiltro, setAcaoFiltro] = useState('todas')
-  const [tabelaFiltro, setTabelaFiltro] = useState('todas')
-  const [busca, setBusca] = useState('')
-  const [limite, setLimite] = useState(100)
+  const [filtroTabela, setFiltroTabela] = useState('todas')
+  const [filtroAcao, setFiltroAcao] = useState('todas')
+  const [filtroBusca, setFiltroBusca] = useState('')
+  const [filtroDataInicio, setFiltroDataInicio] = useState('')
+  const [filtroDataFim, setFiltroDataFim] = useState('')
 
-  useEffect(() => {
-    fetchContratos().then(async () => {
-      const store = useStore.getState()
-      const obrasAll: (Obra & { contrato_nome: string })[] = []
-      for (const c of store.contratos) {
-        const obs = await fetchObras(c.id)
-        for (const o of obs) obrasAll.push({ ...o, contrato_nome: c.nome_obra })
-      }
-      setTodasObras(obrasAll)
-    })
-    fetchRegistros()
-  }, [])
+  const PAGE_SIZE = 50
 
-  async function fetchRegistros() {
+  useEffect(() => { fetchEntries(0) }, [filtroTabela, filtroAcao, filtroDataInicio, filtroDataFim])
+
+  async function fetchEntries(p: number) {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('auditoria').select('*')
+    let query = supabase.from('auditoria').select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
-      .limit(500)
-    if (!error && data) setRegistros(data as AuditRow[])
+      .range(p * PAGE_SIZE, (p + 1) * PAGE_SIZE - 1)
+
+    if (filtroTabela !== 'todas') query = query.eq('tabela', filtroTabela)
+    if (filtroAcao !== 'todas') query = query.eq('acao', filtroAcao)
+    if (filtroDataInicio) query = query.gte('created_at', filtroDataInicio + 'T00:00:00')
+    if (filtroDataFim) query = query.lte('created_at', filtroDataFim + 'T23:59:59')
+
+    const { data, count } = await query
+    if (data) {
+      if (p === 0) setEntries(data as AuditEntry[])
+      else setEntries(prev => [...prev, ...(data as AuditEntry[])])
+    }
+    if (count !== null) setTotal(count)
+    setPage(p)
     setLoading(false)
   }
 
+  // Filtra busca local
   const filtrados = useMemo(() => {
-    let list = registros
-    if (obraFiltro !== 'todas') list = list.filter(r => r.obra_id === obraFiltro)
-    if (acaoFiltro !== 'todas') list = list.filter(r => r.acao === acaoFiltro)
-    if (tabelaFiltro !== 'todas') list = list.filter(r => r.tabela === tabelaFiltro)
-    if (busca) {
-      const q = busca.toLowerCase()
-      list = list.filter(r =>
-        (r.resumo || '').toLowerCase().includes(q) ||
-        (r.user_nome || '').toLowerCase().includes(q) ||
-        (r.user_email || '').toLowerCase().includes(q)
-      )
+    if (!filtroBusca) return entries
+    const q = filtroBusca.toLowerCase()
+    return entries.filter(e =>
+      (e.resumo || '').toLowerCase().includes(q) ||
+      (e.user_nome || '').toLowerCase().includes(q) ||
+      (e.user_email || '').toLowerCase().includes(q) ||
+      (e.tabela || '').toLowerCase().includes(q)
+    )
+  }, [entries, filtroBusca])
+
+  // Stats
+  const stats = useMemo(() => {
+    const tabelas = new Map<string, number>()
+    entries.forEach(e => tabelas.set(e.tabela, (tabelas.get(e.tabela) || 0) + 1))
+    return {
+      total: entries.length,
+      inserts: entries.filter(e => e.acao === 'INSERT').length,
+      updates: entries.filter(e => e.acao === 'UPDATE').length,
+      deletes: entries.filter(e => e.acao === 'DELETE').length,
+      tabelas,
     }
-    return list.slice(0, limite)
-  }, [registros, obraFiltro, acaoFiltro, tabelaFiltro, busca, limite])
+  }, [entries])
 
   // Agrupa por dia
-  const porDia = useMemo(() => {
-    const map = new Map<string, AuditRow[]>()
-    for (const r of filtrados) {
-      const dia = new Date(r.created_at).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
-      const arr = map.get(dia) || []; arr.push(r); map.set(dia, arr)
+  const gruposPorDia = useMemo(() => {
+    const map = new Map<string, AuditEntry[]>()
+    for (const e of filtrados) {
+      const dia = e.created_at.split('T')[0]
+      if (!map.has(dia)) map.set(dia, [])
+      map.get(dia)!.push(e)
     }
     return [...map.entries()]
   }, [filtrados])
 
-  if (!isAdmin) return (
-    <div className="p-8">
-      <div className="bg-red-50 border border-red-200 rounded-xl p-6 flex items-center gap-4">
-        <AlertCircle size={24} className="text-red-500"/><p className="font-semibold text-red-800">Acesso restrito a administradores.</p>
-      </div>
-    </div>
-  )
+  function formatHora(dt: string) {
+    try { return new Date(dt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) } catch { return '' }
+  }
+
+  function renderDetalhe(e: AuditEntry) {
+    if (e.acao === 'INSERT' && e.dados_depois) {
+      const d = e.dados_depois
+      if (e.tabela === 'contratos') return <KV items={[['Nome', d.nome_obra], ['Tipo', d.tipo], ['Estado', `${d.cidade || ''} ${d.estado || ''}`], ['Órgão', d.orgao_nome], ['Nº', d.numero_contrato]]}/>
+      if (e.tabela === 'obras') return <KV items={[['Nome', d.nome_obra], ['Local', d.local_obra], ['CC', d.centro_custo], ['Status', d.status]]}/>
+      if (e.tabela === 'orcamentos_revisao') return <KV items={[['Título', d.titulo], ['Urgência', d.urgencia], ['Prazo', d.prazo_retorno], ['Arquivo', d.arquivo_original_nome]]}/>
+    }
+    if (e.acao === 'UPDATE' && e.dados_antes && e.dados_depois) {
+      if (e.tabela === 'orcamentos_revisao') {
+        const b = e.dados_antes, a = e.dados_depois
+        const diffs: [string, any, any][] = []
+        if (b.status !== a.status) diffs.push(['Status', b.status, a.status])
+        if (b.valor_original !== a.valor_original && a.valor_original) diffs.push(['Valor Original', b.valor_original, a.valor_original])
+        if (b.valor_revisado !== a.valor_revisado && a.valor_revisado) diffs.push(['Valor Revisado', b.valor_revisado, a.valor_revisado])
+        if (b.diferenca_valor !== a.diferenca_valor && a.diferenca_valor) diffs.push(['Diferença', b.diferenca_valor, a.diferenca_valor])
+        if (a.qtd_alteracoes && a.qtd_alteracoes !== b.qtd_alteracoes) diffs.push(['Qtd Alterações', b.qtd_alteracoes, a.qtd_alteracoes])
+        if (a.revisor_id && !b.revisor_id) diffs.push(['Revisor', '—', 'Atribuído'])
+        if (a.observacoes_revisor && !b.observacoes_revisor) diffs.push(['Observações', '—', a.observacoes_revisor])
+        if (diffs.length > 0) return <DiffTable diffs={diffs}/>
+      }
+      // Genérico: mostra campos alterados
+      const b = e.dados_antes, a = e.dados_depois
+      const campos = e.campos_alterados || Object.keys(a).filter(k => JSON.stringify(b[k]) !== JSON.stringify(a[k]) && !['updated_at', 'created_at'].includes(k))
+      if (campos.length > 0) {
+        return <DiffTable diffs={campos.slice(0, 10).map(k => [k, b[k], a[k]])}/>
+      }
+    }
+    if (e.acao === 'DELETE' && e.dados_antes) {
+      const d = e.dados_antes
+      const nome = d.nome_obra || d.titulo || d.numero_extenso || d.descricao_calculo || ''
+      if (nome) return <p className="text-xs text-red-500 italic">Registro excluído: {String(nome).substring(0, 80)}</p>
+    }
+    return null
+  }
+
+  if (!perfilAtual || perfilAtual.role !== 'ADMIN') {
+    return <div className="p-8"><p className="text-red-500">Acesso restrito a administradores.</p></div>
+  }
 
   return (
     <div className="p-6 max-w-5xl overflow-y-auto" style={{ height: '100%' }}>
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
-            <History size={24} className="text-amber-500"/> Histórico & Auditoria
-          </h1>
-          <p className="text-sm text-slate-500 mt-0.5">Registro automático de todas as alterações em medições e memória de cálculo</p>
+          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><History size={24} className="text-amber-500"/> Histórico & Auditoria</h1>
+          <p className="text-sm text-slate-500">Registro de todas as ações no sistema</p>
         </div>
-        <button onClick={fetchRegistros} disabled={loading}
-          className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''}/> Atualizar
+        <button onClick={() => fetchEntries(0)} className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50">
+          <RefreshCw size={14}/> Atualizar
         </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
-        {[
-          { label: 'Total registros', val: registros.length, color: 'text-slate-700' },
-          { label: 'Criações', val: registros.filter(r => r.acao === 'INSERT').length, color: 'text-emerald-600' },
-          { label: 'Alterações', val: registros.filter(r => r.acao === 'UPDATE').length, color: 'text-blue-600' },
-          { label: 'Exclusões', val: registros.filter(r => r.acao === 'DELETE').length, color: 'text-red-600' },
-        ].map(s => (
-          <div key={s.label} className="bg-white border border-slate-200 rounded-xl p-4">
-            <p className={`text-xl font-bold ${s.color}`}>{s.val}</p>
-            <p className="text-xs text-slate-500">{s.label}</p>
-          </div>
-        ))}
+      {/* Stats mini */}
+      <div className="flex items-center gap-3 mb-5 flex-wrap">
+        <span className="text-xs text-slate-500">{total} registros</span>
+        <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full">{stats.inserts} criações</span>
+        <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">{stats.updates} alterações</span>
+        <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full">{stats.deletes} exclusões</span>
+        {[...stats.tabelas.entries()].map(([tab, n]) => {
+          const cfg = TABELA_CONFIG[tab]
+          return cfg ? <span key={tab} className={`text-[10px] px-2 py-0.5 rounded-full ${cfg.color}`}>{cfg.label}: {n}</span> : null
+        })}
       </div>
 
       {/* Filtros */}
-      <div className="flex items-center gap-3 mb-5 flex-wrap">
-        <div className="relative flex-1 min-w-48">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-          <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por resumo, usuário..."
-            className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"/>
-        </div>
-        <select value={obraFiltro} onChange={e => setObraFiltro(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-xs bg-white">
-          <option value="todas">Todas as obras</option>
-          {todasObras.map(o => <option key={o.id} value={o.id}>{o.contrato_nome} › {o.nome_obra}</option>)}
+      <div className="flex items-center gap-3 mb-5 flex-wrap bg-white border border-slate-200 rounded-xl p-3">
+        <Filter size={14} className="text-slate-400"/>
+        <select value={filtroTabela} onChange={e => setFiltroTabela(e.target.value)} className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-white">
+          <option value="todas">Todas as áreas</option>
+          {Object.entries(TABELA_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
-        <select value={acaoFiltro} onChange={e => setAcaoFiltro(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-xs bg-white">
+        <select value={filtroAcao} onChange={e => setFiltroAcao(e.target.value)} className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-white">
           <option value="todas">Todas as ações</option>
-          <option value="INSERT">Criações</option>
-          <option value="UPDATE">Alterações</option>
-          <option value="DELETE">Exclusões</option>
+          {Object.entries(ACAO_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
-        <select value={tabelaFiltro} onChange={e => setTabelaFiltro(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-xs bg-white">
-          <option value="todas">Todas as tabelas</option>
-          <option value="medicoes">Medições</option>
-          <option value="linhas_memoria">Linhas de Memória</option>
-        </select>
+        <input type="date" value={filtroDataInicio} onChange={e => setFiltroDataInicio(e.target.value)} className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-white" placeholder="De"/>
+        <input type="date" value={filtroDataFim} onChange={e => setFiltroDataFim(e.target.value)} className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-white" placeholder="Até"/>
+        <div className="relative flex-1 min-w-40">
+          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"/>
+          <input value={filtroBusca} onChange={e => setFiltroBusca(e.target.value)} placeholder="Buscar no resumo..."
+            className="w-full pl-7 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white"/>
+        </div>
       </div>
 
       {/* Timeline */}
-      {loading && registros.length === 0 ? (
-        <div className="flex items-center justify-center py-20">
-          <RefreshCw size={20} className="animate-spin text-amber-500 mr-2"/>
-          <span className="text-slate-500 text-sm">Carregando histórico...</span>
-        </div>
-      ) : filtrados.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
-          <History size={32} className="mx-auto text-slate-200 mb-3"/>
-          <p className="text-slate-400 text-sm">Nenhum registro de auditoria encontrado.</p>
-          <p className="text-slate-300 text-xs mt-1">As alterações serão registradas automaticamente a partir de agora.</p>
+      {gruposPorDia.length === 0 && !loading ? (
+        <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-xl">
+          <History size={36} className="mx-auto text-slate-300 mb-3"/>
+          <p className="text-slate-400">Nenhum registro de auditoria encontrado</p>
         </div>
       ) : (
         <div className="space-y-6">
-          {porDia.map(([dia, regs]) => (
+          {gruposPorDia.map(([dia, items]) => (
             <div key={dia}>
+              {/* Dia */}
               <div className="flex items-center gap-3 mb-3">
-                <div className="h-px bg-slate-200 flex-1"/>
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide shrink-0">{dia}</span>
-                <div className="h-px bg-slate-200 flex-1"/>
+                <div className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-white">{new Date(dia + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit' })}</span>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-700">{new Date(dia + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                  <p className="text-[10px] text-slate-400">{items.length} ação(ões)</p>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                {regs.map(r => {
-                  const acaoCfg = ACAO_ICON[r.acao] || ACAO_ICON.UPDATE
-                  const isOpen = expandido === r.id
-                  const obraNome = todasObras.find(o => o.id === r.obra_id)?.nome_obra
+              {/* Entries do dia */}
+              <div className="ml-4 border-l-2 border-slate-200 pl-5 space-y-2">
+                {items.map(e => {
+                  const tCfg = TABELA_CONFIG[e.tabela] || { label: e.tabela, icon: History, color: 'bg-slate-100 text-slate-600' }
+                  const aCfg = ACAO_CONFIG[e.acao] || ACAO_CONFIG.UPDATE
+                  const Icon = tCfg.icon
+                  const AIcon = aCfg.icon
+                  const isOpen = expandido === e.id
 
                   return (
-                    <div key={r.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-slate-300 transition-all">
-                      <div className="flex items-center gap-3 px-4 py-3 cursor-pointer" onClick={() => setExpandido(isOpen ? null : r.id)}>
-                        {/* Ação badge */}
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${acaoCfg.color}`}>
-                          {acaoCfg.icon}
+                    <div key={e.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-sm transition-shadow">
+                      <div className="p-3.5 flex items-start gap-3 cursor-pointer" onClick={() => setExpandido(isOpen ? null : e.id)}>
+                        {/* Ícone da tabela */}
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${tCfg.color}`}>
+                          <Icon size={14}/>
                         </div>
-
-                        {/* Conteúdo */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-slate-800 leading-tight">
-                            {r.resumo || `${acaoCfg.label} em ${TABELA_LABEL[r.tabela] || r.tabela}`}
-                          </p>
-                          <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-400">
-                            <span className="flex items-center gap-1"><User size={10}/> {r.user_nome || r.user_email || 'Sistema'}</span>
-                            <span className="flex items-center gap-1"><Clock size={10}/> {timeAgo(r.created_at)}</span>
-                            {obraNome && <span className="truncate max-w-40">{obraNome}</span>}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${aCfg.color}`}>{aCfg.label}</span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${tCfg.color}`}>{tCfg.label}</span>
+                            <span className="text-[10px] text-slate-400">{formatHora(e.created_at)}</span>
                           </div>
+                          <p className="text-xs text-slate-700 mt-1 leading-relaxed">{e.resumo || `${aCfg.label} em ${tCfg.label}`}</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">por {e.user_nome || e.user_email || 'Sistema'}</p>
                         </div>
-
-                        {/* Tags */}
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full border font-medium ${acaoCfg.color}`}>
-                            {acaoCfg.label}
-                          </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
-                            {TABELA_LABEL[r.tabela] || r.tabela}
-                          </span>
-                          {isOpen ? <ChevronDown size={14} className="text-slate-400"/> : <ChevronRight size={14} className="text-slate-400"/>}
+                        <div className="shrink-0">
+                          {isOpen ? <ChevronUp size={14} className="text-slate-400"/> : <ChevronDown size={14} className="text-slate-400"/>}
                         </div>
                       </div>
-
-                      {/* Detalhes expandidos */}
+                      {/* Detalhe expandido */}
                       {isOpen && (
-                        <div className="px-4 pb-4 border-t border-slate-100 bg-slate-50/50">
-                          <div className="grid grid-cols-2 gap-4 mt-3">
-                            {r.dados_antes && (
-                              <div>
-                                <p className="text-[10px] font-bold text-red-500 uppercase mb-1.5">Antes</p>
-                                <pre className="text-[10px] bg-red-50 border border-red-100 rounded-lg p-3 overflow-auto max-h-48 text-red-800 font-mono whitespace-pre-wrap">
-                                  {JSON.stringify(r.dados_antes, null, 2)}
-                                </pre>
-                              </div>
-                            )}
-                            {r.dados_depois && (
-                              <div>
-                                <p className="text-[10px] font-bold text-emerald-500 uppercase mb-1.5">Depois</p>
-                                <pre className="text-[10px] bg-emerald-50 border border-emerald-100 rounded-lg p-3 overflow-auto max-h-48 text-emerald-800 font-mono whitespace-pre-wrap">
-                                  {JSON.stringify(r.dados_depois, null, 2)}
-                                </pre>
-                              </div>
-                            )}
-                          </div>
-                          {r.campos_alterados && r.campos_alterados.length > 0 && (
-                            <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                              <span className="text-[10px] text-slate-500">Campos:</span>
-                              {r.campos_alterados.map(c => (
-                                <span key={c} className="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-mono">{c}</span>
-                              ))}
-                            </div>
+                        <div className="border-t border-slate-100 bg-slate-50 p-4">
+                          {renderDetalhe(e) || (
+                            <p className="text-xs text-slate-400 italic">Sem detalhes adicionais</p>
                           )}
-                          <p className="text-[9px] text-slate-300 mt-2 font-mono">
-                            ID: {r.registro_id} • {new Date(r.created_at).toLocaleString('pt-BR')}
-                          </p>
                         </div>
                       )}
                     </div>
@@ -275,15 +257,54 @@ export function AuditoriaPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
 
-          {filtrados.length >= limite && (
-            <button onClick={() => setLimite(p => p + 100)}
-              className="w-full py-3 text-sm text-amber-600 font-medium hover:bg-amber-50 rounded-xl border border-dashed border-amber-200 transition-colors">
-              Carregar mais registros...
-            </button>
-          )}
+      {/* Load more */}
+      {entries.length < total && (
+        <div className="mt-6 text-center">
+          <button onClick={() => fetchEntries(page + 1)} disabled={loading}
+            className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+            {loading ? 'Carregando...' : `Carregar mais (${entries.length} de ${total})`}
+          </button>
         </div>
       )}
     </div>
+  )
+}
+
+// ─── Subcomponentes ────────────────────────────────────────────────────────
+
+function KV({ items }: { items: [string, any][] }) {
+  return (
+    <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+      {items.filter(([, v]) => v).map(([k, v]) => (
+        <div key={k} className="flex items-baseline gap-2">
+          <span className="text-[10px] text-slate-400 font-semibold uppercase shrink-0 w-24">{k}</span>
+          <span className="text-xs text-slate-700">{String(v)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function DiffTable({ diffs }: { diffs: [string, any, any][] }) {
+  return (
+    <table className="w-full text-xs">
+      <thead><tr className="text-[10px] text-slate-400 uppercase">
+        <th className="text-left py-1 pr-4 font-semibold">Campo</th>
+        <th className="text-left py-1 pr-4 font-semibold">Antes</th>
+        <th className="text-left py-1 font-semibold">Depois</th>
+      </tr></thead>
+      <tbody>
+        {diffs.map(([campo, antes, depois], i) => (
+          <tr key={i} className="border-t border-slate-100">
+            <td className="py-1.5 pr-4 text-slate-500 font-medium">{campo}</td>
+            <td className="py-1.5 pr-4 text-red-500 line-through max-w-48 truncate">{antes !== null && antes !== undefined ? String(antes) : '—'}</td>
+            <td className="py-1.5 text-emerald-600 font-medium max-w-48 truncate">{depois !== null && depois !== undefined ? String(depois) : '—'}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }
