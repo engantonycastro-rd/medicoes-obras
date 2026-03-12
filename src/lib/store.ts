@@ -207,6 +207,7 @@ export const useStore = create<Store>((set, get) => ({
   },
   setMedicaoAtiva: (m) => set({ medicaoAtiva: m }),
   criarMedicao: async (obraId, contratoId) => {
+    set({ error: null })
     const medicoes = await get().fetchMedicoes(obraId)
     const num = (medicoes.length || 0) + 1
     const ord = ['1ª','2ª','3ª','4ª','5ª','6ª','7ª','8ª','9ª','10ª','11ª','12ª','13ª','14ª','15ª']
@@ -216,11 +217,10 @@ export const useStore = create<Store>((set, get) => ({
       data_medicao: new Date().toISOString().split('T')[0], status: 'RASCUNHO',
     }).select().single()
     if (error) { set({ error: error.message }); throw error }
-    // Notifica admins (fire-and-forget)
     supabase.rpc('notificar_admins', {
       p_tipo: 'info', p_titulo: `${ord[num-1] || num+'ª'} Medição criada`,
       p_mensagem: `Nova medição iniciada na obra`, p_link: '/medicoes',
-    }).catch(() => {})
+    }).then(() => {}).catch(() => {})
     return data as Medicao
   },
   atualizarMedicao: async (id, data) => {
@@ -243,6 +243,7 @@ export const useStore = create<Store>((set, get) => ({
     }).catch(() => {})
   },
   deletarMedicao: async (id) => {
+    set({ error: null })
     const { error } = await supabase.from('medicoes').delete().eq('id', id)
     if (error) { set({ error: error.message }); throw error }
   },

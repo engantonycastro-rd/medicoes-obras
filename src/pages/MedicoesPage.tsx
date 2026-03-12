@@ -66,8 +66,8 @@ export function MedicoesPage() {
     try {
       const nova = await criarMedicao(obraAtiva.id, contratoAtivo.id)
       toast.success(`${nova.numero_extenso} Medição criada!`)
-      await load()
-    } catch { toast.error('Erro ao criar medição') }
+    } catch { toast.error('Erro ao criar medição'); return }
+    await load()
   }
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {

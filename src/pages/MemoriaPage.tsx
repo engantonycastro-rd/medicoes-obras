@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Trash2, ChevronDown, ChevronUp, AlertCircle,
-  Save, Download, CheckCircle2, Clock, XCircle, Camera, FileDown, Filter, Zap, Keyboard,
+  Save, Download, CheckCircle2, Clock, XCircle, Camera, FileDown, Filter, Zap, Keyboard, ArrowLeft,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
@@ -267,7 +267,13 @@ export function MemoriaPage() {
               isAprovada ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-100 text-amber-700 border-amber-200'
             }`}>{medicaoAtiva.status}</span>
           </div>
-          <h1 className="text-xl font-bold text-slate-800">Memória de Cálculo</h1>
+          <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <button onClick={() => navigate('/medicoes')} title="Voltar para Medições"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-all">
+              <ArrowLeft size={20}/>
+            </button>
+            Memória de Cálculo
+          </h1>
         </div>
         <div className="flex items-center gap-2">
           <div className="text-right mr-4">
