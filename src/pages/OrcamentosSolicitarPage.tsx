@@ -18,6 +18,7 @@ interface OrcRevisao {
   observacoes_revisor: string | null; comparativo_resumo: any[]
   revisor_id: string | null; data_inicio_revisao: string | null; data_conclusao: string | null
   obra_id: string | null; contrato_id: string | null; ordem_atendimento: number
+  arquivos_complementares: { nome: string; path: string; size: number }[]
 }
 
 const URGENCIA_LABEL: Record<string, { label: string; color: string }> = {
@@ -51,6 +52,7 @@ export function OrcamentosSolicitarPage() {
   const [fUrgencia, setFUrgencia] = useState('NORMAL')
   const [fObraId, setFObraId] = useState('')
   const [fArquivo, setFArquivo] = useState<File | null>(null)
+  const [fComplementares, setFComplementares] = useState<File[]>([])
   const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {
@@ -86,11 +88,17 @@ export function OrcamentosSolicitarPage() {
       const ext = fArquivo.name.split('.').pop() || 'xlsx'
       const path = `originais/${Date.now()}_${fArquivo.name}`
 
-      // Upload arquivo
+      // Upload arquivo principal
       const { error: upErr } = await supabase.storage.from('orcamentos').upload(path, fArquivo)
       if (upErr) throw upErr
 
-      const { data: urlData } = supabase.storage.from('orcamentos').getPublicUrl(path)
+      // Upload complementares
+      const complementares: { nome: string; path: string; size: number }[] = []
+      for (const fc of fComplementares) {
+        const cPath = `complementares/${Date.now()}_${fc.name}`
+        const { error: cErr } = await supabase.storage.from('orcamentos').upload(cPath, fc)
+        if (!cErr) complementares.push({ nome: fc.name, path: cPath, size: fc.size })
+      }
 
       // Cria solicitação
       const { error } = await supabase.from('orcamentos_revisao').insert({
@@ -104,19 +112,23 @@ export function OrcamentosSolicitarPage() {
         arquivo_original_url: path,
         arquivo_original_nome: fArquivo.name,
         arquivo_original_size: fArquivo.size,
+        arquivos_complementares: complementares,
       })
       if (error) throw error
 
       // Notifica admins
-      await supabase.rpc('notificar_admins', {
-        p_tipo: 'info',
-        p_titulo: `Novo orçamento para revisão: ${fTitulo}`,
-        p_mensagem: `${perfilAtual!.nome || perfilAtual!.email} enviou um orçamento. Prazo: ${formatDate(fPrazo)}. Urgência: ${fUrgencia}`,
-        p_link: '/setor-orcamentos',
-      }).catch(() => {})
+      try {
+        await supabase.rpc('notificar_admins', {
+          p_tipo: 'info',
+          p_titulo: `Novo orçamento para revisão: ${fTitulo}`,
+          p_mensagem: `${perfilAtual!.nome || perfilAtual!.email} enviou um orçamento. Prazo: ${formatDate(fPrazo)}. Urgência: ${fUrgencia}`,
+          p_link: '/setor-orcamentos',
+        })
+      } catch {}
+
 
       toast.success('Orçamento enviado para revisão!')
-      setShowForm(false); setFTitulo(''); setFDesc(''); setFPrazo(''); setFUrgencia('NORMAL'); setFObraId(''); setFArquivo(null)
+      setShowForm(false); setFTitulo(''); setFDesc(''); setFPrazo(''); setFUrgencia('NORMAL'); setFObraId(''); setFArquivo(null); setFComplementares([])
       fetchOrcamentos()
     } catch (err: any) { toast.error(err.message || 'Erro ao enviar') }
     setEnviando(false)
@@ -210,6 +222,20 @@ export function OrcamentosSolicitarPage() {
               <input type="file" accept=".xlsx,.xls,.pdf,.ods" onChange={e => setFArquivo(e.target.files?.[0] || null)}
                 className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-white"/>
               {fArquivo && <p className="text-[10px] text-slate-500 mt-1">{fArquivo.name} ({(fArquivo.size/1024).toFixed(0)} KB)</p>}
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-600 block mb-1">Arquivos complementares</label>
+              <input type="file" multiple accept=".xlsx,.xls,.pdf,.ods,.dwg,.dxf,.doc,.docx,.png,.jpg,.jpeg,.zip"
+                onChange={e => setFComplementares(e.target.files ? [...e.target.files] : [])}
+                className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-white"/>
+              <p className="text-[10px] text-slate-400 mt-0.5">Projetos, memoriais, plantas — selecione múltiplos arquivos</p>
+              {fComplementares.length > 0 && (
+                <div className="mt-1 space-y-0.5">
+                  {fComplementares.map((f, i) => (
+                    <p key={i} className="text-[10px] text-slate-500">📎 {f.name} ({(f.size/1024).toFixed(0)} KB)</p>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex gap-3">

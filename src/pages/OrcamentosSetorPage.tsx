@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import {
   FileSpreadsheet, Clock, Eye, CheckCircle2, Download, Upload, RefreshCw, Play, X,
   AlertTriangle, Loader2, MessageSquare, ArrowRight, User, Calendar, Filter, Send,
-  Plus, Minus, Edit3,
+  Plus, Minus, Edit3, Trash2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { usePerfilStore } from '../lib/perfilStore'
@@ -18,6 +18,7 @@ interface OrcRevisao {
   arquivo_revisado_url: string | null; arquivo_revisado_nome: string | null; arquivo_revisado_size: number | null
   revisor_id: string | null; data_inicio_revisao: string | null; data_conclusao: string | null
   observacoes_revisor: string | null; comparativo_resumo: any[]
+  arquivos_complementares: { nome: string; path: string; size: number }[]
 }
 
 interface Perfil { id: string; nome: string | null; email: string }
@@ -73,12 +74,14 @@ export function OrcamentosSetorPage() {
     if (error) { toast.error(error.message); return }
 
     // Notifica solicitante
-    await supabase.rpc('criar_notificacao', {
-      p_user_id: orc.solicitante_id, p_tipo: 'info',
-      p_titulo: `Orçamento em revisão: ${orc.titulo}`,
-      p_mensagem: `${perfilAtual!.nome || 'O setor de orçamentos'} iniciou a revisão.`,
-      p_link: '/orcamentos',
-    }).catch(() => {})
+    try {
+      await supabase.rpc('criar_notificacao', {
+        p_user_id: orc.solicitante_id, p_tipo: 'info',
+        p_titulo: `Orçamento em revisão: ${orc.titulo}`,
+        p_mensagem: `${perfilAtual!.nome || 'O setor de orçamentos'} iniciou a revisão.`,
+        p_link: '/orcamentos',
+      })
+    } catch {}
 
     toast.success('Orçamento em revisão!')
     fetchAll()
@@ -88,25 +91,26 @@ export function OrcamentosSetorPage() {
     setCArquivo(file)
     setAutoComp(null)
 
-    // Tenta comparar automaticamente se o original é xlsx
     const orc = orcamentos.find(o => o.id === concluindoId)
     if (!orc?.arquivo_original_url || !orc.arquivo_original_nome) return
-    const isXlsx = orc.arquivo_original_nome.match(/\.xlsx?$/i) && file.name.match(/\.xlsx?$/i)
-    if (!isXlsx) return
+
+    const isComparavel = (orc.arquivo_original_nome.match(/\.(xlsx?|pdf)$/i) && file.name.match(/\.(xlsx?|pdf)$/i))
+    if (!isComparavel) {
+      toast('Comparação automática disponível para Excel e PDF', { icon: 'ℹ️', duration: 4000 })
+      return
+    }
 
     setComparando(true)
     try {
-      // Baixa o original do storage
       const { data: origBlob, error } = await supabase.storage.from('orcamentos').download(orc.arquivo_original_url)
       if (error || !origBlob) throw new Error('Erro ao baixar original')
 
       const origBuffer = await origBlob.arrayBuffer()
       const revBuffer = await file.arrayBuffer()
 
-      const resultado = await compararOrcamentos(origBuffer, revBuffer)
+      const resultado = await compararOrcamentos(origBuffer, revBuffer, orc.arquivo_original_nome, file.name)
       setAutoComp(resultado)
 
-      // Pre-preenche a lista de alterações
       if (resultado.alteracoes.length > 0) {
         setCComparativo(resultado.alteracoes.map(a => {
           const prefix = a.tipo === 'ADICIONADO' ? '✚' : a.tipo === 'REMOVIDO' ? '✖' : '✎'
@@ -114,10 +118,11 @@ export function OrcamentosSetorPage() {
         }))
       }
 
-      toast.success(`Comparativo automático: ${resultado.alteracoes.length} diferença(s) detectada(s)`)
+      const modoLabel = resultado.modo === 'EXCEL' ? 'célula por célula' : 'por texto extraído'
+      toast.success(`Comparativo (${modoLabel}): ${resultado.alteracoes.length} diferença(s)`)
     } catch (err) {
       console.warn('Comparação automática falhou:', err)
-      toast('Comparação automática não disponível — preencha manualmente', { icon: 'ℹ️' })
+      toast('Comparação automática falhou — preencha manualmente', { icon: 'ℹ️' })
     }
     setComparando(false)
   }
@@ -147,12 +152,14 @@ export function OrcamentosSetorPage() {
       }).eq('id', concluindoId)
       if (error) throw error
 
-      await supabase.rpc('criar_notificacao', {
-        p_user_id: orc.solicitante_id, p_tipo: 'sucesso',
-        p_titulo: `Orçamento revisado: ${orc.titulo}`,
-        p_mensagem: `A revisão foi concluída com ${comparativo.length} alteração(ões). Acesse para baixar.`,
-        p_link: '/orcamentos',
-      }).catch(() => {})
+      try {
+        await supabase.rpc('criar_notificacao', {
+          p_user_id: orc.solicitante_id, p_tipo: 'sucesso',
+          p_titulo: `Orçamento revisado: ${orc.titulo}`,
+          p_mensagem: `A revisão foi concluída com ${comparativo.length} alteração(ões). Acesse para baixar.`,
+          p_link: '/orcamentos',
+        })
+      } catch {}
 
       toast.success('Revisão concluída e entregue!')
       setConcluindoId(null); setCObs(''); setCArquivo(null); setCComparativo(['']); setAutoComp(null)
@@ -167,6 +174,23 @@ export function OrcamentosSetorPage() {
     const url = URL.createObjectURL(data)
     const a = document.createElement('a'); a.href = url; a.download = nome; a.click()
     URL.revokeObjectURL(url)
+  }
+
+  async function deletarOrcamento(orc: OrcRevisao) {
+    if (!confirm(`Excluir o orçamento "${orc.titulo}"? Esta ação não pode ser desfeita.`)) return
+    try {
+      // Remove arquivos do storage
+      if (orc.arquivo_original_url) {
+        await supabase.storage.from('orcamentos').remove([orc.arquivo_original_url])
+      }
+      if (orc.arquivo_revisado_url) {
+        await supabase.storage.from('orcamentos').remove([orc.arquivo_revisado_url])
+      }
+      const { error } = await supabase.from('orcamentos_revisao').delete().eq('id', orc.id)
+      if (error) throw error
+      setOrcamentos(prev => prev.filter(o => o.id !== orc.id))
+      toast.success('Orçamento excluído!')
+    } catch (err: any) { toast.error(err.message || 'Erro ao excluir') }
   }
 
   const diasAte = (d: string) => Math.ceil((new Date(d).getTime() - Date.now()) / 86400000)
@@ -256,6 +280,18 @@ export function OrcamentosSetorPage() {
                       )}
                       {orc.revisor_id && <span className="text-blue-600 font-medium">Revisor: {nomePerfil(orc.revisor_id)}</span>}
                     </div>
+                    {/* Arquivos complementares */}
+                    {orc.arquivos_complementares && orc.arquivos_complementares.length > 0 && (
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <span className="text-[10px] text-slate-400 font-semibold">Complementares:</span>
+                        {orc.arquivos_complementares.map((ac, i) => (
+                          <button key={i} onClick={() => downloadArquivo(ac.path, ac.nome)}
+                            className="text-[10px] px-2 py-0.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600 flex items-center gap-1 transition-colors">
+                            <Download size={8}/> {ac.nome}
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Concluído - comparativo */}
                     {orc.status === 'CONCLUIDO' && (
@@ -308,6 +344,10 @@ export function OrcamentosSetorPage() {
                         <CheckCircle2 size={12}/> Concluir
                       </button>
                     )}
+                    <button onClick={() => deletarOrcamento(orc)}
+                      className="p-2 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50" title="Excluir">
+                      <Trash2 size={15}/>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -343,7 +383,12 @@ export function OrcamentosSetorPage() {
               {/* Resultado automático do comparativo */}
               {autoComp && (
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                  <p className="text-xs font-bold text-blue-800 mb-2">Comparativo Automático</p>
+                  <p className="text-xs font-bold text-blue-800 mb-2">
+                    Comparativo Automático
+                    <span className="font-normal text-blue-500 ml-2">
+                      ({autoComp.modo === 'EXCEL' ? 'célula por célula' : 'por texto extraído do PDF'})
+                    </span>
+                  </p>
                   <div className="flex gap-4 text-xs mb-3">
                     <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 font-medium">
                       <Minus size={10}/> {autoComp.resumo.removidos} removido{autoComp.resumo.removidos !== 1 ? 's' : ''}
