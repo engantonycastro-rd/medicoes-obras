@@ -21,6 +21,7 @@ import { OrcamentosSetorPage } from './pages/OrcamentosSetorPage'
 import { KanbanObraPage } from './pages/KanbanObraPage'
 import { FAQPage } from './pages/FAQPage'
 import { ApontamentosAdminPage } from './pages/ApontamentosAdminPage'
+import { AppMobilePage } from './pages/AppMobilePage'
 import { AlertCircle } from 'lucide-react'
 
 export { ContratoModal } from './components/contracts/ContratoModal'
@@ -82,6 +83,7 @@ export default function App() {
       }} />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/app" element={<RequireAuth><AppMobilePage /></RequireAuth>} />
         <Route path="/" element={<RequireAuth><GeoGuard><AppLayout /></GeoGuard></RequireAuth>}>
           <Route index element={<ContratosPage />} />
           <Route path="dashboard"     element={<DashboardPage />} />
