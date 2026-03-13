@@ -39,9 +39,7 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
 
   async function onSubmit(data: FormData) {
     try {
-      const payload = {
-        contrato_id: contratoId,
-        user_id: '',
+      const campos = {
         nome_obra: data.nome_obra,
         local_obra: data.local_obra,
         numero_contrato: data.numero_contrato || null,
@@ -50,16 +48,15 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
         bdi_percentual: Number(data.bdi_percentual) / 100,
         data_base_planilha: data.data_base_planilha || null,
         prazo_execucao_dias: Number(data.prazo_execucao_dias),
-        data_ordem_servico: null,
         status: data.status,
         centro_custo: data.centro_custo?.trim() || null,
       }
       let salva: Obra
       if (obra) {
-        await atualizarObra(obra.id, payload)
-        salva = { ...obra, ...payload }
+        await atualizarObra(obra.id, campos)
+        salva = { ...obra, ...campos }
       } else {
-        salva = await criarObra(payload)
+        salva = await criarObra({ ...campos, contrato_id: contratoId, user_id: '', data_ordem_servico: null })
       }
       toast.success(obra ? 'Obra atualizada!' : 'Obra criada!')
       onSaved(salva)
