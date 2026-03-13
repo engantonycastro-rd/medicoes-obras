@@ -217,10 +217,10 @@ export const useStore = create<Store>((set, get) => ({
       data_medicao: new Date().toISOString().split('T')[0], status: 'RASCUNHO',
     }).select().single()
     if (error) { set({ error: error.message }); throw error }
-    supabase.rpc('notificar_admins', {
+    try { await supabase.rpc('notificar_admins', {
       p_tipo: 'info', p_titulo: `${ord[num-1] || num+'ª'} Medição criada`,
       p_mensagem: `Nova medição iniciada na obra`, p_link: '/medicoes',
-    }).then(() => {}).catch(() => {})
+    }) } catch {}
     return data as Medicao
   },
   atualizarMedicao: async (id, data) => {
@@ -236,11 +236,11 @@ export const useStore = create<Store>((set, get) => ({
       medicaoAtiva: s.medicaoAtiva?.id === medicaoId ? { ...s.medicaoAtiva, status: 'APROVADA' as const } : s.medicaoAtiva,
       loading: false,
     }))
-    // Notifica admins (fire-and-forget)
-    supabase.rpc('notificar_admins', {
+    // Notifica admins
+    try { await supabase.rpc('notificar_admins', {
       p_tipo: 'sucesso', p_titulo: 'Medição efetivada',
       p_mensagem: 'Uma medição foi aprovada/efetivada', p_link: '/medicoes',
-    }).catch(() => {})
+    }) } catch {}
   },
   deletarMedicao: async (id) => {
     set({ error: null })

@@ -74,13 +74,13 @@ export const usePerfilStore = create<PerfilStore>((set) => ({
       .from('perfis').update({ ativo: true }).eq('id', userId)
     if (error) { set({ error: error.message }); throw error }
     set(s => ({ perfis: s.perfis.map(p => p.id === userId ? { ...p, ativo: true } : p) }))
-    // Notifica o usuário ativado (fire-and-forget)
-    supabase.rpc('criar_notificacao', {
+    // Notifica o usuário ativado
+    try { await supabase.rpc('criar_notificacao', {
       p_user_id: userId, p_tipo: 'sucesso',
       p_titulo: 'Acesso liberado!',
       p_mensagem: 'Seu cadastro foi aprovado. Bem-vindo ao sistema!',
       p_link: '/',
-    }).catch(() => {})
+    }) } catch {}
   },
 
   desativarUsuario: async (userId) => {
