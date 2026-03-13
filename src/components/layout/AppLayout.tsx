@@ -29,7 +29,12 @@ export function AppLayout() {
     navigate('/login')
   }
 
-  const navBase = [
+  const isApontador = perfilAtual?.role === 'APONTADOR'
+
+  const navBase = isApontador ? [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/apontamentos', icon: ClipboardList, label: 'Apontamentos' },
+  ] : [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/',          icon: Building2,        label: 'Contratos' },
     { to: '/servicos',  icon: ClipboardList,    label: 'Serviços'  },
@@ -39,6 +44,7 @@ export function AppLayout() {
   const navAdmin     = [
     { to: '/custos-erp', icon: DollarSign, label: 'Custos ERP' },
     { to: '/setor-orcamentos', icon: FileSpreadsheet, label: 'Setor Orçamentos' },
+    { to: '/apontamentos', icon: ClipboardList, label: 'Apontamentos' },
     { to: '/auditoria',  icon: History,     label: 'Auditoria' },
     { to: '/usuarios', icon: Users, label: 'Usuários' },
     { to: '/configuracoes', icon: Settings, label: 'Config.' },
@@ -48,7 +54,7 @@ export function AppLayout() {
     { to: '/orcamentos', icon: FileSpreadsheet, label: 'Orçamentos' },
     { to: '/configuracoes', icon: Settings, label: 'Config.' },
   ]
-  const nav = [...navBase, ...(isAdmin ? navAdmin : navEng)]
+  const nav = [...navBase, ...(isAdmin ? navAdmin : isApontador ? [] : navEng)]
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 font-sans overflow-hidden transition-colors duration-300">

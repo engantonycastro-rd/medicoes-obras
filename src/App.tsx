@@ -20,6 +20,7 @@ import { OrcamentosSolicitarPage } from './pages/OrcamentosSolicitarPage'
 import { OrcamentosSetorPage } from './pages/OrcamentosSetorPage'
 import { KanbanObraPage } from './pages/KanbanObraPage'
 import { FAQPage } from './pages/FAQPage'
+import { ApontamentosAdminPage } from './pages/ApontamentosAdminPage'
 import { AlertCircle } from 'lucide-react'
 
 export { ContratoModal } from './components/contracts/ContratoModal'
@@ -96,6 +97,7 @@ export default function App() {
           <Route path="setor-orcamentos" element={<OrcamentosSetorPage />} />
           <Route path="kanban"           element={<KanbanObraPage />} />
           <Route path="ajuda"            element={<FAQPage />} />
+          <Route path="apontamentos"    element={<ApontamentosAdminPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

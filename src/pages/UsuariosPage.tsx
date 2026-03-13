@@ -9,6 +9,7 @@ import { usePerfilStore } from '../lib/perfilStore'
 import { Perfil, RolePerfil } from '../types'
 import { formatDate } from '../utils/calculations'
 import { ZonasAcessoManager } from '../components/ZonasAcessoManager'
+import { ApontadorManager } from '../components/ApontadorManager'
 
 export function UsuariosPage() {
   const {
@@ -78,6 +79,7 @@ export function UsuariosPage() {
   const roleBadge = (role: string) =>
     role === 'ADMIN' ? 'bg-amber-100 text-amber-700 border-amber-200'
     : role === 'GESTOR' ? 'bg-purple-100 text-purple-700 border-purple-200'
+    : role === 'APONTADOR' ? 'bg-cyan-100 text-cyan-700 border-cyan-200'
     : 'bg-blue-100 text-blue-700 border-blue-200'
 
   function NomeEditor({ p }: { p: Perfil }) {
@@ -157,6 +159,7 @@ export function UsuariosPage() {
                     className="text-xs border border-slate-200 rounded-lg px-2 py-1.5">
                     <option value="ENGENHEIRO">Engenheiro</option>
                     <option value="GESTOR">Gestor de Contrato</option>
+                    <option value="APONTADOR">Apontador</option>
                     <option value="ADMIN">Administrador</option>
                   </select>
                   <button onClick={() => handleAtivar(p)}
@@ -351,6 +354,7 @@ export function UsuariosPage() {
                       className={`text-xs px-2 py-1.5 rounded-lg border font-medium appearance-none pr-6 cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-400 ${roleBadge(p.role)}`}>
                       <option value="ENGENHEIRO">🏗 Engenheiro</option>
                       <option value="GESTOR">💼 Gestor</option>
+                      <option value="APONTADOR">📋 Apontador</option>
                       <option value="ADMIN">👑 Admin</option>
                     </select>
                     <ChevronDown size={11} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60"/>
@@ -373,6 +377,12 @@ export function UsuariosPage() {
       {/* ═══ ZONAS DE ACESSO ═══ */}
       <div className="mt-8">
         <ZonasAcessoManager perfis={perfis}/>
+
+        {/* Apontadores */}
+        <div className="mt-8">
+          <h2 className="text-lg font-bold text-slate-800 mb-4">Apontadores de Obra</h2>
+          <ApontadorManager/>
+        </div>
       </div>
     </div>
   )

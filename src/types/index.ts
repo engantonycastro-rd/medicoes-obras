@@ -2,7 +2,7 @@ export type TipoContrato    = 'ESTADO' | 'PREFEITURA'
 export type StatusObra      = 'ATIVA' | 'CONCLUIDA' | 'SUSPENSA'
 export type StatusMedicao   = 'RASCUNHO' | 'ENVIADA' | 'APROVADA'
 export type StatusLinha     = 'A pagar' | 'Pago' | 'Não executado'
-export type RolePerfil      = 'ADMIN' | 'GESTOR' | 'ENGENHEIRO'
+export type RolePerfil      = 'ADMIN' | 'GESTOR' | 'ENGENHEIRO' | 'APONTADOR'
 
 export interface Perfil {
   id: string; created_at: string; updated_at: string
