@@ -73,7 +73,13 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-export default function App() {
+export default function IndexRedirect() {
+  const { perfilAtual } = usePerfilStore()
+  if (perfilAtual?.role === 'APONTADOR') return <Navigate to="/apontamentos" replace />
+  return <ContratosPage />
+}
+
+function App() {
   return (
     <BrowserRouter>
       <Toaster position="top-right" toastOptions={{
@@ -85,7 +91,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/app" element={<RequireAuth><AppMobilePage /></RequireAuth>} />
         <Route path="/" element={<RequireAuth><GeoGuard><AppLayout /></GeoGuard></RequireAuth>}>
-          <Route index element={<ContratosPage />} />
+          <Route index element={<IndexRedirect />} />
           <Route path="dashboard"     element={<DashboardPage />} />
           <Route path="custos-erp"    element={<CustosERPPage />} />
           <Route path="custos-obra"   element={<CustosObraPage />} />

@@ -121,10 +121,12 @@ export function AppLayout() {
             <div className={`mx-2 mt-1 text-xs px-2 py-0.5 rounded-full font-medium text-center ${
               isAdmin ? 'bg-amber-500/20 text-amber-400'
               : perfilAtual?.role === 'GESTOR' ? 'bg-purple-500/20 text-purple-400'
+              : perfilAtual?.role === 'APONTADOR' ? 'bg-cyan-500/20 text-cyan-400'
               : 'bg-blue-500/20 text-blue-400'
             }`}>
               {isAdmin ? <><Crown size={9} className="inline mr-1"/>Admin</>
               : perfilAtual?.role === 'GESTOR' ? <><Crown size={9} className="inline mr-1"/>Gestor</>
+              : perfilAtual?.role === 'APONTADOR' ? <><ClipboardList size={9} className="inline mr-1"/>Apontador</>
               : <><HardHat size={9} className="inline mr-1"/>Engenheiro</>}
             </div>
           </div>
