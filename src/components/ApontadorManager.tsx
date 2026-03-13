@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Save, Users, HardHat, GripVertical, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Save, Users, HardHat, GripVertical, Loader2, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 
@@ -15,6 +15,8 @@ export function ApontadorManager() {
   const [todasObras, setTodasObras] = useState<Obra[]>([])
   const [vinculos, setVinculos] = useState<Vinculo[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedAp, setSelectedAp] = useState('')
+  const [obraBusca, setObraBusca] = useState('')
 
   useEffect(() => { fetchAll() }, [])
 
@@ -101,41 +103,60 @@ export function ApontadorManager() {
       {apontadores.length > 0 ? (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <p className="text-xs font-bold text-amber-800 mb-3 flex items-center gap-1.5"><Users size={14}/> Vincular apontadores a obras</p>
-          <p className="text-[10px] text-amber-600 mb-3">Selecione quais obras cada apontador pode acessar no app de campo.</p>
+          <p className="text-[10px] text-amber-600 mb-3">Selecione um apontador e marque as obras que ele pode acessar no app de campo.</p>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-left">
-                  <th className="py-2 px-2 text-slate-600 font-semibold sticky left-0 bg-amber-50">Apontador</th>
-                  {todasObras.slice(0, 20).map(o => (
-                    <th key={o.id} className="py-2 px-1 text-center font-normal text-[10px] text-slate-500 max-w-20">
-                      <span className="writing-mode-vertical" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', display: 'inline-block', maxHeight: '80px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {o.nome_obra}
-                      </span>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {apontadores.map(ap => (
-                  <tr key={ap.id} className="border-t border-amber-100">
-                    <td className="py-2 px-2 font-medium text-slate-700 sticky left-0 bg-amber-50 whitespace-nowrap">{ap.nome || ap.email}</td>
-                    {todasObras.slice(0, 20).map(o => {
-                      const checked = vinculos.some(v => v.user_id === ap.id && v.obra_id === o.id)
-                      return (
-                        <td key={o.id} className="py-2 px-1 text-center">
-                          <input type="checkbox" checked={checked} onChange={() => toggleVinculo(ap.id, o.id)}
-                            className="w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500"/>
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {/* Tabs de apontadores */}
+          <div className="flex gap-2 mb-4 flex-wrap">
+            {apontadores.map(ap => {
+              const qtd = vinculos.filter(v => v.user_id === ap.id).length
+              const active = selectedAp === ap.id
+              return (
+                <button key={ap.id} onClick={() => setSelectedAp(active ? '' : ap.id)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border transition-all ${
+                    active ? 'bg-amber-500 text-white border-amber-500 shadow-sm' : 'bg-white text-slate-700 border-slate-200 hover:border-amber-300'
+                  }`}>
+                  <span>{ap.nome || ap.email}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${active ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}`}>
+                    {qtd} obra{qtd !== 1 ? 's' : ''}
+                  </span>
+                </button>
+              )
+            })}
           </div>
-          {todasObras.length > 20 && <p className="text-[10px] text-amber-600 mt-2">Mostrando as 20 primeiras obras. Total: {todasObras.length}</p>}
+
+          {/* Lista de obras do apontador selecionado */}
+          {selectedAp && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="relative flex-1">
+                  <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"/>
+                  <input value={obraBusca} onChange={e => setObraBusca(e.target.value)} placeholder="Buscar obra..."
+                    className="w-full pl-7 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white"/>
+                </div>
+                <span className="text-[10px] text-slate-400">{vinculos.filter(v => v.user_id === selectedAp).length} de {todasObras.length} vinculadas</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 max-h-72 overflow-y-auto">
+                {todasObras.filter(o => !obraBusca || o.nome_obra.toLowerCase().includes(obraBusca.toLowerCase())).map(o => {
+                  const checked = vinculos.some(v => v.user_id === selectedAp && v.obra_id === o.id)
+                  return (
+                    <label key={o.id}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-xs transition-all border ${
+                        checked ? 'bg-amber-100 border-amber-300 text-amber-800' : 'bg-white border-slate-200 text-slate-600 hover:border-amber-200 hover:bg-amber-50/50'
+                      }`}>
+                      <input type="checkbox" checked={checked} onChange={() => toggleVinculo(selectedAp, o.id)}
+                        className="w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 shrink-0"/>
+                      <span className="font-medium truncate">{o.nome_obra}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {!selectedAp && (
+            <div className="text-center py-6 text-xs text-amber-600/60">Selecione um apontador acima para gerenciar as obras</div>
+          )}
         </div>
       ) : (
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center text-xs text-slate-400">
