@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, LayoutDashboard, DollarSign, History, Moon, Sun, Wallet, FileSpreadsheet, KanbanSquare } from 'lucide-react'
+import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, LayoutDashboard, DollarSign, History, Moon, Sun, Wallet, FileSpreadsheet, KanbanSquare, HelpCircle } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { usePerfilStore } from '../../lib/perfilStore'
 import { useStore } from '../../lib/store'
@@ -65,6 +65,10 @@ export function AppLayout() {
           {sidebarOpen && (
             <div className="flex items-center gap-1">
               <NotificacaoBell/>
+              <button onClick={() => navigate('/ajuda')} title="Central de Ajuda"
+                className="p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors">
+                <HelpCircle size={16} className="text-slate-400 hover:text-indigo-400"/>
+              </button>
               <button onClick={() => setTemaEscuro(!temaEscuro)} title={temaEscuro ? 'Modo claro' : 'Modo escuro'}
                 className="p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors">
                 {temaEscuro ? <Sun size={16} className="text-amber-400"/> : <Moon size={16} className="text-slate-400"/>}
