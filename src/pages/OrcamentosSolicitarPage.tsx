@@ -2,13 +2,19 @@ import { useEffect, useState } from 'react'
 import {
   Upload, FileSpreadsheet, Clock, CheckCircle2, Send, Download, Eye,
   RefreshCw, Plus, X, Loader2, Calendar, TrendingDown, TrendingUp, Minus, ArrowRight,
+  Scissors, AlertTriangle,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
 import { usePerfilStore } from '../lib/perfilStore'
 import { formatDate, formatCurrency } from '../utils/calculations'
 import { supabase } from '../lib/supabase'
+import { compararOrcamentos, ComparativoResult } from '../utils/compararOrcamentos'
 import { Obra } from '../types'
+
+function sanitizeFileName(name: string): string {
+  return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_+/g, '_')
+}
 
 interface OrcRevisao {
   id: string; created_at: string; titulo: string; descricao: string | null
@@ -21,14 +27,18 @@ interface OrcRevisao {
   arquivos_complementares: { nome: string; path: string; size: number }[]
   valor_original: number; valor_revisado: number; diferenca_valor: number; diferenca_percentual: number
   qtd_alteracoes: number
+  arquivo_fiscal_url: string | null; arquivo_fiscal_nome: string | null
+  valor_aprovado_fiscal: number; valor_glosado: number; glosas_resumo: any[]
+  obs_fiscal: string | null; data_retorno_fiscal: string | null
 }
 
 const URG = { BAIXA: 'bg-slate-100 text-slate-600', NORMAL: 'bg-blue-100 text-blue-700', ALTA: 'bg-amber-100 text-amber-700', URGENTE: 'bg-red-100 text-red-700' }
 const ST = {
-  PENDENTE:   { label: 'Na fila',    color: 'bg-amber-100 text-amber-700 border-amber-200', icon: Clock },
-  EM_REVISAO: { label: 'Em revisão', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: Eye },
-  CONCLUIDO:  { label: 'Concluído',  color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
-  CANCELADO:  { label: 'Cancelado',  color: 'bg-slate-100 text-slate-500 border-slate-200', icon: X },
+  PENDENTE:        { label: 'Na fila',         color: 'bg-amber-100 text-amber-700 border-amber-200', icon: Clock },
+  EM_REVISAO:      { label: 'Em revisão',      color: 'bg-blue-100 text-blue-700 border-blue-200', icon: Eye },
+  CONCLUIDO:       { label: 'Concluído',       color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
+  RETORNO_FISCAL:  { label: 'Retorno Fiscal',  color: 'bg-purple-100 text-purple-700 border-purple-200', icon: CheckCircle2 },
+  CANCELADO:       { label: 'Cancelado',       color: 'bg-slate-100 text-slate-500 border-slate-200', icon: X },
 } as Record<string, any>
 
 export function OrcamentosSolicitarPage() {
@@ -44,6 +54,15 @@ export function OrcamentosSolicitarPage() {
   const [fObraId, setFObraId] = useState(''); const [fArquivo, setFArquivo] = useState<File | null>(null)
   const [fComplementares, setFComplementares] = useState<File[]>([])
   const [enviando, setEnviando] = useState(false)
+
+  // Retorno fiscal
+  const [fiscalModal, setFiscalModal] = useState<string | null>(null)
+  const [fiscalArquivo, setFiscalArquivo] = useState<File | null>(null)
+  const [fiscalValor, setFiscalValor] = useState('')
+  const [fiscalObs, setFiscalObs] = useState('')
+  const [fiscalComp, setFiscalComp] = useState<ComparativoResult | null>(null)
+  const [fiscalComparando, setFiscalComparando] = useState(false)
+  const [fiscalEnviando, setFiscalEnviando] = useState(false)
 
   useEffect(() => {
     fetchContratos().then(async () => {
@@ -69,12 +88,12 @@ export function OrcamentosSolicitarPage() {
     setEnviando(true)
     try {
       const obra = todasObras.find(o => o.id === fObraId)
-      const path = `originais/${Date.now()}_${fArquivo.name}`
+      const path = `originais/${Date.now()}_${sanitizeFileName(fArquivo.name)}`
       const { error: upErr } = await supabase.storage.from('orcamentos').upload(path, fArquivo)
       if (upErr) throw upErr
       const complementares: { nome: string; path: string; size: number }[] = []
       for (const fc of fComplementares) {
-        const cPath = `complementares/${Date.now()}_${fc.name}`
+        const cPath = `complementares/${Date.now()}_${sanitizeFileName(fc.name)}`
         const { error: cErr } = await supabase.storage.from('orcamentos').upload(cPath, fc)
         if (!cErr) complementares.push({ nome: fc.name, path: cPath, size: fc.size })
       }
@@ -98,6 +117,56 @@ export function OrcamentosSolicitarPage() {
     if (error || !data) { toast.error('Erro ao baixar'); return }
     const url = URL.createObjectURL(data)
     const a = document.createElement('a'); a.href = url; a.download = nome; a.click(); URL.revokeObjectURL(url)
+  }
+
+  async function handleFiscalArquivo(file: File) {
+    setFiscalArquivo(file); setFiscalComp(null)
+    const orc = orcamentos.find(o => o.id === fiscalModal)
+    if (!orc?.arquivo_revisado_url || !orc.arquivo_revisado_nome) return
+    if (!(orc.arquivo_revisado_nome.match(/\.(xlsx?|pdf)$/i) && file.name.match(/\.(xlsx?|pdf)$/i))) return
+
+    setFiscalComparando(true)
+    try {
+      const { data: revBlob } = await supabase.storage.from('orcamentos').download(orc.arquivo_revisado_url)
+      if (!revBlob) throw new Error('Erro ao baixar revisado')
+      const resultado = await compararOrcamentos(await revBlob.arrayBuffer(), await file.arrayBuffer(), orc.arquivo_revisado_nome, file.name)
+      setFiscalComp(resultado)
+      toast.success(`Comparativo: ${resultado.alteracoes.length} diferença(s) — ${resultado.resumo.removidos} item(ns) glosado(s)`)
+    } catch { toast('Comparação automática falhou', { icon: 'ℹ️' }) }
+    setFiscalComparando(false)
+  }
+
+  async function enviarRetornoFiscal() {
+    if (!fiscalModal || !fiscalArquivo) { toast.error('Anexe o arquivo do fiscal'); return }
+    const orc = orcamentos.find(o => o.id === fiscalModal); if (!orc) return
+    setFiscalEnviando(true)
+    try {
+      const path = `fiscal/${Date.now()}_${sanitizeFileName(fiscalArquivo.name)}`
+      const { error: upErr } = await supabase.storage.from('orcamentos').upload(path, fiscalArquivo)
+      if (upErr) throw upErr
+
+      const vAprovado = Number(String(fiscalValor).replace(/[^\d.,]/g, '').replace(',', '.')) || 0
+      const vGlosado = orc.valor_revisado > 0 ? orc.valor_revisado - vAprovado : 0
+      const glosas = fiscalComp ? fiscalComp.alteracoes.filter(a => a.tipo === 'REMOVIDO' || a.tipo === 'ALTERADO').map(a => ({
+        descricao: `${a.tipo === 'REMOVIDO' ? '✖' : '✎'} ${a.descricao}${a.detalhes ? ' — ' + a.detalhes : ''}`
+      })) : []
+
+      const { error } = await supabase.from('orcamentos_revisao').update({
+        status: 'RETORNO_FISCAL',
+        arquivo_fiscal_url: path, arquivo_fiscal_nome: fiscalArquivo.name, arquivo_fiscal_size: fiscalArquivo.size,
+        data_retorno_fiscal: new Date().toISOString(),
+        valor_aprovado_fiscal: vAprovado, valor_glosado: Math.abs(vGlosado),
+        glosas_resumo: glosas, obs_fiscal: fiscalObs || null,
+      }).eq('id', fiscalModal)
+      if (error) throw error
+
+      try { await supabase.rpc('notificar_admins', { p_tipo: 'info', p_titulo: `Retorno fiscal: ${orc.titulo}`, p_mensagem: `Valor aprovado: ${formatCurrency(vAprovado)}. Glosado: ${formatCurrency(Math.abs(vGlosado))}`, p_link: '/setor-orcamentos' }) } catch {}
+
+      toast.success('Retorno fiscal enviado!')
+      setFiscalModal(null); setFiscalArquivo(null); setFiscalValor(''); setFiscalObs(''); setFiscalComp(null)
+      fetchOrcamentos()
+    } catch (err: any) { toast.error(err.message) }
+    setFiscalEnviando(false)
   }
 
   const diasAte = (d: string) => Math.ceil((new Date(d).getTime() - Date.now()) / 86400000)
@@ -293,18 +362,155 @@ export function OrcamentosSolicitarPage() {
                       </div>
                     )}
 
-                    {/* Download revisado */}
+                    {/* Download revisado + Retorno fiscal */}
                     {orc.arquivo_revisado_url && (
-                      <button onClick={() => downloadArquivo(orc.arquivo_revisado_url!, orc.arquivo_revisado_nome || 'revisado.xlsx')}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium shadow-sm">
-                        <Download size={14}/> Baixar Orçamento Revisado
-                      </button>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <button onClick={() => downloadArquivo(orc.arquivo_revisado_url!, orc.arquivo_revisado_nome || 'revisado.xlsx')}
+                          className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium shadow-sm">
+                          <Download size={14}/> Baixar Orçamento Revisado
+                        </button>
+                        {orc.status === 'CONCLUIDO' && (
+                          <button onClick={() => { setFiscalModal(orc.id); setFiscalArquivo(null); setFiscalValor(''); setFiscalObs(''); setFiscalComp(null) }}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium shadow-sm">
+                            <Scissors size={14}/> Enviar Retorno do Fiscal
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Retorno fiscal — dados */}
+                    {orc.status === 'RETORNO_FISCAL' && (
+                      <div className="mt-4 bg-purple-50 border border-purple-200 rounded-xl p-4">
+                        <p className="text-xs font-bold text-purple-800 mb-3 flex items-center gap-1.5">
+                          <Scissors size={13}/> Retorno do Fiscal — {orc.data_retorno_fiscal ? formatDate(orc.data_retorno_fiscal) : ''}
+                        </p>
+
+                        {/* Valores comparativo: revisado vs aprovado */}
+                        <div className="grid grid-cols-3 gap-3 mb-3">
+                          <div className="bg-white border border-slate-200 rounded-lg p-2.5 text-center">
+                            <p className="text-[10px] text-slate-400 font-semibold">Nosso Revisado</p>
+                            <p className="text-sm font-bold text-slate-800">{formatCurrency(orc.valor_revisado)}</p>
+                          </div>
+                          <div className="bg-white border border-slate-200 rounded-lg p-2.5 text-center">
+                            <p className="text-[10px] text-slate-400 font-semibold">Aprovado Fiscal</p>
+                            <p className="text-sm font-bold text-slate-800">{formatCurrency(orc.valor_aprovado_fiscal)}</p>
+                          </div>
+                          <div className={`rounded-lg p-2.5 text-center ${orc.valor_glosado > 0 ? 'bg-red-50 border border-red-200' : 'bg-emerald-50 border border-emerald-200'}`}>
+                            <p className="text-[10px] font-semibold" style={{ color: orc.valor_glosado > 0 ? '#b91c1c' : '#047857' }}>
+                              {orc.valor_glosado > 0 ? 'Glosado' : 'Sem glosa'}
+                            </p>
+                            <p className={`text-sm font-bold ${orc.valor_glosado > 0 ? 'text-red-700' : 'text-emerald-700'}`}>
+                              {formatCurrency(orc.valor_glosado)}
+                            </p>
+                            {orc.valor_revisado > 0 && orc.valor_glosado > 0 && (
+                              <p className="text-[9px] text-red-500">{((orc.valor_glosado / orc.valor_revisado) * 100).toFixed(1)}% do revisado</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {orc.obs_fiscal && <p className="text-xs text-purple-700 italic mb-2">"{orc.obs_fiscal}"</p>}
+
+                        {orc.glosas_resumo && orc.glosas_resumo.length > 0 && (
+                          <details className="group">
+                            <summary className="text-[10px] font-semibold text-purple-600 cursor-pointer hover:underline">
+                              {orc.glosas_resumo.length} serviço(s) glosado(s) / alterado(s) — clique para ver
+                            </summary>
+                            <div className="mt-2 space-y-1 max-h-48 overflow-y-auto">
+                              {orc.glosas_resumo.map((g: any, i: number) => {
+                                const d = g.descricao || g
+                                const isR = String(d).startsWith('✖')
+                                return (
+                                  <div key={i} className={`flex items-start gap-2 px-2 py-1 rounded text-[10px] ${isR ? 'bg-red-50' : 'bg-amber-50'}`}>
+                                    <span className={`shrink-0 font-bold ${isR ? 'text-red-500' : 'text-amber-500'}`}>{isR ? '✖' : '✎'}</span>
+                                    <span className="text-slate-600">{String(d).replace(/^[✖✎]\s*/, '')}</span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </details>
+                        )}
+
+                        {orc.arquivo_fiscal_url && (
+                          <button onClick={() => downloadArquivo(orc.arquivo_fiscal_url!, orc.arquivo_fiscal_nome || 'fiscal.xlsx')}
+                            className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-medium mt-3">
+                            <Download size={12}/> Baixar Versão Aprovada pelo Fiscal
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Modal retorno fiscal */}
+      {fiscalModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setFiscalModal(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-auto" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-slate-100">
+              <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                <Scissors size={18} className="text-purple-500"/> Retorno do Fiscal
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">{orcamentos.find(o => o.id === fiscalModal)?.titulo}</p>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs text-purple-700">
+                Anexe a versão do orçamento que o fiscal aprovou. O sistema irá comparar automaticamente com a versão que entregamos (revisada) e identificar os serviços glosados.
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-600 block mb-1">Arquivo aprovado pelo fiscal *</label>
+                <input type="file" accept=".xlsx,.xls,.pdf,.ods" onChange={e => { const f = e.target.files?.[0]; if (f) handleFiscalArquivo(f) }}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-white"/>
+                {fiscalArquivo && <p className="text-[10px] text-slate-500 mt-1">{fiscalArquivo.name} ({(fiscalArquivo.size/1024).toFixed(0)} KB)</p>}
+                {fiscalComparando && <div className="flex items-center gap-2 mt-2 text-xs text-purple-600"><Loader2 size={12} className="animate-spin"/> Comparando com o revisado...</div>}
+              </div>
+
+              {fiscalComp && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                  <p className="text-xs font-bold text-red-800 mb-1">Glosas Detectadas</p>
+                  <div className="flex gap-3 text-[10px] mb-2">
+                    <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">{fiscalComp.resumo.removidos} removido(s)</span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{fiscalComp.resumo.alterados} alterado(s)</span>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-semibold text-slate-600 block mb-1">Valor aprovado pelo fiscal (R$)</label>
+                <input value={fiscalValor} onChange={e => setFiscalValor(e.target.value)} placeholder="Ex: 230000.00"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"/>
+                {(() => {
+                  const orc = orcamentos.find(o => o.id === fiscalModal)
+                  const vA = Number(String(fiscalValor).replace(/[^\d.,]/g, '').replace(',', '.')) || 0
+                  const glosado = orc && orc.valor_revisado > 0 && vA > 0 ? orc.valor_revisado - vA : 0
+                  return glosado > 0 ? (
+                    <p className="text-xs text-red-600 font-bold mt-1">
+                      <AlertTriangle size={11} className="inline mr-1"/>
+                      Glosa de {formatCurrency(glosado)} ({((glosado / (orc?.valor_revisado || 1)) * 100).toFixed(1)}%)
+                    </p>
+                  ) : null
+                })()}
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-600 block mb-1">Observações</label>
+                <textarea value={fiscalObs} onChange={e => setFiscalObs(e.target.value)} rows={2}
+                  placeholder="Ex: Fiscal glosou itens de pintura e revestimento..."
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs"/>
+              </div>
+            </div>
+            <div className="p-5 border-t border-slate-100 flex gap-3">
+              <button onClick={() => setFiscalModal(null)} className="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-sm">Cancelar</button>
+              <button onClick={enviarRetornoFiscal} disabled={fiscalEnviando}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg text-sm disabled:opacity-50">
+                {fiscalEnviando ? <Loader2 size={14} className="animate-spin"/> : <Scissors size={14}/>} Enviar Retorno
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

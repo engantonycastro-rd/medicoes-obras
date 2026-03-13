@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import {
   FileSpreadsheet, Clock, Eye, CheckCircle2, Download, RefreshCw, Play, X,
   Loader2, User, Calendar, Send, Plus, Minus, Edit3, Trash2, TrendingDown,
-  TrendingUp, BarChart3, FileDown, Filter,
+  TrendingUp, BarChart3, FileDown, Filter, Scissors,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ExcelJS from 'exceljs'
@@ -10,6 +10,10 @@ import { usePerfilStore } from '../lib/perfilStore'
 import { formatDate, formatCurrency } from '../utils/calculations'
 import { supabase } from '../lib/supabase'
 import { compararOrcamentos, ComparativoResult } from '../utils/compararOrcamentos'
+
+function sanitizeFileName(name: string): string {
+  return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_+/g, '_')
+}
 
 interface OrcRevisao {
   id: string; created_at: string; updated_at: string; titulo: string; descricao: string | null
@@ -22,6 +26,9 @@ interface OrcRevisao {
   arquivos_complementares: { nome: string; path: string; size: number }[]
   valor_original: number; valor_revisado: number; diferenca_valor: number; diferenca_percentual: number
   qtd_alteracoes: number
+  arquivo_fiscal_url: string | null; arquivo_fiscal_nome: string | null
+  valor_aprovado_fiscal: number; valor_glosado: number; glosas_resumo: any[]
+  obs_fiscal: string | null; data_retorno_fiscal: string | null
 }
 
 interface Perfil { id: string; nome: string | null; email: string }
@@ -101,7 +108,7 @@ export function OrcamentosSetorPage() {
     const orc = orcamentos.find(o => o.id === concluindoId); if (!orc) return
     setEnviando(true)
     try {
-      const path = `revisados/${Date.now()}_${cArquivo.name}`
+      const path = `revisados/${Date.now()}_${sanitizeFileName(cArquivo.name)}`
       const { error: upErr } = await supabase.storage.from('orcamentos').upload(path, cArquivo)
       if (upErr) throw upErr
       const comparativo = cComparativo.filter(c => c.trim()).map(c => ({ descricao: c.trim() }))
@@ -161,21 +168,23 @@ export function OrcamentosSetorPage() {
     wsR.getRow(6).getCell(3).font = { bold: true, color: { argb: 'FF047857' } }
 
     // Tabela
-    wsR.getRow(8).values = ['Orçamento', 'Solicitante', 'Revisor', 'Valor Original', 'Valor Revisado', 'Diferença', 'Dif. %', 'Alterações', 'Data Conclusão']
+    wsR.getRow(8).values = ['Orçamento', 'Solicitante', 'Revisor', 'Valor Original', 'Valor Revisado', 'Diferença', 'Dif. %', 'Alterações', 'Aprovado Fiscal', 'Glosado', 'Data Conclusão']
     wsR.getRow(8).eachCell(c => Object.assign(c, hStyle))
-    wsR.columns = [{ width: 35 }, { width: 22 }, { width: 22 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 12 }, { width: 12 }, { width: 16 }]
+    wsR.columns = [{ width: 35 }, { width: 22 }, { width: 22 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 12 }, { width: 12 }, { width: 18 }, { width: 16 }, { width: 16 }]
 
     relConcluidos.forEach((o, i) => {
       const r = wsR.getRow(9 + i)
-      r.values = [o.titulo, nome(o.solicitante_id), nome(o.revisor_id), o.valor_original, o.valor_revisado, o.diferenca_valor, `${Math.abs(o.diferenca_percentual).toFixed(1)}%`, o.qtd_alteracoes, o.data_conclusao ? formatDate(o.data_conclusao) : '—']
+      r.values = [o.titulo, nome(o.solicitante_id), nome(o.revisor_id), o.valor_original, o.valor_revisado, o.diferenca_valor, `${Math.abs(o.diferenca_percentual).toFixed(1)}%`, o.qtd_alteracoes, o.valor_aprovado_fiscal || '', o.valor_glosado || '', o.data_conclusao ? formatDate(o.data_conclusao) : '—']
       r.getCell(4).numFmt = '#,##0.00'; r.getCell(5).numFmt = '#,##0.00'; r.getCell(6).numFmt = '#,##0.00'
+      if (o.valor_aprovado_fiscal) r.getCell(9).numFmt = '#,##0.00'
+      if (o.valor_glosado > 0) { r.getCell(10).numFmt = '#,##0.00'; r.getCell(10).font = { color: { argb: 'FFDC2626' }, bold: true } }
       if (o.diferenca_valor < 0) { r.getCell(6).font = { color: { argb: 'FF047857' }, bold: true }; r.getCell(7).font = { color: { argb: 'FF047857' } } }
       else if (o.diferenca_valor > 0) { r.getCell(6).font = { color: { argb: 'FFB91C1C' }, bold: true }; r.getCell(7).font = { color: { argb: 'FFB91C1C' } } }
     })
 
     // Total
     const totalRow = wsR.getRow(9 + relConcluidos.length)
-    totalRow.values = [`TOTAL (${relConcluidos.length} orçamentos)`, '', '', relStats.valorOrigTotal, relStats.valorRevTotal, Math.abs(relStats.impacto), `${Math.abs(relStats.impactoPct).toFixed(1)}%`, relStats.alteracoesTotal, '']
+    totalRow.values = [`TOTAL (${relConcluidos.length} orçamentos)`, '', '', relStats.valorOrigTotal, relStats.valorRevTotal, Math.abs(relStats.impacto), `${Math.abs(relStats.impactoPct).toFixed(1)}%`, relStats.alteracoesTotal, '', relStats.totalGlosado, '']
     totalRow.eachCell(c => { c.font = { bold: true }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } } })
     totalRow.getCell(4).numFmt = '#,##0.00'; totalRow.getCell(5).numFmt = '#,##0.00'; totalRow.getCell(6).numFmt = '#,##0.00'
 
@@ -221,7 +230,7 @@ export function OrcamentosSetorPage() {
 
   const pendentes = useMemo(() => orcamentos.filter(o => o.status === 'PENDENTE').sort((a, b) => (URG[a.urgencia]?.ordem ?? 9) - (URG[b.urgencia]?.ordem ?? 9) || a.ordem_atendimento - b.ordem_atendimento), [orcamentos])
   const emRevisao = useMemo(() => orcamentos.filter(o => o.status === 'EM_REVISAO'), [orcamentos])
-  const concluidos = useMemo(() => orcamentos.filter(o => o.status === 'CONCLUIDO').sort((a, b) => new Date(b.data_conclusao || 0).getTime() - new Date(a.data_conclusao || 0).getTime()), [orcamentos])
+  const concluidos = useMemo(() => orcamentos.filter(o => o.status === 'CONCLUIDO' || o.status === 'RETORNO_FISCAL').sort((a, b) => new Date(b.data_conclusao || 0).getTime() - new Date(a.data_conclusao || 0).getTime()), [orcamentos])
 
   // Relatório
   const relConcluidos = useMemo(() => {
@@ -239,7 +248,10 @@ export function OrcamentosSetorPage() {
     const valorOrigTotal = relConcluidos.reduce((s, o) => s + (o.valor_original || 0), 0)
     const valorRevTotal = relConcluidos.reduce((s, o) => s + (o.valor_revisado || 0), 0)
     const alteracoesTotal = relConcluidos.reduce((s, o) => s + (o.qtd_alteracoes || 0), 0)
-    return { total, economiaTotal, aumentoTotal, valorOrigTotal, valorRevTotal, alteracoesTotal, impacto: valorOrigTotal - valorRevTotal, impactoPct: valorOrigTotal > 0 ? ((valorOrigTotal - valorRevTotal) / valorOrigTotal) * 100 : 0 }
+    return { total, economiaTotal, aumentoTotal, valorOrigTotal, valorRevTotal, alteracoesTotal, impacto: valorOrigTotal - valorRevTotal, impactoPct: valorOrigTotal > 0 ? ((valorOrigTotal - valorRevTotal) / valorOrigTotal) * 100 : 0,
+      totalGlosado: relConcluidos.reduce((s, o) => s + (o.valor_glosado || 0), 0),
+      comRetornoFiscal: relConcluidos.filter(o => o.status === 'RETORNO_FISCAL').length,
+    }
   }, [relConcluidos])
 
   const lista = abaAtiva === 'PENDENTE' ? pendentes : abaAtiva === 'EM_REVISAO' ? emRevisao : abaAtiva === 'CONCLUIDO' ? concluidos : []
@@ -297,7 +309,7 @@ export function OrcamentosSetorPage() {
           </div>
 
           {/* Dashboard */}
-          <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="grid grid-cols-4 gap-3 mb-6">
             <div className="bg-white rounded-xl border border-slate-200 p-4">
               <p className="text-[10px] text-slate-400 uppercase font-semibold">Revisões Concluídas</p>
               <p className="text-2xl font-bold text-slate-800">{relStats.total}</p>
@@ -309,7 +321,14 @@ export function OrcamentosSetorPage() {
             <div className="bg-emerald-50 rounded-xl border border-emerald-200 p-4">
               <p className="text-[10px] text-emerald-600 uppercase font-semibold flex items-center gap-1"><TrendingDown size={10}/> Impacto do Setor</p>
               <p className="text-2xl font-bold text-emerald-700">{formatCurrency(Math.abs(relStats.impacto))}</p>
-              <p className="text-[10px] text-emerald-500">{Math.abs(relStats.impactoPct).toFixed(2)}% de otimização nos orçamentos</p>
+              <p className="text-[10px] text-emerald-500">{Math.abs(relStats.impactoPct).toFixed(2)}% de otimização</p>
+            </div>
+            <div className={`rounded-xl border p-4 ${relStats.totalGlosado > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+              <p className="text-[10px] uppercase font-semibold flex items-center gap-1" style={{ color: relStats.totalGlosado > 0 ? '#b91c1c' : '#64748b' }}>
+                <Scissors size={10}/> Glosas Fiscais
+              </p>
+              <p className={`text-2xl font-bold ${relStats.totalGlosado > 0 ? 'text-red-700' : 'text-slate-400'}`}>{formatCurrency(relStats.totalGlosado)}</p>
+              <p className="text-[10px] text-slate-400">{relStats.comRetornoFiscal} com retorno fiscal</p>
             </div>
           </div>
 
@@ -362,6 +381,8 @@ export function OrcamentosSetorPage() {
                 <th className="px-3 py-2 text-right font-semibold">Revisado</th>
                 <th className="px-3 py-2 text-right font-semibold">Diferença</th>
                 <th className="px-3 py-2 text-center font-semibold">Alter.</th>
+                <th className="px-3 py-2 text-right font-semibold">Aprovado Fiscal</th>
+                <th className="px-3 py-2 text-right font-semibold">Glosado</th>
                 <th className="px-3 py-2 text-left font-semibold">Concluído</th>
               </tr></thead>
               <tbody>
@@ -376,6 +397,8 @@ export function OrcamentosSetorPage() {
                       {o.diferenca_valor < 0 ? '−' : o.diferenca_valor > 0 ? '+' : ''}{formatCurrency(Math.abs(o.diferenca_valor))}
                     </td>
                     <td className="px-3 py-2 text-center">{o.qtd_alteracoes}</td>
+                    <td className="px-3 py-2 text-right text-slate-600">{o.valor_aprovado_fiscal ? formatCurrency(o.valor_aprovado_fiscal) : '—'}</td>
+                    <td className={`px-3 py-2 text-right font-bold ${o.valor_glosado > 0 ? 'text-red-600' : 'text-slate-400'}`}>{o.valor_glosado > 0 ? formatCurrency(o.valor_glosado) : '—'}</td>
                     <td className="px-3 py-2 text-slate-500">{o.data_conclusao ? formatDate(o.data_conclusao) : '—'}</td>
                   </tr>
                 ))}
@@ -487,6 +510,36 @@ export function OrcamentosSetorPage() {
                             )}
                           </div>
                         )}
+
+                        {/* Retorno Fiscal */}
+                        {orc.status === 'RETORNO_FISCAL' && (
+                          <div className="mt-3 bg-purple-50 border border-purple-200 rounded-xl p-4">
+                            <p className="text-xs font-bold text-purple-800 mb-2 flex items-center gap-1.5">
+                              <Scissors size={12}/> Retorno do Fiscal — {orc.data_retorno_fiscal ? formatDate(orc.data_retorno_fiscal) : ''}
+                            </p>
+                            <div className="flex items-center gap-4 mb-2 text-xs">
+                              <span className="text-slate-600">Revisado: <strong>{formatCurrency(orc.valor_revisado)}</strong></span>
+                              <span className="text-slate-400">→</span>
+                              <span className="text-slate-800 font-bold">Aprovado: {formatCurrency(orc.valor_aprovado_fiscal)}</span>
+                              {orc.valor_glosado > 0 && (
+                                <span className="font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                                  Glosado: {formatCurrency(orc.valor_glosado)} ({orc.valor_revisado > 0 ? ((orc.valor_glosado / orc.valor_revisado) * 100).toFixed(1) : 0}%)
+                                </span>
+                              )}
+                            </div>
+                            {orc.obs_fiscal && <p className="text-xs text-purple-700 italic mb-2">"{orc.obs_fiscal}"</p>}
+                            {orc.glosas_resumo?.length > 0 && (
+                              <details>
+                                <summary className="text-[10px] font-semibold text-purple-600 cursor-pointer hover:underline mb-1">{orc.glosas_resumo.length} glosa(s) — expandir</summary>
+                                <div className="space-y-1 max-h-32 overflow-y-auto">
+                                  {orc.glosas_resumo.map((g: any, i: number) => (
+                                    <p key={i} className="text-[10px] text-red-600">• {g.descricao || g}</p>
+                                  ))}
+                                </div>
+                              </details>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {/* Actions */}
@@ -496,6 +549,9 @@ export function OrcamentosSetorPage() {
                         )}
                         {orc.arquivo_revisado_url && (
                           <button onClick={() => downloadArquivo(orc.arquivo_revisado_url!, orc.arquivo_revisado_nome || 'revisado')} className="p-2 rounded-lg text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50" title="Revisado"><Download size={16}/></button>
+                        )}
+                        {orc.arquivo_fiscal_url && (
+                          <button onClick={() => downloadArquivo(orc.arquivo_fiscal_url!, orc.arquivo_fiscal_nome || 'fiscal')} className="p-2 rounded-lg text-purple-400 hover:text-purple-600 hover:bg-purple-50" title="Versão Fiscal"><Download size={16}/></button>
                         )}
                         {orc.status === 'PENDENTE' && (
                           <button onClick={() => pegarParaRevisao(orc)} className="flex items-center gap-1.5 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg"><Play size={12}/> Pegar</button>
