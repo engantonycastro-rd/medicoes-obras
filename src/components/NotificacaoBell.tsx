@@ -55,7 +55,8 @@ export function NotificacaoBell() {
   function toggleOpen() {
     if (!open && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect()
-      setPos({ top: rect.bottom + 6, left: rect.left })
+      const rightEdge = window.innerWidth - rect.right
+      setPos({ top: rect.bottom + 6, left: Math.max(8, rect.right - 320) })
     }
     setOpen(!open)
   }
@@ -68,7 +69,7 @@ export function NotificacaoBell() {
   return (
     <>
       <button ref={btnRef} onClick={toggleOpen}
-        className="relative p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors">
+        className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
         <Bell size={18} className="text-slate-400"/>
         {naoLidas > 0 && (
           <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[9px]
