@@ -70,23 +70,6 @@ export function AppLayout() {
               </div>
             )}
           </div>
-          {sidebarOpen && (
-            <div className="flex items-center gap-1 mt-3 pt-3 border-t border-slate-700/50">
-              <NotificacaoBell/>
-              <button onClick={() => navigate('/ajuda')} title="Central de Ajuda"
-                className="p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors">
-                <HelpCircle size={16} className="text-slate-400 hover:text-indigo-400"/>
-              </button>
-              <button onClick={() => setTemaEscuro(!temaEscuro)} title={temaEscuro ? 'Modo claro' : 'Modo escuro'}
-                className="p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors">
-                {temaEscuro ? <Sun size={16} className="text-amber-400"/> : <Moon size={16} className="text-slate-400"/>}
-              </button>
-              <div className="flex-1"/>
-              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 rounded-lg hover:bg-slate-700/50 text-slate-500">
-                {sidebarOpen ? <X size={14}/> : <Menu size={14}/>}
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Obra ativa */}
@@ -152,8 +135,20 @@ export function AppLayout() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
-        <div className="dark:text-slate-200">
+      <main className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+        {/* Top bar */}
+        <div className="flex items-center justify-end gap-1 px-5 py-2 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
+          <NotificacaoBell/>
+          <button onClick={() => navigate('/ajuda')} title="Central de Ajuda"
+            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            <HelpCircle size={18} className="text-slate-400 hover:text-indigo-500"/>
+          </button>
+          <button onClick={() => setTemaEscuro(!temaEscuro)} title={temaEscuro ? 'Modo claro' : 'Modo escuro'}
+            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            {temaEscuro ? <Sun size={18} className="text-amber-400"/> : <Moon size={18} className="text-slate-400"/>}
+          </button>
+        </div>
+        <div className="flex-1 overflow-auto dark:text-slate-200">
           <Outlet />
         </div>
       </main>
