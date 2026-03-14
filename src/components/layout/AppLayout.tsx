@@ -58,7 +58,7 @@ export function AppLayout() {
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 font-sans overflow-hidden transition-colors duration-300">
-      <aside className={`flex flex-col bg-slate-900 dark:bg-slate-950 dark:border-r dark:border-slate-800 text-white transition-all duration-300 shrink-0 ${sidebarOpen ? 'w-56' : 'w-16'}`}>
+      <aside className={`flex flex-col bg-slate-900 dark:bg-slate-950 dark:border-r dark:border-slate-800 text-white transition-all duration-300 shrink-0 ${sidebarOpen ? 'w-64' : 'w-16'}`}>
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-700 dark:border-slate-800">
           <div className="w-9 h-9 bg-amber-500 rounded-xl flex items-center justify-center shrink-0 font-black text-white text-sm shadow">RD</div>
