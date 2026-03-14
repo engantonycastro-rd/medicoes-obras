@@ -60,16 +60,18 @@ export function AppLayout() {
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 font-sans overflow-hidden transition-colors duration-300">
       <aside className={`flex flex-col bg-slate-900 dark:bg-slate-950 dark:border-r dark:border-slate-800 text-white transition-all duration-300 shrink-0 ${sidebarOpen ? 'w-64' : 'w-16'}`}>
         {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-700 dark:border-slate-800">
-          <div className="w-9 h-9 bg-amber-500 rounded-xl flex items-center justify-center shrink-0 font-black text-white text-sm shadow">RD</div>
+        <div className="px-4 py-4 border-b border-slate-700 dark:border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-amber-500 rounded-xl flex items-center justify-center shrink-0 font-black text-white text-sm shadow">RD</div>
+            {sidebarOpen && (
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-white text-sm leading-tight">Central de Obras</p>
+                <p className="text-[11px] text-slate-400">RD Construtora</p>
+              </div>
+            )}
+          </div>
           {sidebarOpen && (
-            <div className="min-w-0 flex-1">
-              <p className="font-bold text-white text-sm leading-tight truncate">Central de Obras</p>
-              <p className="text-xs text-slate-400 truncate">RD Construtora</p>
-            </div>
-          )}
-          {sidebarOpen && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 mt-3 pt-3 border-t border-slate-700/50">
               <NotificacaoBell/>
               <button onClick={() => navigate('/ajuda')} title="Central de Ajuda"
                 className="p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors">
@@ -78,6 +80,10 @@ export function AppLayout() {
               <button onClick={() => setTemaEscuro(!temaEscuro)} title={temaEscuro ? 'Modo claro' : 'Modo escuro'}
                 className="p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors">
                 {temaEscuro ? <Sun size={16} className="text-amber-400"/> : <Moon size={16} className="text-slate-400"/>}
+              </button>
+              <div className="flex-1"/>
+              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 rounded-lg hover:bg-slate-700/50 text-slate-500">
+                {sidebarOpen ? <X size={14}/> : <Menu size={14}/>}
               </button>
             </div>
           )}
