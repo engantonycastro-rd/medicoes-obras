@@ -25,7 +25,7 @@ export function ApontadorManager() {
     const [fRes, pRes, oRes, vRes] = await Promise.all([
       supabase.from('funcoes_mao_obra').select('*').order('ordem'),
       supabase.from('perfis').select('id, nome, email, role').eq('role', 'APONTADOR').eq('ativo', true),
-      supabase.from('obras').select('id, nome_obra').order('nome_obra'),
+      supabase.from('obras').select('id, nome_obra').eq('status', 'ATIVA').order('nome_obra'),
       supabase.from('apontador_obras').select('user_id, obra_id'),
     ])
     if (fRes.data) setFuncoes(fRes.data as Funcao[])
