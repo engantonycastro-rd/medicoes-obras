@@ -21,6 +21,14 @@ import { OrcamentosSetorPage } from './pages/OrcamentosSetorPage'
 import { KanbanObraPage } from './pages/KanbanObraPage'
 import { FAQPage } from './pages/FAQPage'
 import { ApontamentosAdminPage } from './pages/ApontamentosAdminPage'
+import { DiarioObraPage } from './pages/DiarioObraPage'
+import { CronogramaPage } from './pages/CronogramaPage'
+import { AditivosPage } from './pages/AditivosPage'
+import { SubempreiteirosPage } from './pages/SubempreiteirosPage'
+import { DashboardExecutivoPage } from './pages/DashboardExecutivoPage'
+import { ChecklistNR18Page } from './pages/ChecklistNR18Page'
+import { RDOPage } from './pages/RDOPage'
+import { RelatorioFotograficoPage } from './pages/RelatorioFotograficoPage'
 import { AlertCircle } from 'lucide-react'
 
 const AppMobilePage = lazy(() => import('./pages/AppMobilePage').then(m => ({ default: m.AppMobilePage })))
@@ -77,6 +85,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 function IndexRedirect() {
   const { perfilAtual } = usePerfilStore()
   if (perfilAtual?.role === 'APONTADOR') return <Navigate to="/apontamentos" replace />
+  if (perfilAtual?.role === 'DIRETOR') return <Navigate to="/dashboard-executivo" replace />
   return <ContratosPage />
 }
 
@@ -93,20 +102,28 @@ export default function App() {
         <Route path="/app" element={<RequireAuth><Suspense fallback={<div className="flex items-center justify-center h-screen text-slate-400">Carregando...</div>}><AppMobilePage /></Suspense></RequireAuth>} />
         <Route path="/" element={<RequireAuth><GeoGuard><AppLayout /></GeoGuard></RequireAuth>}>
           <Route index element={<IndexRedirect />} />
-          <Route path="dashboard"     element={<DashboardPage />} />
-          <Route path="custos-erp"    element={<CustosERPPage />} />
-          <Route path="custos-obra"   element={<CustosObraPage />} />
-          <Route path="auditoria"     element={<AuditoriaPage />} />
-          <Route path="servicos"      element={<ServicosPage />} />
-          <Route path="medicoes"      element={<MedicoesPage />} />
-          <Route path="memoria"       element={<MemoriaPage />} />
-          <Route path="usuarios"      element={<UsuariosPage />} />
-          <Route path="configuracoes" element={<ConfigPage />} />
-          <Route path="orcamentos"    element={<OrcamentosSolicitarPage />} />
-          <Route path="setor-orcamentos" element={<OrcamentosSetorPage />} />
-          <Route path="kanban"           element={<KanbanObraPage />} />
-          <Route path="ajuda"            element={<FAQPage />} />
-          <Route path="apontamentos"    element={<ApontamentosAdminPage />} />
+          <Route path="dashboard"          element={<DashboardPage />} />
+          <Route path="dashboard-executivo" element={<DashboardExecutivoPage />} />
+          <Route path="custos-erp"         element={<CustosERPPage />} />
+          <Route path="custos-obra"        element={<CustosObraPage />} />
+          <Route path="auditoria"          element={<AuditoriaPage />} />
+          <Route path="servicos"           element={<ServicosPage />} />
+          <Route path="medicoes"           element={<MedicoesPage />} />
+          <Route path="memoria"            element={<MemoriaPage />} />
+          <Route path="usuarios"           element={<UsuariosPage />} />
+          <Route path="configuracoes"      element={<ConfigPage />} />
+          <Route path="orcamentos"         element={<OrcamentosSolicitarPage />} />
+          <Route path="setor-orcamentos"   element={<OrcamentosSetorPage />} />
+          <Route path="kanban"             element={<KanbanObraPage />} />
+          <Route path="ajuda"              element={<FAQPage />} />
+          <Route path="apontamentos"       element={<ApontamentosAdminPage />} />
+          <Route path="diario-obra"        element={<DiarioObraPage />} />
+          <Route path="cronograma"         element={<CronogramaPage />} />
+          <Route path="aditivos"           element={<AditivosPage />} />
+          <Route path="subempreiteiros"    element={<SubempreiteirosPage />} />
+          <Route path="checklist-nr18"     element={<ChecklistNR18Page />} />
+          <Route path="rdo"                element={<RDOPage />} />
+          <Route path="relatorio-fotos"    element={<RelatorioFotograficoPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

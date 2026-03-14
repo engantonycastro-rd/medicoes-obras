@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, LayoutDashboard, DollarSign, History, Moon, Sun, Wallet, FileSpreadsheet, KanbanSquare, HelpCircle } from 'lucide-react'
+import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, LayoutDashboard, DollarSign, History, Moon, Sun, Wallet, FileSpreadsheet, KanbanSquare, HelpCircle, BookOpen, GitBranch, Shield, Briefcase, BarChart3, Camera, ScrollText } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { usePerfilStore } from '../../lib/perfilStore'
 import { useStore } from '../../lib/store'
@@ -31,40 +31,87 @@ export function AppLayout() {
 
   const isApontador = perfilAtual?.role === 'APONTADOR'
   const isOrcamentista = perfilAtual?.role === 'ORCAMENTISTA'
+  const isDiretor = perfilAtual?.role === 'DIRETOR'
+  const role = perfilAtual?.role
 
-  const navBase = isApontador ? [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/apontamentos', icon: ClipboardList, label: 'Apontamentos' },
-  ] : isOrcamentista ? [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/',          icon: Building2,        label: 'Contratos' },
-    { to: '/servicos',  icon: ClipboardList,    label: 'Serviços'  },
-    { to: '/medicoes',  icon: FileText,         label: 'Medições'  },
-  ] : [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/',          icon: Building2,        label: 'Contratos' },
-    { to: '/servicos',  icon: ClipboardList,    label: 'Serviços'  },
-    { to: '/medicoes',  icon: FileText,         label: 'Medições'  },
-    { to: '/kanban',    icon: KanbanSquare,     label: 'Planejamento' },
-  ]
-  const navAdmin     = [
-    { to: '/custos-erp', icon: DollarSign, label: 'Custos ERP' },
-    { to: '/setor-orcamentos', icon: FileSpreadsheet, label: 'Setor Orçamentos' },
-    { to: '/apontamentos', icon: ClipboardList, label: 'Apontamentos' },
-    { to: '/auditoria',  icon: History,     label: 'Auditoria' },
-    { to: '/usuarios', icon: Users, label: 'Usuários' },
-    { to: '/configuracoes', icon: Settings, label: 'Config.' },
-  ]
-  const navOrc       = [
-    { to: '/setor-orcamentos', icon: FileSpreadsheet, label: 'Setor Orçamentos' },
-    { to: '/configuracoes', icon: Settings, label: 'Config.' },
-  ]
-  const navEng       = [
-    { to: '/custos-obra', icon: Wallet, label: 'Custos Obras' },
-    { to: '/orcamentos', icon: FileSpreadsheet, label: 'Orçamentos' },
-    { to: '/configuracoes', icon: Settings, label: 'Config.' },
-  ]
-  const nav = [...navBase, ...(isAdmin ? navAdmin : isApontador ? [] : isOrcamentista ? navOrc : navEng)]
+  const navMap: Record<string, { to: string; icon: any; label: string }[]> = {
+    APONTADOR: [
+      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/apontamentos', icon: ClipboardList, label: 'Apontamentos' },
+    ],
+    ORCAMENTISTA: [
+      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/',          icon: Building2,        label: 'Contratos' },
+      { to: '/servicos',  icon: ClipboardList,    label: 'Serviços' },
+      { to: '/medicoes',  icon: FileText,         label: 'Medições' },
+      { to: '/setor-orcamentos', icon: FileSpreadsheet, label: 'Setor Orçamentos' },
+      { to: '/configuracoes', icon: Settings, label: 'Config.' },
+    ],
+    DIRETOR: [
+      { to: '/dashboard-executivo', icon: BarChart3, label: 'Painel Executivo' },
+      { to: '/',          icon: Building2,        label: 'Contratos' },
+      { to: '/servicos',  icon: ClipboardList,    label: 'Serviços' },
+      { to: '/medicoes',  icon: FileText,         label: 'Medições' },
+      { to: '/diario-obra', icon: BookOpen,       label: 'Diário de Obra' },
+      { to: '/rdo',       icon: ScrollText,       label: 'RDO' },
+      { to: '/cronograma', icon: GitBranch,       label: 'Cronograma' },
+      { to: '/aditivos',  icon: FileText,         label: 'Aditivos' },
+      { to: '/subempreiteiros', icon: Briefcase,  label: 'Subempreiteiros' },
+      { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
+    ],
+    ENGENHEIRO: [
+      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/',          icon: Building2,        label: 'Contratos' },
+      { to: '/servicos',  icon: ClipboardList,    label: 'Serviços' },
+      { to: '/medicoes',  icon: FileText,         label: 'Medições' },
+      { to: '/kanban',    icon: KanbanSquare,     label: 'Planejamento' },
+      { to: '/diario-obra', icon: BookOpen,       label: 'Diário de Obra' },
+      { to: '/rdo',       icon: ScrollText,       label: 'RDO' },
+      { to: '/checklist-nr18', icon: Shield,      label: 'Checklist NR-18' },
+      { to: '/custos-obra', icon: Wallet,         label: 'Custos Obras' },
+      { to: '/orcamentos', icon: FileSpreadsheet, label: 'Orçamentos' },
+      { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
+      { to: '/configuracoes', icon: Settings,     label: 'Config.' },
+    ],
+    GESTOR: [
+      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/',          icon: Building2,        label: 'Contratos' },
+      { to: '/servicos',  icon: ClipboardList,    label: 'Serviços' },
+      { to: '/medicoes',  icon: FileText,         label: 'Medições' },
+      { to: '/kanban',    icon: KanbanSquare,     label: 'Planejamento' },
+      { to: '/diario-obra', icon: BookOpen,       label: 'Diário de Obra' },
+      { to: '/rdo',       icon: ScrollText,       label: 'RDO' },
+      { to: '/cronograma', icon: GitBranch,       label: 'Cronograma' },
+      { to: '/aditivos',  icon: FileText,         label: 'Aditivos' },
+      { to: '/checklist-nr18', icon: Shield,      label: 'Checklist NR-18' },
+      { to: '/custos-obra', icon: Wallet,         label: 'Custos Obras' },
+      { to: '/orcamentos', icon: FileSpreadsheet, label: 'Orçamentos' },
+      { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
+      { to: '/configuracoes', icon: Settings,     label: 'Config.' },
+    ],
+    ADMIN: [
+      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/dashboard-executivo', icon: BarChart3, label: 'Painel Executivo' },
+      { to: '/',          icon: Building2,        label: 'Contratos' },
+      { to: '/servicos',  icon: ClipboardList,    label: 'Serviços' },
+      { to: '/medicoes',  icon: FileText,         label: 'Medições' },
+      { to: '/kanban',    icon: KanbanSquare,     label: 'Planejamento' },
+      { to: '/diario-obra', icon: BookOpen,       label: 'Diário de Obra' },
+      { to: '/rdo',       icon: ScrollText,       label: 'RDO' },
+      { to: '/cronograma', icon: GitBranch,       label: 'Cronograma' },
+      { to: '/aditivos',  icon: FileText,         label: 'Aditivos' },
+      { to: '/checklist-nr18', icon: Shield,      label: 'Checklist NR-18' },
+      { to: '/custos-erp', icon: DollarSign,      label: 'Custos ERP' },
+      { to: '/setor-orcamentos', icon: FileSpreadsheet, label: 'Setor Orçamentos' },
+      { to: '/apontamentos', icon: ClipboardList, label: 'Apontamentos' },
+      { to: '/subempreiteiros', icon: Briefcase,  label: 'Subempreiteiros' },
+      { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
+      { to: '/auditoria', icon: History,          label: 'Auditoria' },
+      { to: '/usuarios',  icon: Users,            label: 'Usuários' },
+      { to: '/configuracoes', icon: Settings,     label: 'Config.' },
+    ],
+  }
+  const nav = navMap[role || 'ENGENHEIRO'] || navMap.ENGENHEIRO
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 font-sans overflow-hidden transition-colors duration-300">
@@ -119,15 +166,17 @@ export function AppLayout() {
             </div>
             <div className={`mx-2 mt-1 text-xs px-2 py-0.5 rounded-full font-medium text-center ${
               isAdmin ? 'bg-amber-500/20 text-amber-400'
-              : perfilAtual?.role === 'GESTOR' ? 'bg-purple-500/20 text-purple-400'
-              : perfilAtual?.role === 'APONTADOR' ? 'bg-cyan-500/20 text-cyan-400'
-              : perfilAtual?.role === 'ORCAMENTISTA' ? 'bg-emerald-500/20 text-emerald-400'
+              : role === 'GESTOR' ? 'bg-purple-500/20 text-purple-400'
+              : role === 'APONTADOR' ? 'bg-cyan-500/20 text-cyan-400'
+              : role === 'ORCAMENTISTA' ? 'bg-emerald-500/20 text-emerald-400'
+              : role === 'DIRETOR' ? 'bg-rose-500/20 text-rose-400'
               : 'bg-blue-500/20 text-blue-400'
             }`}>
               {isAdmin ? <><Crown size={9} className="inline mr-1"/>Admin</>
-              : perfilAtual?.role === 'GESTOR' ? <><Crown size={9} className="inline mr-1"/>Gestor</>
-              : perfilAtual?.role === 'APONTADOR' ? <><ClipboardList size={9} className="inline mr-1"/>Apontador</>
-              : perfilAtual?.role === 'ORCAMENTISTA' ? <><FileSpreadsheet size={9} className="inline mr-1"/>Orçamentista</>
+              : role === 'GESTOR' ? <><Crown size={9} className="inline mr-1"/>Gestor</>
+              : role === 'APONTADOR' ? <><ClipboardList size={9} className="inline mr-1"/>Apontador</>
+              : role === 'ORCAMENTISTA' ? <><FileSpreadsheet size={9} className="inline mr-1"/>Orçamentista</>
+              : role === 'DIRETOR' ? <><BarChart3 size={9} className="inline mr-1"/>Diretor</>
               : <><HardHat size={9} className="inline mr-1"/>Engenheiro</>}
             </div>
           </div>
