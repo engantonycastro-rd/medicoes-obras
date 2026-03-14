@@ -74,13 +74,13 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-export default function IndexRedirect() {
+function IndexRedirect() {
   const { perfilAtual } = usePerfilStore()
   if (perfilAtual?.role === 'APONTADOR') return <Navigate to="/apontamentos" replace />
   return <ContratosPage />
 }
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <Toaster position="top-right" toastOptions={{
