@@ -49,15 +49,6 @@ export function AppLayout() {
     ],
     DIRETOR: [
       { to: '/dashboard-executivo', icon: BarChart3, label: 'Painel Executivo' },
-      { to: '/',          icon: Building2,        label: 'Contratos' },
-      { to: '/servicos',  icon: ClipboardList,    label: 'Serviços' },
-      { to: '/medicoes',  icon: FileText,         label: 'Medições' },
-      { to: '/diario-obra', icon: BookOpen,       label: 'Diário de Obra' },
-      { to: '/rdo',       icon: ScrollText,       label: 'RDO' },
-      { to: '/cronograma', icon: GitBranch,       label: 'Cronograma' },
-      { to: '/aditivos',  icon: FileText,         label: 'Aditivos' },
-      { to: '/subempreiteiros', icon: Briefcase,  label: 'Subempreiteiros' },
-      { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
     ],
     ENGENHEIRO: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },

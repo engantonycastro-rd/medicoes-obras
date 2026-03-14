@@ -89,6 +89,27 @@ function IndexRedirect() {
   return <ContratosPage />
 }
 
+// Rotas permitidas por cargo (backend guard no frontend)
+const ROTAS_POR_ROLE: Record<string, string[]> = {
+  APONTADOR: ['/dashboard', '/apontamentos'],
+  ORCAMENTISTA: ['/dashboard', '/', '/servicos', '/medicoes', '/memoria', '/setor-orcamentos', '/configuracoes', '/ajuda'],
+  DIRETOR: ['/dashboard-executivo'],
+  ENGENHEIRO: ['/dashboard', '/', '/servicos', '/medicoes', '/memoria', '/kanban', '/diario-obra', '/rdo', '/checklist-nr18', '/custos-obra', '/orcamentos', '/relatorio-fotos', '/configuracoes', '/ajuda'],
+  GESTOR: ['/dashboard', '/', '/servicos', '/medicoes', '/memoria', '/kanban', '/diario-obra', '/rdo', '/cronograma', '/aditivos', '/checklist-nr18', '/custos-obra', '/orcamentos', '/relatorio-fotos', '/subempreiteiros', '/configuracoes', '/ajuda'],
+  ADMIN: ['*'],
+}
+
+function RoleGuard({ children, path }: { children: React.ReactNode; path: string }) {
+  const { perfilAtual } = usePerfilStore()
+  const role = perfilAtual?.role || 'ENGENHEIRO'
+  const allowed = ROTAS_POR_ROLE[role] || []
+  if (allowed[0] === '*' || allowed.includes(path)) return <>{children}</>
+  // Redireciona para a home do cargo
+  if (role === 'DIRETOR') return <Navigate to="/dashboard-executivo" replace />
+  if (role === 'APONTADOR') return <Navigate to="/apontamentos" replace />
+  return <Navigate to="/" replace />
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -102,28 +123,28 @@ export default function App() {
         <Route path="/app" element={<RequireAuth><Suspense fallback={<div className="flex items-center justify-center h-screen text-slate-400">Carregando...</div>}><AppMobilePage /></Suspense></RequireAuth>} />
         <Route path="/" element={<RequireAuth><GeoGuard><AppLayout /></GeoGuard></RequireAuth>}>
           <Route index element={<IndexRedirect />} />
-          <Route path="dashboard"          element={<DashboardPage />} />
-          <Route path="dashboard-executivo" element={<DashboardExecutivoPage />} />
-          <Route path="custos-erp"         element={<CustosERPPage />} />
-          <Route path="custos-obra"        element={<CustosObraPage />} />
-          <Route path="auditoria"          element={<AuditoriaPage />} />
-          <Route path="servicos"           element={<ServicosPage />} />
-          <Route path="medicoes"           element={<MedicoesPage />} />
-          <Route path="memoria"            element={<MemoriaPage />} />
-          <Route path="usuarios"           element={<UsuariosPage />} />
-          <Route path="configuracoes"      element={<ConfigPage />} />
-          <Route path="orcamentos"         element={<OrcamentosSolicitarPage />} />
-          <Route path="setor-orcamentos"   element={<OrcamentosSetorPage />} />
-          <Route path="kanban"             element={<KanbanObraPage />} />
+          <Route path="dashboard"          element={<RoleGuard path="/dashboard"><DashboardPage /></RoleGuard>} />
+          <Route path="dashboard-executivo" element={<RoleGuard path="/dashboard-executivo"><DashboardExecutivoPage /></RoleGuard>} />
+          <Route path="custos-erp"         element={<RoleGuard path="/custos-erp"><CustosERPPage /></RoleGuard>} />
+          <Route path="custos-obra"        element={<RoleGuard path="/custos-obra"><CustosObraPage /></RoleGuard>} />
+          <Route path="auditoria"          element={<RoleGuard path="/auditoria"><AuditoriaPage /></RoleGuard>} />
+          <Route path="servicos"           element={<RoleGuard path="/servicos"><ServicosPage /></RoleGuard>} />
+          <Route path="medicoes"           element={<RoleGuard path="/medicoes"><MedicoesPage /></RoleGuard>} />
+          <Route path="memoria"            element={<RoleGuard path="/memoria"><MemoriaPage /></RoleGuard>} />
+          <Route path="usuarios"           element={<RoleGuard path="/usuarios"><UsuariosPage /></RoleGuard>} />
+          <Route path="configuracoes"      element={<RoleGuard path="/configuracoes"><ConfigPage /></RoleGuard>} />
+          <Route path="orcamentos"         element={<RoleGuard path="/orcamentos"><OrcamentosSolicitarPage /></RoleGuard>} />
+          <Route path="setor-orcamentos"   element={<RoleGuard path="/setor-orcamentos"><OrcamentosSetorPage /></RoleGuard>} />
+          <Route path="kanban"             element={<RoleGuard path="/kanban"><KanbanObraPage /></RoleGuard>} />
           <Route path="ajuda"              element={<FAQPage />} />
-          <Route path="apontamentos"       element={<ApontamentosAdminPage />} />
-          <Route path="diario-obra"        element={<DiarioObraPage />} />
-          <Route path="cronograma"         element={<CronogramaPage />} />
-          <Route path="aditivos"           element={<AditivosPage />} />
-          <Route path="subempreiteiros"    element={<SubempreiteirosPage />} />
-          <Route path="checklist-nr18"     element={<ChecklistNR18Page />} />
-          <Route path="rdo"                element={<RDOPage />} />
-          <Route path="relatorio-fotos"    element={<RelatorioFotograficoPage />} />
+          <Route path="apontamentos"       element={<RoleGuard path="/apontamentos"><ApontamentosAdminPage /></RoleGuard>} />
+          <Route path="diario-obra"        element={<RoleGuard path="/diario-obra"><DiarioObraPage /></RoleGuard>} />
+          <Route path="cronograma"         element={<RoleGuard path="/cronograma"><CronogramaPage /></RoleGuard>} />
+          <Route path="aditivos"           element={<RoleGuard path="/aditivos"><AditivosPage /></RoleGuard>} />
+          <Route path="subempreiteiros"    element={<RoleGuard path="/subempreiteiros"><SubempreiteirosPage /></RoleGuard>} />
+          <Route path="checklist-nr18"     element={<RoleGuard path="/checklist-nr18"><ChecklistNR18Page /></RoleGuard>} />
+          <Route path="rdo"                element={<RoleGuard path="/rdo"><RDOPage /></RoleGuard>} />
+          <Route path="relatorio-fotos"    element={<RoleGuard path="/relatorio-fotos"><RelatorioFotograficoPage /></RoleGuard>} />
         </Route>
       </Routes>
     </BrowserRouter>
