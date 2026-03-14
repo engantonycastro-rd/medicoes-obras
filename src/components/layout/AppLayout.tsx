@@ -64,8 +64,8 @@ export function AppLayout() {
           <div className="w-9 h-9 bg-amber-500 rounded-xl flex items-center justify-center shrink-0 font-black text-white text-sm shadow">RD</div>
           {sidebarOpen && (
             <div className="min-w-0 flex-1">
-              <p className="font-bold text-white text-sm leading-tight truncate">RD - Medições</p>
-              <p className="text-xs text-slate-400 truncate">de Obras</p>
+              <p className="font-bold text-white text-sm leading-tight truncate">Central de Obras</p>
+              <p className="text-xs text-slate-400 truncate">RD Construtora</p>
             </div>
           )}
           {sidebarOpen && (
