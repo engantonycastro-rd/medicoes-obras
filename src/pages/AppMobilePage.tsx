@@ -61,12 +61,16 @@ export function AppMobilePage() {
   useEffect(() => {
     initConnectivityListener()
     const unsub = onSyncStatus(s => setSyncStatus({ ...s, erro: s.erro || '' }))
-    loadCache()
     return unsub
   }, [])
 
+  useEffect(() => {
+    if (perfilAtual) loadCache()
+  }, [perfilAtual])
+
   async function loadCache() {
-    if (perfilAtual && navigator.onLine) {
+    if (!perfilAtual) return
+    if (navigator.onLine) {
       await syncCacheFromServer(perfilAtual.id)
     }
     const obrasC = await getCachedObras()

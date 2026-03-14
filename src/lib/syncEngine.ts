@@ -116,31 +116,41 @@ export async function syncAll(): Promise<void> {
 
 export async function syncCacheFromServer(userId: string): Promise<void> {
   try {
-    // Obras vinculadas ao apontador
-    const { data: vinculos } = await supabase.from('apontador_obras').select('obra_id, obras(id, nome_obra, local_obra, contrato_id, contratos(nome_obra))').eq('user_id', userId)
-    if (vinculos) {
-      const obras = vinculos.map((v: any) => ({
-        id: v.obras.id, nome_obra: v.obras.nome_obra, local_obra: v.obras.local_obra,
-        contrato_nome: v.obras.contratos?.nome_obra || '',
+    // 1. Get obra IDs vinculadas ao apontador
+    const { data: vinculos, error: vErr } = await supabase.from('apontador_obras').select('obra_id').eq('user_id', userId)
+    if (vErr) { console.warn('Erro vinculos:', vErr); return }
+    if (!vinculos || vinculos.length === 0) { console.log('Nenhuma obra vinculada'); return }
+
+    const obraIds = vinculos.map((v: any) => v.obra_id)
+
+    // 2. Buscar dados das obras separadamente (evita JOIN com RLS)
+    const { data: obrasData } = await supabase.from('obras').select('id, nome_obra, local_obra, contrato_id').in('id', obraIds)
+    if (obrasData && obrasData.length > 0) {
+      const contratoIds = [...new Set(obrasData.map((o: any) => o.contrato_id).filter(Boolean))]
+      let contratoMap: Record<string, string> = {}
+      if (contratoIds.length > 0) {
+        const { data: cData } = await supabase.from('contratos').select('id, nome_obra').in('id', contratoIds)
+        if (cData) cData.forEach((c: any) => { contratoMap[c.id] = c.nome_obra })
+      }
+      const obras = obrasData.map((o: any) => ({
+        id: o.id, nome_obra: o.nome_obra, local_obra: o.local_obra,
+        contrato_nome: contratoMap[o.contrato_id] || '',
       }))
       await cacheObras(obras)
     }
 
-    // Funções de mão de obra
+    // 3. Funções de mão de obra
     const { data: funcoes } = await supabase.from('funcoes_mao_obra').select('id, nome, ordem').eq('ativo', true).order('ordem')
     if (funcoes) await cacheFuncoes(funcoes)
 
-    // Kanban itens em execução (para PQE)
-    if (vinculos) {
-      const obraIds = vinculos.map((v: any) => v.obra_id)
-      const { data: cards } = await supabase.from('kanban_cards').select('id, obra_id').in('obra_id', obraIds).eq('status', 'EM_EXECUCAO')
-      if (cards && cards.length > 0) {
-        const cardIds = cards.map((c: any) => c.id)
-        const { data: itens } = await supabase.from('kanban_itens').select('id, card_id, descricao').in('card_id', cardIds)
-        if (itens) {
-          const cardObraMap = new Map(cards.map((c: any) => [c.id, c.obra_id]))
-          await cacheKanbanItens(itens.map((i: any) => ({ ...i, obra_id: cardObraMap.get(i.card_id) || '' })))
-        }
+    // 4. Kanban itens em execução (para PQE)
+    const { data: cards } = await supabase.from('kanban_cards').select('id, obra_id').in('obra_id', obraIds).eq('status', 'EM_EXECUCAO')
+    if (cards && cards.length > 0) {
+      const cardIds = cards.map((c: any) => c.id)
+      const { data: itens } = await supabase.from('kanban_itens').select('id, card_id, descricao').in('card_id', cardIds)
+      if (itens) {
+        const cardObraMap = new Map(cards.map((c: any) => [c.id, c.obra_id]))
+        await cacheKanbanItens(itens.map((i: any) => ({ ...i, obra_id: cardObraMap.get(i.card_id) || '' })))
       }
     }
   } catch (err) { console.warn('Erro ao cachear dados:', err) }
