@@ -12,7 +12,7 @@ interface PerfilStore {
   fetchTodosPerfis: () => Promise<void>
   ativarUsuario: (userId: string) => Promise<void>
   desativarUsuario: (userId: string) => Promise<void>
-  alterarRole: (userId: string, role: 'ADMIN' | 'GESTOR' | 'ENGENHEIRO' | 'APONTADOR') => Promise<void>
+  alterarRole: (userId: string, role: 'ADMIN' | 'GESTOR' | 'ENGENHEIRO' | 'APONTADOR' | 'ORCAMENTISTA') => Promise<void>
   atualizarNome: (userId: string, nome: string) => Promise<void>
   atribuirGestor: (userId: string, gestorId: string | null) => Promise<void>
 }

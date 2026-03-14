@@ -30,10 +30,16 @@ export function AppLayout() {
   }
 
   const isApontador = perfilAtual?.role === 'APONTADOR'
+  const isOrcamentista = perfilAtual?.role === 'ORCAMENTISTA'
 
   const navBase = isApontador ? [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/apontamentos', icon: ClipboardList, label: 'Apontamentos' },
+  ] : isOrcamentista ? [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/',          icon: Building2,        label: 'Contratos' },
+    { to: '/servicos',  icon: ClipboardList,    label: 'Serviços'  },
+    { to: '/medicoes',  icon: FileText,         label: 'Medições'  },
   ] : [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/',          icon: Building2,        label: 'Contratos' },
@@ -49,12 +55,16 @@ export function AppLayout() {
     { to: '/usuarios', icon: Users, label: 'Usuários' },
     { to: '/configuracoes', icon: Settings, label: 'Config.' },
   ]
+  const navOrc       = [
+    { to: '/setor-orcamentos', icon: FileSpreadsheet, label: 'Setor Orçamentos' },
+    { to: '/configuracoes', icon: Settings, label: 'Config.' },
+  ]
   const navEng       = [
     { to: '/custos-obra', icon: Wallet, label: 'Custos Obras' },
     { to: '/orcamentos', icon: FileSpreadsheet, label: 'Orçamentos' },
     { to: '/configuracoes', icon: Settings, label: 'Config.' },
   ]
-  const nav = [...navBase, ...(isAdmin ? navAdmin : isApontador ? [] : navEng)]
+  const nav = [...navBase, ...(isAdmin ? navAdmin : isApontador ? [] : isOrcamentista ? navOrc : navEng)]
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 font-sans overflow-hidden transition-colors duration-300">
@@ -111,11 +121,13 @@ export function AppLayout() {
               isAdmin ? 'bg-amber-500/20 text-amber-400'
               : perfilAtual?.role === 'GESTOR' ? 'bg-purple-500/20 text-purple-400'
               : perfilAtual?.role === 'APONTADOR' ? 'bg-cyan-500/20 text-cyan-400'
+              : perfilAtual?.role === 'ORCAMENTISTA' ? 'bg-emerald-500/20 text-emerald-400'
               : 'bg-blue-500/20 text-blue-400'
             }`}>
               {isAdmin ? <><Crown size={9} className="inline mr-1"/>Admin</>
               : perfilAtual?.role === 'GESTOR' ? <><Crown size={9} className="inline mr-1"/>Gestor</>
               : perfilAtual?.role === 'APONTADOR' ? <><ClipboardList size={9} className="inline mr-1"/>Apontador</>
+              : perfilAtual?.role === 'ORCAMENTISTA' ? <><FileSpreadsheet size={9} className="inline mr-1"/>Orçamentista</>
               : <><HardHat size={9} className="inline mr-1"/>Engenheiro</>}
             </div>
           </div>

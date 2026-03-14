@@ -80,6 +80,7 @@ export function UsuariosPage() {
     role === 'ADMIN' ? 'bg-amber-100 text-amber-700 border-amber-200'
     : role === 'GESTOR' ? 'bg-purple-100 text-purple-700 border-purple-200'
     : role === 'APONTADOR' ? 'bg-cyan-100 text-cyan-700 border-cyan-200'
+    : role === 'ORCAMENTISTA' ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
     : 'bg-blue-100 text-blue-700 border-blue-200'
 
   function NomeEditor({ p }: { p: Perfil }) {
@@ -160,6 +161,7 @@ export function UsuariosPage() {
                     <option value="ENGENHEIRO">Engenheiro</option>
                     <option value="GESTOR">Gestor de Contrato</option>
                     <option value="APONTADOR">Apontador</option>
+                    <option value="ORCAMENTISTA">Orçamentista</option>
                     <option value="ADMIN">Administrador</option>
                   </select>
                   <button onClick={() => handleAtivar(p)}
@@ -355,6 +357,7 @@ export function UsuariosPage() {
                       <option value="ENGENHEIRO">🏗 Engenheiro</option>
                       <option value="GESTOR">💼 Gestor</option>
                       <option value="APONTADOR">📋 Apontador</option>
+                      <option value="ORCAMENTISTA">📊 Orçamentista</option>
                       <option value="ADMIN">👑 Admin</option>
                     </select>
                     <ChevronDown size={11} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60"/>
