@@ -19,7 +19,7 @@ interface CustoRow {
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   PAGO:      { label: 'Pago',      color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  PENDENTE:  { label: 'Pendente',  color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  PENDENTE:  { label: 'Pendente',  color: 'bg-primary-100 text-primary-700 border-primary-200' },
   VENCIDO:   { label: 'Vencido',   color: 'bg-red-100 text-red-700 border-red-200' },
   VENCENDO:  { label: 'Vencendo',  color: 'bg-orange-100 text-orange-700 border-orange-200' },
   CANCELADO: { label: 'Cancelado', color: 'bg-slate-100 text-slate-500 border-slate-200' },
@@ -184,7 +184,7 @@ export function CustosObraPage() {
           className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-white"/>
         {(dataInicio || dataFim) && (
           <button onClick={() => { setDataInicio(''); setDataFim('') }}
-            className="text-[10px] text-amber-600 hover:underline">Limpar datas</button>
+            className="text-[10px] text-primary-600 hover:underline">Limpar datas</button>
         )}
       </div>
 

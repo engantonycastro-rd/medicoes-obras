@@ -8,6 +8,32 @@
   font-family: 'IBM Plex Sans', system-ui, sans-serif;
 }
 
+/* ═══ Tema de cores — Primary ═══ */
+:root, .theme-orange {
+  --primary-50:  #FFF7ED;
+  --primary-100: #FFEDD5;
+  --primary-200: #FED7AA;
+  --primary-300: #FDBA74;
+  --primary-400: #FB923C;
+  --primary-500: #E8611A;
+  --primary-600: #D4550F;
+  --primary-700: #C2410C;
+  --primary-800: #9A3412;
+  --primary-900: #7C2D12;
+}
+.theme-amber {
+  --primary-50:  #FFFBEB;
+  --primary-100: #FEF3C7;
+  --primary-200: #FDE68A;
+  --primary-300: #FCD34D;
+  --primary-400: #FBBF24;
+  --primary-500: #F59E0B;
+  --primary-600: #D97706;
+  --primary-700: #B45309;
+  --primary-800: #92400E;
+  --primary-900: #78350F;
+}
+
 * {
   box-sizing: border-box;
 }

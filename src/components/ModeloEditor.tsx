@@ -269,7 +269,7 @@ export function ModeloEditor() {
             {aba==='med' && (
               <>
               <div className="flex-1 overflow-auto p-4 bg-slate-100/60">
-                {!editing && <div className="mb-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-2 text-[11px] text-amber-700"><Palette size={12}/>Clique em <strong>Editar modelo</strong> e depois nas zonas coloridas.</div>}
+                {!editing && <div className="mb-2 bg-primary-50 border border-primary-200 rounded-lg px-3 py-2 flex items-center gap-2 text-[11px] text-primary-700"><Palette size={12}/>Clique em <strong>Editar modelo</strong> e depois nas zonas coloridas.</div>}
 
                 <div className="rounded-lg overflow-hidden shadow border border-slate-300 bg-white" style={{fontFamily:cur.fonte.nome_base,fontSize:cur.fonte.tamanho_dados}}>
 
@@ -446,7 +446,7 @@ export function ModeloEditor() {
             {aba==='mem' && (
               <>
               <div className="flex-1 overflow-auto p-4 bg-slate-100/60">
-                {!editing && <div className="mb-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-2 text-[11px] text-amber-700"><Palette size={12}/>Clique em <strong>Editar modelo</strong> e depois nas zonas.</div>}
+                {!editing && <div className="mb-2 bg-primary-50 border border-primary-200 rounded-lg px-3 py-2 flex items-center gap-2 text-[11px] text-primary-700"><Palette size={12}/>Clique em <strong>Editar modelo</strong> e depois nas zonas.</div>}
                 <div className="rounded-lg overflow-hidden shadow border border-slate-300 bg-white" style={{fontFamily:cur.fonte.nome_base,fontSize:7.5}}>
                   <Z id="mem_titulo" cur={cur} zona={zona} editing={editing} onClick={clicarZona}
                      style={{padding:'5px 12px',fontWeight:'bold',fontSize:9}}>
@@ -499,7 +499,7 @@ export function ModeloEditor() {
             {/* ═══ ABA CORES ═══ */}
             {aba==='cores' && (
               <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                {!editing && <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-[11px] text-amber-700 flex items-center gap-2"><Lock size={11}/> Clique em <strong>Editar modelo</strong> para modificar.</div>}
+                {!editing && <div className="bg-primary-50 border border-primary-200 rounded-lg px-3 py-2 text-[11px] text-primary-700 flex items-center gap-2"><Lock size={11}/> Clique em <strong>Editar modelo</strong> para modificar.</div>}
                 {GRUPOS.map(g => {
                   const items = ZONAS.filter(z=>z.grupo===g)
                   return (
@@ -534,7 +534,7 @@ export function ModeloEditor() {
             {/* ═══ ABA FONTES ═══ */}
             {aba==='fonte' && (
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {!editing && <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-[11px] text-amber-700 flex items-center gap-2"><Lock size={11}/> Clique em <strong>Editar modelo</strong>.</div>}
+                {!editing && <div className="bg-primary-50 border border-primary-200 rounded-lg px-3 py-2 text-[11px] text-primary-700 flex items-center gap-2"><Lock size={11}/> Clique em <strong>Editar modelo</strong>.</div>}
                 {(['nome_base','nome_cabec'] as const).map(key => (
                   <div key={key} className="flex items-center gap-3 border border-slate-200 rounded-lg px-4 py-3 bg-white">
                     <Type size={15} className="text-slate-400 shrink-0"/>
@@ -568,7 +568,7 @@ export function ModeloEditor() {
             {/* ═══ ABA BORDAS ═══ */}
             {aba==='bordas' && (
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {!editing && <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-[11px] text-amber-700 flex items-center gap-2"><Lock size={11}/> Clique em <strong>Editar modelo</strong>.</div>}
+                {!editing && <div className="bg-primary-50 border border-primary-200 rounded-lg px-3 py-2 text-[11px] text-primary-700 flex items-center gap-2"><Lock size={11}/> Clique em <strong>Editar modelo</strong>.</div>}
                 {([
                   {key:'dados' as const,   label:'Células de dados',         desc:'Corpo da tabela de serviços'},
                   {key:'cabec' as const,   label:'Cabeçalho da tabela (TH)', desc:'ITEM, CÓDIGO, DESCRIÇÃO...'},

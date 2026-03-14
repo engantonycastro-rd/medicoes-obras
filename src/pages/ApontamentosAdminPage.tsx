@@ -118,7 +118,7 @@ export function ApontamentosAdminPage() {
     <div className="p-6 max-w-5xl overflow-y-auto" style={{ height: '100%' }}>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><ClipboardList size={24} className="text-amber-500"/> Apontamentos de Obra</h1>
+          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><ClipboardList size={24} className="text-primary-500"/> Apontamentos de Obra</h1>
           <p className="text-sm text-slate-500">Registros de visitas e conferências em campo</p>
         </div>
         <button onClick={fetchAll} className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50"><RefreshCw size={14}/> Atualizar</button>
@@ -200,7 +200,7 @@ export function ApontamentosAdminPage() {
                     </div>
                     {apt.atividades && <p className="text-xs text-slate-500 mt-1 truncate">{apt.atividades}</p>}
                   </div>
-                  {aberto ? <ChevronUp size={16} className="text-amber-500"/> : <ChevronDown size={16} className="text-slate-400"/>}
+                  {aberto ? <ChevronUp size={16} className="text-primary-500"/> : <ChevronDown size={16} className="text-slate-400"/>}
                 </div>
 
                 {/* Detalhe expandido */}
@@ -232,8 +232,8 @@ export function ApontamentosAdminPage() {
                               <span className="text-slate-500">{m.funcao_nome}:</span> <span className="font-bold text-slate-800">{m.quantidade}</span>
                             </div>
                           ))}
-                          <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 text-xs">
-                            <span className="text-amber-600">Total:</span> <span className="font-bold text-amber-800">{mo.reduce((s, m) => s + m.quantidade, 0)}</span>
+                          <div className="bg-primary-50 border border-primary-200 rounded-lg px-3 py-1.5 text-xs">
+                            <span className="text-primary-600">Total:</span> <span className="font-bold text-primary-800">{mo.reduce((s, m) => s + m.quantidade, 0)}</span>
                           </div>
                         </div>
                       </div>

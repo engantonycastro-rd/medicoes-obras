@@ -176,11 +176,11 @@ export function MemoriaPage() {
   if (!obraAtiva || !medicaoAtiva || !contratoAtivo) {
     return (
       <div className="p-8">
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 flex items-center gap-4">
-          <AlertCircle size={24} className="text-amber-500 shrink-0" />
+        <div className="bg-primary-50 border border-primary-200 rounded-xl p-6 flex items-center gap-4">
+          <AlertCircle size={24} className="text-primary-500 shrink-0" />
           <div>
-            <p className="font-semibold text-amber-800">Nenhuma medição selecionada</p>
-            <p className="text-sm text-amber-600 mt-1">Acesse via <strong>Contratos → Obra → Medições</strong>.</p>
+            <p className="font-semibold text-primary-800">Nenhuma medição selecionada</p>
+            <p className="text-sm text-primary-600 mt-1">Acesse via <strong>Contratos → Obra → Medições</strong>.</p>
           </div>
         </div>
       </div>
@@ -260,16 +260,16 @@ export function MemoriaPage() {
           <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
             <span>{contratoAtivo.nome_obra}</span>
             <span>›</span>
-            <span className="text-amber-600 font-medium">{obraAtiva.nome_obra}</span>
+            <span className="text-primary-600 font-medium">{obraAtiva.nome_obra}</span>
             <span>›</span>
             <span>{medicaoAtiva.numero_extenso} Medição</span>
             <span className={`px-2 py-0.5 rounded-full font-medium border text-xs ml-1 ${
-              isAprovada ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-amber-100 text-amber-700 border-amber-200'
+              isAprovada ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-primary-100 text-primary-700 border-primary-200'
             }`}>{medicaoAtiva.status}</span>
           </div>
           <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             <button onClick={() => navigate('/medicoes')} title="Voltar para Medições"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-all">
+              className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-all">
               <ArrowLeft size={20}/>
             </button>
             Memória de Cálculo
@@ -280,7 +280,7 @@ export function MemoriaPage() {
             <p className="text-xs text-slate-400">
               {etapaFiltro ? `Período — Etapa ${etapaFiltro}` : 'Total do Período'}
             </p>
-            <p className="text-xl font-bold text-amber-600">{formatCurrency(totalPeriodo)}</p>
+            <p className="text-xl font-bold text-primary-600">{formatCurrency(totalPeriodo)}</p>
           </div>
           <button onClick={() => { setExpandidos(new Set(servicosOrdenados.map(s => s.id))) }}
             className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs text-slate-600 hover:bg-slate-50">
@@ -298,8 +298,8 @@ export function MemoriaPage() {
           </button>
           {isAdmin && medir100Habilitado && !isAprovada && (
             <button onClick={handleMedir100}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-amber-300 rounded-lg text-xs font-bold
-                text-amber-700 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 transition-all">
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-primary-300 rounded-lg text-xs font-bold
+                text-primary-700 bg-primary-50 hover:bg-primary-100 hover:border-primary-400 transition-all">
               <Zap size={13}/> Medir 100%
             </button>
           )}
@@ -332,8 +332,8 @@ export function MemoriaPage() {
               onClick={() => { setEtapaFiltro(null); setExpandidos(new Set()) }}
               className={`shrink-0 px-3 py-1 rounded-full text-xs font-semibold border transition-all whitespace-nowrap ${
                 !etapaFiltro
-                  ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-amber-300 hover:text-amber-600'
+                  ? 'bg-primary-500 text-white border-primary-500 shadow-sm'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-primary-300 hover:text-primary-600'
               }`}
             >
               Todas
@@ -354,13 +354,13 @@ export function MemoriaPage() {
                   }}
                   className={`shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-all whitespace-nowrap ${
                     ativo
-                      ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                      ? 'bg-primary-500 text-white border-primary-500 shadow-sm'
                       : temLanc
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:border-emerald-400'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-amber-300 hover:text-amber-600'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-primary-300 hover:text-primary-600'
                   }`}
                 >
-                  <span className={`font-bold ${ativo ? 'text-white' : 'text-amber-600'}`}>
+                  <span className={`font-bold ${ativo ? 'text-white' : 'text-primary-600'}`}>
                     {etapa.item}
                   </span>
                   <span className="max-w-[160px] truncate">{etapa.descricao}</span>
@@ -390,20 +390,20 @@ export function MemoriaPage() {
         {etapaFiltro && (() => {
           const etapa = etapas.find(e => e.item === etapaFiltro)
           return etapa ? (
-            <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-              <div className="w-9 h-9 bg-amber-500 rounded-xl flex items-center justify-center font-bold text-white text-sm shrink-0">
+            <div className="flex items-center gap-3 bg-primary-50 border border-primary-200 rounded-xl px-4 py-3">
+              <div className="w-9 h-9 bg-primary-500 rounded-xl flex items-center justify-center font-bold text-white text-sm shrink-0">
                 {etapa.item}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] text-amber-500 font-semibold uppercase tracking-widest">Etapa filtrada</p>
-                <p className="text-sm font-bold text-amber-800 truncate">{etapa.descricao}</p>
+                <p className="text-[10px] text-primary-500 font-semibold uppercase tracking-widest">Etapa filtrada</p>
+                <p className="text-sm font-bold text-primary-800 truncate">{etapa.descricao}</p>
               </div>
-              <span className="text-xs text-amber-600 bg-amber-100 px-2.5 py-1 rounded-full font-semibold shrink-0">
+              <span className="text-xs text-primary-600 bg-primary-100 px-2.5 py-1 rounded-full font-semibold shrink-0">
                 {servicosOrdenados.length} serviço{servicosOrdenados.length !== 1 ? 's' : ''}
               </span>
               <button
                 onClick={() => { setEtapaFiltro(null); setExpandidos(new Set()) }}
-                className="p-1.5 rounded-lg text-amber-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                className="p-1.5 rounded-lg text-primary-400 hover:text-red-500 hover:bg-red-50 transition-all"
                 title="Remover filtro"
               >
                 <XCircle size={15}/>
@@ -422,7 +422,7 @@ export function MemoriaPage() {
                   A etapa <strong>{etapaFiltro}</strong> não possui serviços cadastrados.
                 </p>
                 <button onClick={() => setEtapaFiltro(null)}
-                  className="mt-3 text-xs text-amber-600 hover:underline">
+                  className="mt-3 text-xs text-primary-600 hover:underline">
                   Ver todas as etapas
                 </button>
               </>
@@ -468,7 +468,7 @@ export function MemoriaPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setMostrarAtalhos(false)}>
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center gap-3">
-              <Keyboard size={20} className="text-amber-500"/>
+              <Keyboard size={20} className="text-primary-500"/>
               <h2 className="font-bold text-lg text-slate-800 dark:text-slate-200">Atalhos de Teclado</h2>
             </div>
             <div className="px-6 py-4 space-y-3">
@@ -488,7 +488,7 @@ export function MemoriaPage() {
             </div>
             <div className="px-6 py-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 text-center">
               <button onClick={() => setMostrarAtalhos(false)}
-                className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold">
+                className="px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-sm font-semibold">
                 Entendi
               </button>
             </div>
@@ -633,7 +633,7 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
     setTimeout(() => descInputRef.current?.focus(), 100)
   }
 
-  const fieldCls = "w-full border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
+  const fieldCls = "w-full border border-slate-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-400"
   const numFieldNew = (k: keyof LinhaMemoria) => (
     <input type="number" step="any" className={fieldCls + " text-right"}
       value={(novaLinha as any)[k] ?? ''}
@@ -643,7 +643,7 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
   )
 
   return (
-    <div className={`bg-white rounded-xl border-2 transition-all ${progresso >= 100 ? 'border-emerald-300 bg-emerald-50/20' : progresso > 0 ? 'border-amber-300' : 'border-slate-200'}`}>
+    <div className={`bg-white rounded-xl border-2 transition-all ${progresso >= 100 ? 'border-emerald-300 bg-emerald-50/20' : progresso > 0 ? 'border-primary-300' : 'border-slate-200'}`}>
       <div className="flex items-center gap-4 p-4 cursor-pointer" onClick={onToggle}>
         <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center shrink-0 font-bold text-slate-600 text-sm">
           {servico.item}
@@ -655,7 +655,7 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
           </div>
           <div className="flex items-center gap-3 mt-1.5">
             <div className="flex-1 bg-slate-100 rounded-full h-2">
-              <div className={`h-2 rounded-full transition-all ${progresso >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${progresso}%` }} />
+              <div className={`h-2 rounded-full transition-all ${progresso >= 100 ? 'bg-emerald-500' : 'bg-primary-500'}`} style={{ width: `${progresso}%` }} />
             </div>
             <span className="text-xs font-semibold text-slate-600 shrink-0">{progresso.toFixed(1)}%</span>
           </div>
@@ -664,7 +664,7 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
           {[['Previsto', servico.quantidade], ['Anterior', qtdAnterior], ['Período', qtdPeriodo], ['Saldo', qtdSaldo]].map(([l, v]) => (
             <div key={l as string}>
               <p className="text-xs text-slate-400">{l}</p>
-              <p className={`text-sm font-semibold ${l === 'Período' && (v as number) > 0 ? 'text-amber-600' : 'text-slate-700'}`}>
+              <p className={`text-sm font-semibold ${l === 'Período' && (v as number) > 0 ? 'text-primary-600' : 'text-slate-700'}`}>
                 {formatNumber(v as number)}
               </p>
             </div>
@@ -672,9 +672,9 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
         </div>
         <div className="text-right shrink-0">
           <p className="text-xs text-slate-400">Valor Período</p>
-          <p className="text-base font-bold text-amber-600">{formatCurrency(valorPeriodo)}</p>
+          <p className="text-base font-bold text-primary-600">{formatCurrency(valorPeriodo)}</p>
         </div>
-        {expandido ? <ChevronUp size={18} className="text-amber-500 shrink-0" /> : <ChevronDown size={18} className="text-slate-400 shrink-0" />}
+        {expandido ? <ChevronUp size={18} className="text-primary-500 shrink-0" /> : <ChevronDown size={18} className="text-slate-400 shrink-0" />}
       </div>
 
       {expandido && (
@@ -683,8 +683,8 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
           {/* Autosave indicator */}
           <div className="flex items-center justify-end mb-2 h-4">
             {autoSaveStatus === 'saving' && (
-              <span className="text-xs text-amber-500 flex items-center gap-1 animate-pulse">
-                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"/>Salvando...
+              <span className="text-xs text-primary-500 flex items-center gap-1 animate-pulse">
+                <span className="w-1.5 h-1.5 bg-primary-500 rounded-full"/>Salvando...
               </span>
             )}
             {autoSaveStatus === 'saved' && (
@@ -714,7 +714,7 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
                         <td className="px-2 py-1.5 min-w-32">
                           <input value={linha.descricao_calculo}
                             onChange={e => debouncedUpdate(linha.id, { descricao_calculo: e.target.value })}
-                            className="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-amber-400 outline-none py-0.5 transition-colors" />
+                            className="w-full bg-transparent border-b border-transparent hover:border-slate-300 focus:border-primary-400 outline-none py-0.5 transition-colors" />
                         </td>
                         {(['largura','comprimento','altura','perimetro','area','volume','kg','outros','desconto_dim','quantidade'] as (keyof LinhaMemoria)[]).map(k => (
                           <td key={k} className="px-1 py-1.5">
@@ -725,7 +725,7 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
                                 const total = calcularTotalLinha(updated as LinhaMemoria)
                                 debouncedUpdate(linha.id, { [k]: val, total })
                               }}
-                              className="w-16 text-right bg-transparent border-b border-transparent hover:border-slate-300 focus:border-amber-400 outline-none py-0.5 transition-colors" />
+                              className="w-16 text-right bg-transparent border-b border-transparent hover:border-slate-300 focus:border-primary-400 outline-none py-0.5 transition-colors" />
                           </td>
                         ))}
                         <td className="px-2 py-1.5 text-right font-bold text-slate-800">{formatNumber(linha.total)}</td>
@@ -792,7 +792,7 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
               </div>
               <div className="flex items-end">
                 <button onClick={handleSalvarManual} disabled={salvandoNova}
-                  className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition-all">
+                  className="w-full flex items-center justify-center gap-1 px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition-all">
                   <Save size={12}/> {salvandoNova ? '...' : 'Salvar'}
                 </button>
               </div>

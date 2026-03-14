@@ -118,20 +118,20 @@ export function RDOPage() {
   return (
     <div className="p-6 max-w-5xl overflow-y-auto" style={{ height: '100%' }}>
       <div className="flex items-center justify-between mb-6">
-        <div><h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><FileText size={24} className="text-amber-500"/> RDO — Relatório Diário de Obra</h1>
+        <div><h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><FileText size={24} className="text-primary-500"/> RDO — Relatório Diário de Obra</h1>
           <p className="text-sm text-slate-500">Gerado a partir dos diários validados</p></div>
         <div className="flex gap-2">
           <select value={filtroObra} onChange={e => setFiltroObra(e.target.value)} className="border border-slate-200 rounded-lg px-3 py-2 text-xs bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white">
             <option value="todas">Todas as obras</option>{obras.map(o => <option key={o.id} value={o.id}>{o.nome_obra}</option>)}</select>
           {canEmit && diariosSemRDO.length > 0 && <button onClick={() => { setFDiarioId(''); setFParecer(''); setFPendencias(''); setFProvidencias(''); setShowForm(true) }}
-            className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm"><Plus size={14}/> Gerar RDO</button>}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm"><Plus size={14}/> Gerar RDO</button>}
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3 mb-5">
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4"><p className="text-[10px] text-slate-400 uppercase font-semibold">RDOs gerados</p><p className="text-2xl font-bold text-slate-800 dark:text-white">{filtrados.length}</p></div>
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4"><p className="text-[10px] text-emerald-600 uppercase font-semibold">Assinados</p><p className="text-2xl font-bold text-emerald-700">{filtrados.filter(r => r.status === 'ASSINADO').length}</p></div>
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4"><p className="text-[10px] text-amber-600 uppercase font-semibold">Diários aguardando RDO</p><p className="text-2xl font-bold text-amber-700">{diariosSemRDO.length}</p></div>
+        <div className="bg-primary-50 border border-primary-200 rounded-xl p-4"><p className="text-[10px] text-primary-600 uppercase font-semibold">Diários aguardando RDO</p><p className="text-2xl font-bold text-primary-700">{diariosSemRDO.length}</p></div>
       </div>
 
       {filtrados.length === 0 ? (
@@ -150,7 +150,7 @@ export function RDOPage() {
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={e => { e.stopPropagation(); expandir(rdo).then(() => gerarPDF(rdo)) }} className="p-1.5 text-slate-300 hover:text-blue-500" title="Baixar PDF"><Download size={14}/></button>
-                  {aberto ? <ChevronUp size={16} className="text-amber-500"/> : <ChevronDown size={16} className="text-slate-400"/>}
+                  {aberto ? <ChevronUp size={16} className="text-primary-500"/> : <ChevronDown size={16} className="text-slate-400"/>}
                 </div>
               </div>
               {aberto && (
@@ -190,7 +190,7 @@ export function RDOPage() {
             <textarea value={fProvidencias} onChange={e => setFProvidencias(e.target.value)} placeholder="Providências" rows={2} className="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-sm"/>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowForm(false)} className="px-4 py-2 border border-slate-200 rounded-lg text-sm">Cancelar</button>
-              <button onClick={criarRDO} disabled={saving} className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm">{saving ? 'Salvando...' : 'Gerar RDO'}</button>
+              <button onClick={criarRDO} disabled={saving} className="px-5 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm">{saving ? 'Salvando...' : 'Gerar RDO'}</button>
             </div>
           </div>
         </div>

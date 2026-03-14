@@ -1,17 +1,17 @@
 import { useEffect, useState, useRef } from 'react'
-import { Settings, Image, Plus, Trash2, CheckCircle2, Upload, Crown, Lock, TableProperties, FileSpreadsheet, ToggleLeft, ToggleRight, Zap } from 'lucide-react'
+import { Settings, Image, Plus, Trash2, CheckCircle2, Upload, Crown, Lock, TableProperties, FileSpreadsheet, ToggleLeft, ToggleRight, Zap, Palette } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
 import { usePerfilStore } from '../lib/perfilStore'
 import { useModeloStore } from '../lib/modeloStore'
 import { ModeloEditor } from '../components/ModeloEditor'
 
-type Aba = 'logos' | 'modelos' | 'exportacao'
+type Aba = 'logos' | 'modelos' | 'exportacao' | 'aparencia'
 
 export function ConfigPage() {
   const { logos, fetchLogos, adicionarLogo, deletarLogo, logoSelecionada, setLogoSelecionada } = useStore()
   const { perfilAtual } = usePerfilStore()
-  const { excelHabilitado, setExcelHabilitado, medir100Habilitado, setMedir100Habilitado } = useModeloStore()
+  const { excelHabilitado, setExcelHabilitado, medir100Habilitado, setMedir100Habilitado, corTema, setCorTema } = useModeloStore()
   const isAdmin = perfilAtual?.role === 'ADMIN'
 
   const [abaAtiva,  setAbaAtiva]  = useState<Aba>('logos')
@@ -68,7 +68,7 @@ export function ConfigPage() {
         <button onClick={() => setAbaAtiva('logos')}
           className={`flex items-center gap-2 px-5 py-3 text-sm font-medium -mb-px border-b-2 transition-colors ${
             abaAtiva === 'logos'
-              ? 'border-amber-500 text-amber-600'
+              ? 'border-primary-500 text-primary-600'
               : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}>
           <Image size={15}/> Logos do Sistema
@@ -96,6 +96,17 @@ export function ConfigPage() {
             <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-600 rounded-md text-[10px] font-bold">ADMIN</span>
           </button>
         )}
+        {isAdmin && (
+          <button onClick={() => setAbaAtiva('aparencia')}
+            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium -mb-px border-b-2 transition-colors ${
+              abaAtiva === 'aparencia'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}>
+            <Palette size={15}/> Aparência
+            <span className="px-1.5 py-0.5 bg-primary-100 text-primary-700 rounded-md text-[10px] font-bold">ADMIN</span>
+          </button>
+        )}
       </div>
 
       {/* ── ABA LOGOS ─────────────────────────────────────────────────────── */}
@@ -103,8 +114,8 @@ export function ConfigPage() {
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between p-5 border-b border-slate-100">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-amber-100 rounded-xl flex items-center justify-center">
-                <Image size={18} className="text-amber-600"/>
+              <div className="w-9 h-9 bg-primary-100 rounded-xl flex items-center justify-center">
+                <Image size={18} className="text-primary-600"/>
               </div>
               <div>
                 <h2 className="font-bold text-slate-800">Logos do Sistema</h2>
@@ -112,7 +123,7 @@ export function ConfigPage() {
               </div>
             </div>
             {isAdmin && (
-              <span className="flex items-center gap-1.5 text-xs text-amber-600 font-medium">
+              <span className="flex items-center gap-1.5 text-xs text-primary-600 font-medium">
                 <Crown size={12}/> Gerenciado pelo Admin
               </span>
             )}
@@ -132,14 +143,14 @@ export function ConfigPage() {
                   <div key={logo.id}
                     onClick={() => !isAdmin && setLogoSelecionada(logoSelecionada === logo.base64 ? null : logo.base64)}
                     className={`group relative bg-slate-50 border-2 rounded-xl p-4 flex flex-col items-center gap-2 transition-all ${
-                      !isAdmin ? 'cursor-pointer hover:border-amber-300' : 'cursor-default'
-                    } ${logoSelecionada === logo.base64 ? 'border-amber-500 bg-amber-50' : 'border-slate-200'}`}
+                      !isAdmin ? 'cursor-pointer hover:border-primary-300' : 'cursor-default'
+                    } ${logoSelecionada === logo.base64 ? 'border-primary-500 bg-primary-50' : 'border-slate-200'}`}
                   >
                     <img src={logo.base64} alt={logo.nome} className="h-14 w-auto object-contain"/>
                     <p className="text-xs font-semibold text-slate-700 text-center truncate w-full">{logo.nome}</p>
                     {logo.descricao && <p className="text-xs text-slate-400 text-center line-clamp-2">{logo.descricao}</p>}
                     {logoSelecionada === logo.base64 && (
-                      <div className="absolute top-2 left-2 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center">
+                      <div className="absolute top-2 left-2 w-5 h-5 bg-primary-500 rounded-full flex items-center justify-center">
                         <CheckCircle2 size={12} className="text-white"/>
                       </div>
                     )}
@@ -162,7 +173,7 @@ export function ConfigPage() {
                 </p>
                 <div className="flex gap-5">
                   <div onClick={() => fileRef.current?.click()}
-                    className="w-36 h-24 bg-white border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-amber-400 hover:bg-amber-50 transition-all shrink-0">
+                    className="w-36 h-24 bg-white border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary-400 hover:bg-primary-50 transition-all shrink-0">
                     {preview ? (
                       <img src={preview} alt="preview" className="max-h-20 max-w-32 object-contain p-2"/>
                     ) : (
@@ -180,16 +191,16 @@ export function ConfigPage() {
                       <label className="text-xs font-semibold text-slate-600 mb-1 block">Nome da Logo *</label>
                       <input value={nomeLogo} onChange={e => setNomeLogo(e.target.value)}
                         placeholder="Ex: SEEC-RN, FUNDASE, Estado do RN..."
-                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"/>
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"/>
                     </div>
                     <div>
                       <label className="text-xs font-semibold text-slate-600 mb-1 block">Descrição (opcional)</label>
                       <input value={descLogo} onChange={e => setDescLogo(e.target.value)}
                         placeholder="Ex: Logo usada em obras estaduais"
-                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"/>
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"/>
                     </div>
                     <button onClick={handleSalvarLogo} disabled={salvando || !preview || !nomeLogo.trim()}
-                      className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition-all self-start">
+                      className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition-all self-start">
                       <Plus size={15}/> {salvando ? 'Salvando...' : 'Cadastrar Logo'}
                     </button>
                   </div>
@@ -277,9 +288,9 @@ export function ConfigPage() {
             <div className="flex items-center justify-between p-4 border border-slate-200 rounded-xl bg-white">
               <div className="flex items-center gap-4">
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  medir100Habilitado ? 'bg-amber-100' : 'bg-slate-100'
+                  medir100Habilitado ? 'bg-primary-100' : 'bg-slate-100'
                 }`}>
-                  <Zap size={20} className={medir100Habilitado ? 'text-amber-600' : 'text-slate-400'}/>
+                  <Zap size={20} className={medir100Habilitado ? 'text-primary-600' : 'text-slate-400'}/>
                 </div>
                 <div>
                   <p className="font-semibold text-slate-800 text-sm">Medir 100% (ação rápida)</p>
@@ -298,12 +309,78 @@ export function ConfigPage() {
                 }}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
                   medir100Habilitado
-                    ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                    ? 'bg-primary-500 hover:bg-primary-600 text-white'
                     : 'bg-slate-200 hover:bg-slate-300 text-slate-600'
                 }`}>
                 {medir100Habilitado ? <ToggleRight size={18}/> : <ToggleLeft size={18}/>}
                 {medir100Habilitado ? 'Habilitado' : 'Desabilitado'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ABA APARÊNCIA ─────────────────────────────────────────────────── */}
+      {abaAtiva === 'aparencia' && isAdmin && (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6">
+            <h3 className="text-base font-bold text-slate-800 dark:text-white mb-1 flex items-center gap-2"><Palette size={18}/> Tema de cores</h3>
+            <p className="text-xs text-slate-500 mb-6">Escolha a cor primária do sistema. Afeta botões, menus ativos, barras de progresso e destaques em todas as telas.</p>
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* Laranja RD */}
+              <button onClick={() => { setCorTema('orange'); toast.success('Tema laranja RD aplicado!') }}
+                className={`relative border-2 rounded-2xl p-5 transition-all text-left ${corTema === 'orange' ? 'border-orange-500 shadow-lg shadow-orange-500/10' : 'border-slate-200 dark:border-slate-700 hover:border-orange-300'}`}>
+                {corTema === 'orange' && <div className="absolute top-3 right-3"><CheckCircle2 size={20} className="text-orange-500"/></div>}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-[#E8611A] rounded-xl flex items-center justify-center"><span className="text-white font-bold text-sm">RD</span></div>
+                  <div>
+                    <p className="font-bold text-slate-800 dark:text-white text-sm">Laranja RD</p>
+                    <p className="text-[10px] text-slate-400">Identidade visual oficial</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#FFF7ED]" title="#FFF7ED"></div>
+                  <div className="w-8 h-8 rounded-lg bg-[#FDBA74]" title="#FDBA74"></div>
+                  <div className="w-8 h-8 rounded-lg bg-[#E8611A]" title="#E8611A"></div>
+                  <div className="w-8 h-8 rounded-lg bg-[#C2410C]" title="#C2410C"></div>
+                  <div className="w-8 h-8 rounded-lg bg-[#7C2D12]" title="#7C2D12"></div>
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1 h-2 rounded-full bg-[#E8611A]"></div>
+                  <div className="w-16 h-2 rounded-full bg-slate-200"></div>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-3">Cor extraída da identidade visual da RD Construtora. Mais vibrante e alinhada com a marca.</p>
+              </button>
+
+              {/* Amber Clássico */}
+              <button onClick={() => { setCorTema('amber'); toast.success('Tema amber clássico aplicado!') }}
+                className={`relative border-2 rounded-2xl p-5 transition-all text-left ${corTema === 'amber' ? 'border-amber-500 shadow-lg shadow-amber-500/10' : 'border-slate-200 dark:border-slate-700 hover:border-amber-300'}`}>
+                {corTema === 'amber' && <div className="absolute top-3 right-3"><CheckCircle2 size={20} className="text-amber-500"/></div>}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-[#F59E0B] rounded-xl flex items-center justify-center"><span className="text-white font-bold text-sm">RD</span></div>
+                  <div>
+                    <p className="font-bold text-slate-800 dark:text-white text-sm">Amber Clássico</p>
+                    <p className="text-[10px] text-slate-400">Tema original do sistema</p>
+                  </div>
+                </div>
+                <div className="flex gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-[#FFFBEB]" title="#FFFBEB"></div>
+                  <div className="w-8 h-8 rounded-lg bg-[#FCD34D]" title="#FCD34D"></div>
+                  <div className="w-8 h-8 rounded-lg bg-[#F59E0B]" title="#F59E0B"></div>
+                  <div className="w-8 h-8 rounded-lg bg-[#D97706]" title="#D97706"></div>
+                  <div className="w-8 h-8 rounded-lg bg-[#78350F]" title="#78350F"></div>
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1 h-2 rounded-full bg-[#F59E0B]"></div>
+                  <div className="w-16 h-2 rounded-full bg-slate-200"></div>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-3">Tema dourado original. Tom mais quente e corporativo, menos vibrante.</p>
+              </button>
+            </div>
+
+            <div className="mt-4 bg-primary-50 border border-primary-200 rounded-xl px-4 py-3 text-xs text-primary-700">
+              Tema atual: <strong>{corTema === 'orange' ? 'Laranja RD' : 'Amber Clássico'}</strong> — a mudança é aplicada instantaneamente para todos os usuários.
             </div>
           </div>
         </div>

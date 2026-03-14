@@ -197,11 +197,11 @@ export function MedicoesPage() {
   if (!obraAtiva || !contratoAtivo) {
     return (
       <div className="p-8">
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 flex items-center gap-4">
-          <AlertCircle size={24} className="text-amber-500 shrink-0" />
+        <div className="bg-primary-50 border border-primary-200 rounded-xl p-6 flex items-center gap-4">
+          <AlertCircle size={24} className="text-primary-500 shrink-0" />
           <div>
-            <p className="font-semibold text-amber-800">Nenhuma obra selecionada</p>
-            <p className="text-sm text-amber-600 mt-1">Vá em <strong>Contratos</strong>, expanda um contrato e clique em uma obra.</p>
+            <p className="font-semibold text-primary-800">Nenhuma obra selecionada</p>
+            <p className="text-sm text-primary-600 mt-1">Vá em <strong>Contratos</strong>, expanda um contrato e clique em uma obra.</p>
           </div>
         </div>
       </div>
@@ -218,7 +218,7 @@ export function MedicoesPage() {
           <p className="text-xs text-slate-400 mb-0.5">
             {contratoAtivo.nome_obra} <span className="text-slate-300">›</span>
           </p>
-          <p className="text-xs font-medium text-amber-600 uppercase tracking-wider mb-1">{obraAtiva.nome_obra}</p>
+          <p className="text-xs font-medium text-primary-600 uppercase tracking-wider mb-1">{obraAtiva.nome_obra}</p>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Medições</h1>
           <p className="text-slate-500 text-sm mt-1">{obraAtiva.local_obra}</p>
         </div>
@@ -238,7 +238,7 @@ export function MedicoesPage() {
           )}
           {(!ultimaMedicao || ultimaMedicao.status === 'APROVADA') && (
             <button onClick={handleCriar} disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm shadow-sm disabled:opacity-50">
+              className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm shadow-sm disabled:opacity-50">
               <Plus size={16} /> Nova Medição
             </button>
           )}
@@ -271,13 +271,13 @@ export function MedicoesPage() {
                 <button key={logo.id}
                   onClick={() => setLogoSelecionada(logoSelecionada === logo.base64 ? null : logo.base64)}
                   className={`relative p-1 rounded-lg border-2 transition-all ${
-                    logoSelecionada === logo.base64 ? 'border-amber-500' : 'border-slate-100 hover:border-amber-200'
+                    logoSelecionada === logo.base64 ? 'border-primary-500' : 'border-slate-100 hover:border-primary-200'
                   }`}
                   title={logo.nome}
                 >
                   <img src={logo.base64} alt={logo.nome} className="h-8 w-auto max-w-16 object-contain" />
                   {logoSelecionada === logo.base64 && (
-                    <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center">
+                    <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-primary-500 rounded-full flex items-center justify-center">
                       <CheckCircle2 size={10} className="text-white" />
                     </div>
                   )}
@@ -301,7 +301,7 @@ export function MedicoesPage() {
           <FileText size={36} className="mx-auto text-slate-300 mb-3" />
           <p className="text-slate-500 font-medium">Nenhuma medição criada</p>
           <button onClick={handleCriar}
-            className="mt-4 flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm mx-auto">
+            className="mt-4 flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm mx-auto">
             <Plus size={16}/> Criar 1ª Medição
           </button>
         </div>
@@ -315,11 +315,11 @@ export function MedicoesPage() {
             return (
               <div key={m.id} className={`bg-white border rounded-xl p-5 transition-all ${
                 isAprovada ? 'border-emerald-200 bg-emerald-50/20' :
-                isRascunho && isUltima ? 'border-amber-300 shadow-md shadow-amber-100' : 'border-slate-200'
+                isRascunho && isUltima ? 'border-primary-300 shadow-md shadow-primary-100' : 'border-slate-200'
               }`}>
                 <div className="flex items-center gap-4">
                   <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 text-xl font-bold ${
-                    isAprovada ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-50 text-amber-600'
+                    isAprovada ? 'bg-emerald-100 text-emerald-700' : 'bg-primary-50 text-primary-600'
                   }`}>{m.numero_extenso}</div>
 
                   <div className="flex-1 min-w-0 cursor-pointer" onClick={() => abrirMedicao(m)}>
@@ -366,7 +366,7 @@ export function MedicoesPage() {
                     {/* Criar próxima */}
                     {isAprovada && isUltima && (
                       <button onClick={() => setConfirmModal({ tipo: 'proxima', medicao: m })} disabled={loading}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium transition-all">
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-medium transition-all">
                         <ArrowRight size={13}/> Criar {ordEN[medicoes.length + 1] || `${medicoes.length+1}ª`} Med.
                       </button>
                     )}
@@ -378,7 +378,7 @@ export function MedicoesPage() {
                         <Trash2 size={13}/>
                       </button>
                     )}
-                    <ChevronRight size={18} className="text-slate-300 hover:text-amber-400 cursor-pointer ml-1"
+                    <ChevronRight size={18} className="text-slate-300 hover:text-primary-400 cursor-pointer ml-1"
                       onClick={() => abrirMedicao(m)} />
                   </div>
                 </div>
@@ -398,7 +398,7 @@ export function MedicoesPage() {
                     }}
                     onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                     className="flex-1 max-w-xs border border-slate-200 rounded-lg px-3 py-1.5 text-xs
-                      focus:outline-none focus:ring-1 focus:ring-amber-400 focus:border-amber-400
+                      focus:outline-none focus:ring-1 focus:ring-primary-400 focus:border-primary-400
                       placeholder:text-slate-300"
                   />
                   {m.periodo_referencia && (
@@ -433,7 +433,7 @@ export function MedicoesPage() {
               </>
             ) : (
               <>
-                <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mb-4"><ArrowRight size={24} className="text-amber-600"/></div>
+                <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center mb-4"><ArrowRight size={24} className="text-primary-600"/></div>
                 <h2 className="text-lg font-bold text-slate-800 mb-2">Criar próxima medição?</h2>
                 <ul className="text-sm text-slate-600 space-y-1 mb-5 ml-2">
                   <li>✓ Efetiva a medição atual</li>
@@ -446,7 +446,7 @@ export function MedicoesPage() {
               <button onClick={() => setConfirmModal(null)} className="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Cancelar</button>
               <button onClick={confirmarAcao} className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold text-white ${
                 confirmModal.tipo === 'deletar' ? 'bg-red-600 hover:bg-red-700' :
-                confirmModal.tipo === 'efetivar' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-amber-500 hover:bg-amber-600'
+                confirmModal.tipo === 'efetivar' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-primary-500 hover:bg-primary-600'
               }`}>
                 {confirmModal.tipo === 'deletar' ? 'Sim, deletar' : confirmModal.tipo === 'efetivar' ? 'Confirmar' : 'Criar Medição'}
               </button>
@@ -501,7 +501,7 @@ export function MedicoesPage() {
                     const srv = servicos.find(s => s.item === imp.item)
                     const pct = srv && srv.quantidade > 0 ? (imp.quantidade / srv.quantidade * 100) : 0
                     return (
-                      <tr key={i} className={`border-b border-slate-50 ${!srv ? 'bg-red-50' : pct > 100 ? 'bg-amber-50' : ''}`}>
+                      <tr key={i} className={`border-b border-slate-50 ${!srv ? 'bg-red-50' : pct > 100 ? 'bg-primary-50' : ''}`}>
                         <td className="py-2 font-mono font-medium text-slate-700">{imp.item}</td>
                         <td className="py-2 text-slate-600 truncate max-w-64">{srv?.descricao || <span className="text-red-500 font-medium">Serviço não encontrado</span>}</td>
                         <td className="py-2 text-right font-bold text-slate-800">{imp.quantidade.toFixed(2)}</td>

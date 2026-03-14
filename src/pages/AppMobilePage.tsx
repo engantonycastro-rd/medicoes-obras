@@ -155,7 +155,7 @@ export function AppMobilePage() {
         {tela !== 'obras' && (
           <button onClick={() => setTela('obras')} className="p-1"><ChevronLeft size={20}/></button>
         )}
-        <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center shrink-0">
+        <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center shrink-0">
           <span className="text-slate-900 font-bold text-xs">RD</span>
         </div>
         <div className="flex-1 min-w-0">
@@ -165,10 +165,10 @@ export function AppMobilePage() {
         {/* Sync indicator */}
         <div className="flex items-center gap-2 shrink-0">
           {syncStatus.pendentes > 0 && (
-            <span className="text-[10px] bg-amber-500 text-slate-900 px-2 py-0.5 rounded-full font-bold">{syncStatus.pendentes}</span>
+            <span className="text-[10px] bg-primary-500 text-slate-900 px-2 py-0.5 rounded-full font-bold">{syncStatus.pendentes}</span>
           )}
           {syncStatus.sincronizando ? (
-            <Loader2 size={16} className="text-amber-400 animate-spin"/>
+            <Loader2 size={16} className="text-primary-400 animate-spin"/>
           ) : syncStatus.online ? (
             <Wifi size={16} className="text-emerald-400"/>
           ) : (
@@ -184,7 +184,7 @@ export function AppMobilePage() {
       {tela === 'obras' && (
         <div className="flex-1 p-4 overflow-y-auto">
           {!syncStatus.online && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 flex items-center gap-2 text-xs text-amber-800">
+            <div className="bg-primary-50 border border-primary-200 rounded-xl p-3 mb-4 flex items-center gap-2 text-xs text-primary-800">
               <WifiOff size={14}/> Modo offline — apontamentos serão sincronizados quando conectar
             </div>
           )}
@@ -203,8 +203,8 @@ export function AppMobilePage() {
                 <div key={obra.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden">
                   <div className="p-4">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center shrink-0">
-                        <Building2 size={18} className="text-amber-600"/>
+                      <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center shrink-0">
+                        <Building2 size={18} className="text-primary-600"/>
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-slate-800 truncate">{obra.nome_obra}</p>
@@ -213,7 +213,7 @@ export function AppMobilePage() {
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => selecionarObra(obra)}
-                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg">
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-primary-500 hover:bg-primary-600 text-white text-xs font-bold rounded-lg">
                         <ClipboardList size={14}/> Novo Apontamento
                       </button>
                       <button onClick={() => verHistorico(obra)}
@@ -236,7 +236,7 @@ export function AppMobilePage() {
           <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-2">
             {['Geral', 'Mão de obra', 'PQE', 'Fotos & Obs'].map((label, i) => (
               <button key={i} onClick={() => setStep(i)} className={`flex-1 text-center py-1.5 rounded-lg text-[10px] font-bold transition-all ${
-                step === i ? 'bg-amber-500 text-white' : i < step ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
+                step === i ? 'bg-primary-500 text-white' : i < step ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
               }`}>{label}</button>
             ))}
           </div>
@@ -255,7 +255,7 @@ export function AppMobilePage() {
                   <div className="grid grid-cols-3 gap-2">
                     {TURNO_OPTS.map(t => (
                       <button key={t.val} onClick={() => setWTurno(t.val)}
-                        className={`py-2.5 rounded-lg text-xs font-bold border transition-all ${wTurno === t.val ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-600 border-slate-200'}`}>
+                        className={`py-2.5 rounded-lg text-xs font-bold border transition-all ${wTurno === t.val ? 'bg-primary-500 text-white border-primary-500' : 'bg-white text-slate-600 border-slate-200'}`}>
                         {t.label}
                       </button>
                     ))}
@@ -267,7 +267,7 @@ export function AppMobilePage() {
                       const Icon = c.icon
                       return (
                         <button key={c.val} onClick={() => setWClima(c.val)}
-                          className={`py-3 rounded-lg text-xs font-bold border flex flex-col items-center gap-1 transition-all ${wClima === c.val ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-600 border-slate-200'}`}>
+                          className={`py-3 rounded-lg text-xs font-bold border flex flex-col items-center gap-1 transition-all ${wClima === c.val ? 'bg-primary-500 text-white border-primary-500' : 'bg-white text-slate-600 border-slate-200'}`}>
                           <Icon size={18}/> {c.label}
                         </button>
                       )
@@ -300,13 +300,13 @@ export function AppMobilePage() {
                         className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 text-lg font-bold">-</button>
                       <span className="w-8 text-center text-sm font-bold text-slate-800">{f.qtd}</span>
                       <button onClick={() => { const n = [...wFuncoes]; n[i].qtd += 1; setWFuncoes(n) }}
-                        className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-white text-lg font-bold">+</button>
+                        className="w-8 h-8 rounded-lg bg-primary-500 flex items-center justify-center text-white text-lg font-bold">+</button>
                     </div>
                   </div>
                 ))}
-                <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 flex items-center justify-between text-sm">
-                  <span className="text-amber-800 font-bold">Total</span>
-                  <span className="text-amber-800 font-bold text-lg">{wFuncoes.reduce((s, f) => s + f.qtd, 0)}</span>
+                <div className="bg-primary-50 border border-primary-200 rounded-lg px-4 py-2.5 flex items-center justify-between text-sm">
+                  <span className="text-primary-800 font-bold">Total</span>
+                  <span className="text-primary-800 font-bold text-lg">{wFuncoes.reduce((s, f) => s + f.qtd, 0)}</span>
                 </div>
               </div>
             )}
@@ -368,7 +368,7 @@ export function AppMobilePage() {
                           placeholder="Legenda..." className="w-full text-[10px] px-2 py-1 border-t border-slate-200"/>
                       </div>
                     ))}
-                    <label className="flex flex-col items-center justify-center h-20 border-2 border-dashed border-slate-200 rounded-lg cursor-pointer hover:border-amber-400 hover:bg-amber-50/50">
+                    <label className="flex flex-col items-center justify-center h-20 border-2 border-dashed border-slate-200 rounded-lg cursor-pointer hover:border-primary-400 hover:bg-primary-50/50">
                       <Camera size={20} className="text-slate-300"/>
                       <span className="text-[10px] text-slate-400 mt-1">Tirar foto</span>
                       <input type="file" accept="image/*" capture="environment" onChange={e => { const f = e.target.files?.[0]; if (f) addFoto(f); e.target.value = '' }} className="hidden"/>
@@ -414,7 +414,7 @@ export function AppMobilePage() {
             <div className="flex-1"/>
             {step < 3 ? (
               <button onClick={() => setStep(step + 1)}
-                className="flex items-center gap-1 px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-sm">
+                className="flex items-center gap-1 px-6 py-2.5 bg-primary-500 hover:bg-primary-600 text-white font-bold rounded-lg text-sm">
                 Próximo <ChevronRight size={14}/>
               </button>
             ) : (
@@ -439,7 +439,7 @@ export function AppMobilePage() {
           ) : (
             <div className="space-y-3">
               {historico.map((apt: any) => (
-                <div key={apt.sync_id} className={`bg-white border rounded-xl p-4 ${apt.status === 'SINCRONIZADO' ? 'border-emerald-200' : apt.status === 'ERRO' ? 'border-red-200' : 'border-amber-200'}`}>
+                <div key={apt.sync_id} className={`bg-white border rounded-xl p-4 ${apt.status === 'SINCRONIZADO' ? 'border-emerald-200' : apt.status === 'ERRO' ? 'border-red-200' : 'border-primary-200'}`}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold text-slate-800">{apt.data}</span>
@@ -449,7 +449,7 @@ export function AppMobilePage() {
                       apt.status === 'SINCRONIZADO' ? 'bg-emerald-100 text-emerald-700' :
                       apt.status === 'ERRO' ? 'bg-red-100 text-red-700' :
                       apt.status === 'SINCRONIZANDO' ? 'bg-blue-100 text-blue-700' :
-                      'bg-amber-100 text-amber-700'
+                      'bg-primary-100 text-primary-700'
                     }`}>{apt.status === 'SINCRONIZADO' ? 'Sincronizado' : apt.status === 'ERRO' ? 'Erro' : apt.status === 'SINCRONIZANDO' ? 'Enviando...' : 'Pendente'}</span>
                   </div>
                   {apt.atividades && <p className="text-xs text-slate-600 mb-1">{apt.atividades}</p>}

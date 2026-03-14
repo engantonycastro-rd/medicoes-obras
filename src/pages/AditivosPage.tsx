@@ -77,20 +77,20 @@ export function AditivosPage() {
   return (
     <div className="p-6 max-w-5xl overflow-y-auto" style={{ height: '100%' }}>
       <div className="flex items-center justify-between mb-6">
-        <div><h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><FileText size={24} className="text-amber-500"/> Aditivos Contratuais</h1>
+        <div><h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><FileText size={24} className="text-primary-500"/> Aditivos Contratuais</h1>
           <p className="text-sm text-slate-500">Controle de aditivos de valor, prazo e escopo</p></div>
         <div className="flex gap-2">
           <select value={filtroContrato} onChange={e => setFiltroContrato(e.target.value)} className="border border-slate-200 rounded-lg px-3 py-2 text-xs bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white max-w-52">
             <option value="todos">Todos os contratos</option>{contratos.map(c => <option key={c.id} value={c.id}>{c.nome_obra}</option>)}</select>
           {isAdmin && <button onClick={() => { setEditId(null); setFContrato(filtroContrato !== 'todos' ? filtroContrato : ''); setFTipo('ACRESCIMO'); setFDesc(''); setFDataAss(''); setFDataPub(''); setFValAcr(0); setFValSup(0); setFDias(0); setFObs(''); setFArquivo(null); setShowForm(true) }}
-            className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm"><Plus size={14}/> Novo Aditivo</button>}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm"><Plus size={14}/> Novo Aditivo</button>}
         </div>
       </div>
 
       {/* Alertas 25% */}
       {alertas25.map(a => (
-        <div key={a.contrato} className={`mb-3 flex items-center gap-3 px-4 py-3 rounded-xl border ${a.pct >= 25 ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}>
-          <AlertTriangle size={16} className={a.pct >= 25 ? 'text-red-500' : 'text-amber-500'}/>
+        <div key={a.contrato} className={`mb-3 flex items-center gap-3 px-4 py-3 rounded-xl border ${a.pct >= 25 ? 'bg-red-50 border-red-200' : 'bg-primary-50 border-primary-200'}`}>
+          <AlertTriangle size={16} className={a.pct >= 25 ? 'text-red-500' : 'text-primary-500'}/>
           <p className="text-xs"><b>{a.contrato}</b> — acréscimos totais: {fmt(a.acrescimo)} ({a.pct.toFixed(1)}% do contrato).
             {a.pct >= 25 ? ' LIMITE LEGAL DE 25% ATINGIDO!' : ' Aproximando do limite de 25%.'}</p>
         </div>
@@ -156,7 +156,7 @@ export function AditivosPage() {
             <textarea value={fObs} onChange={e => setFObs(e.target.value)} placeholder="Observações" rows={2} className="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-sm"/>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowForm(false)} className="px-4 py-2 border border-slate-200 rounded-lg text-sm">Cancelar</button>
-              <button onClick={salvar} disabled={saving} className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm">{saving ? 'Salvando...' : 'Salvar'}</button>
+              <button onClick={salvar} disabled={saving} className="px-5 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm">{saving ? 'Salvando...' : 'Salvar'}</button>
             </div>
           </div>
         </div>

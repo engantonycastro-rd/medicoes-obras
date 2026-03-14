@@ -202,6 +202,7 @@ interface ModeloState {
   excelHabilitado: boolean
   medir100Habilitado: boolean
   temaEscuro: boolean
+  corTema: 'orange' | 'amber'
   // CRUD
   salvarModelo:  (m: ModeloPlanilha) => void
   deletarModelo: (id: string) => void
@@ -210,6 +211,7 @@ interface ModeloState {
   setExcelHabilitado: (v: boolean) => void
   setMedir100Habilitado: (v: boolean) => void
   setTemaEscuro: (v: boolean) => void
+  setCorTema: (v: 'orange' | 'amber') => void
   // Helpers
   getModelo:     (id: string) => ModeloPlanilha | undefined
 }
@@ -221,6 +223,7 @@ export const useModeloStore = create<ModeloState>()(
       excelHabilitado: true,
       medir100Habilitado: false,
       temaEscuro: false,
+      corTema: 'orange' as const,
 
       salvarModelo: (m) => set(state => ({
         modelos: state.modelos.some(x => x.id === m.id)
@@ -263,6 +266,11 @@ export const useModeloStore = create<ModeloState>()(
       setTemaEscuro: (v) => {
         set({ temaEscuro: v })
         document.documentElement.classList.toggle('dark', v)
+      },
+      setCorTema: (v) => {
+        set({ corTema: v })
+        document.documentElement.classList.remove('theme-orange', 'theme-amber')
+        document.documentElement.classList.add(`theme-${v}`)
       },
 
       getModelo: (id) => get().modelos.find(m => m.id === id),

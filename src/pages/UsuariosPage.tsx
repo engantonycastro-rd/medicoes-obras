@@ -77,7 +77,7 @@ export function UsuariosPage() {
   }
 
   const roleBadge = (role: string) =>
-    role === 'ADMIN' ? 'bg-amber-100 text-amber-700 border-amber-200'
+    role === 'ADMIN' ? 'bg-primary-100 text-primary-700 border-primary-200'
     : role === 'GESTOR' ? 'bg-purple-100 text-purple-700 border-purple-200'
     : role === 'APONTADOR' ? 'bg-cyan-100 text-cyan-700 border-cyan-200'
     : role === 'ORCAMENTISTA' ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
@@ -89,7 +89,7 @@ export function UsuariosPage() {
       <div className="flex items-center gap-2">
         <input value={editandoNome.nome} onChange={e => setEditandoNome({ ...editandoNome, nome: e.target.value })}
           onKeyDown={e => e.key === 'Enter' && handleSalvarNome()} placeholder="Nome do colaborador" autoFocus
-          className="border border-slate-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+          className="border border-slate-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
         <button onClick={handleSalvarNome} className="text-xs text-emerald-600 font-medium hover:underline">Salvar</button>
         <button onClick={() => setEditandoNome(null)} className="text-xs text-slate-400 hover:underline">Cancelar</button>
       </div>
@@ -122,7 +122,7 @@ export function UsuariosPage() {
           { label: 'Total', val: perfis.length, icon: Users, color: 'bg-slate-100 text-slate-600' },
           { label: 'Ativos', val: totalAtivos, icon: UserCheck, color: 'bg-emerald-100 text-emerald-600' },
           { label: 'Gestores', val: gestores.length, icon: Briefcase, color: 'bg-purple-100 text-purple-600' },
-          { label: 'Pendentes', val: pendentes.length, icon: UserX, color: pendentes.length > 0 ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-500' },
+          { label: 'Pendentes', val: pendentes.length, icon: UserX, color: pendentes.length > 0 ? 'bg-primary-100 text-primary-600' : 'bg-slate-100 text-slate-500' },
         ].map(({ label, val, icon: Icon, color }) => (
           <div key={label} className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3">
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}><Icon size={18}/></div>
@@ -135,7 +135,7 @@ export function UsuariosPage() {
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
         <p className="text-sm font-semibold text-blue-800 mb-1.5 flex items-center gap-2"><AlertCircle size={15}/> Hierarquia de Permissões</p>
         <div className="flex gap-6 mt-2 text-xs text-blue-700">
-          <div className="flex items-center gap-2"><span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-bold text-[10px]">ADMIN</span> Vê tudo. Gerencia usuários e equipes.</div>
+          <div className="flex items-center gap-2"><span className="px-2 py-0.5 bg-primary-100 text-primary-700 rounded-full font-bold text-[10px]">ADMIN</span> Vê tudo. Gerencia usuários e equipes.</div>
           <div className="flex items-center gap-2"><span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full font-bold text-[10px]">GESTOR</span> Lidera equipe. Vê contratos seus + da equipe.</div>
           <div className="flex items-center gap-2"><span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-bold text-[10px]">ENGENHEIRO</span> Vê seus contratos + do gestor e colegas.</div>
         </div>
@@ -145,12 +145,12 @@ export function UsuariosPage() {
       {pendentes.length > 0 && (
         <div className="mb-8">
           <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"/> Aguardando Aprovação ({pendentes.length})
+            <span className="w-2 h-2 bg-primary-400 rounded-full animate-pulse"/> Aguardando Aprovação ({pendentes.length})
           </h2>
           <div className="space-y-2">
             {pendentes.map(p => (
-              <div key={p.id} className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-4">
-                <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center shrink-0"><Users size={18} className="text-amber-600"/></div>
+              <div key={p.id} className="bg-primary-50 border border-primary-200 rounded-xl p-4 flex items-center gap-4">
+                <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center shrink-0"><Users size={18} className="text-primary-600"/></div>
                 <div className="flex-1 min-w-0">
                   <NomeEditor p={p}/>
                   <p className="text-xs text-slate-500">{p.email}</p>
@@ -314,12 +314,12 @@ export function UsuariosPage() {
         </h2>
         <div className="space-y-2">
           {/* Você */}
-          <div className="bg-white border border-amber-200 rounded-xl p-4 flex items-center gap-4">
-            <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center shrink-0"><Crown size={18} className="text-amber-600"/></div>
+          <div className="bg-white border border-primary-200 rounded-xl p-4 flex items-center gap-4">
+            <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center shrink-0"><Crown size={18} className="text-primary-600"/></div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <p className="font-semibold text-slate-800 text-sm">{perfilAtual.nome || 'Você'}</p>
-                <span className="text-xs px-2 py-0.5 rounded-full border font-medium flex items-center gap-1 bg-amber-100 text-amber-700 border-amber-200"><Crown size={11}/> ADMIN</span>
+                <span className="text-xs px-2 py-0.5 rounded-full border font-medium flex items-center gap-1 bg-primary-100 text-primary-700 border-primary-200"><Crown size={11}/> ADMIN</span>
               </div>
               <p className="text-xs text-slate-500">{perfilAtual.email}</p>
             </div>
@@ -331,7 +331,7 @@ export function UsuariosPage() {
             return (
               <div key={p.id} className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-4 hover:border-slate-300 transition-all">
                 <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center shrink-0">
-                  {p.role === 'ADMIN' ? <Crown size={18} className="text-amber-500"/>
+                  {p.role === 'ADMIN' ? <Crown size={18} className="text-primary-500"/>
                   : p.role === 'GESTOR' ? <Briefcase size={18} className="text-purple-500"/>
                   : <HardHat size={18} className="text-blue-500"/>}
                 </div>
@@ -355,7 +355,7 @@ export function UsuariosPage() {
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="relative">
                     <select value={p.role} onChange={e => handleAlterarRole(p, e.target.value as RolePerfil)}
-                      className={`text-xs px-2 py-1.5 rounded-lg border font-medium appearance-none pr-6 cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-400 ${roleBadge(p.role)}`}>
+                      className={`text-xs px-2 py-1.5 rounded-lg border font-medium appearance-none pr-6 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-400 ${roleBadge(p.role)}`}>
                       <option value="ENGENHEIRO">🏗 Engenheiro</option>
                       <option value="GESTOR">💼 Gestor</option>
                       <option value="APONTADOR">📋 Apontador</option>

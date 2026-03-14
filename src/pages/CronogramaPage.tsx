@@ -49,13 +49,13 @@ export function CronogramaPage() {
   return (
     <div className="p-6 max-w-5xl overflow-y-auto" style={{ height: '100%' }}>
       <div className="flex items-center justify-between mb-6">
-        <div><h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><GitBranch size={24} className="text-amber-500"/> Cronograma</h1>
+        <div><h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><GitBranch size={24} className="text-primary-500"/> Cronograma</h1>
           <p className="text-sm text-slate-500">Marcos, etapas e prazos das obras</p></div>
         <div className="flex gap-2">
           <select value={filtroObra} onChange={e => setFiltroObra(e.target.value)} className="border border-slate-200 rounded-lg px-3 py-2 text-xs bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white">
             <option value="">Todas as obras</option>{obras.map(o => <option key={o.id} value={o.id}>{o.nome_obra}</option>)}</select>
           {filtroObra && <button onClick={() => { setEditId(null); setFTitulo(''); setFDesc(''); setFTipo('ETAPA'); setFPrevista(''); setFRealizada(''); setFPercPrev(0); setFPercReal(0); setShowForm(true) }}
-            className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm"><Plus size={14}/> Novo Marco</button>}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm"><Plus size={14}/> Novo Marco</button>}
         </div>
       </div>
 
@@ -117,7 +117,7 @@ export function CronogramaPage() {
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowForm(false)} className="px-4 py-2 border border-slate-200 rounded-lg text-sm">Cancelar</button>
-              <button onClick={salvar} disabled={saving} className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm">{saving ? 'Salvando...' : 'Salvar'}</button>
+              <button onClick={salvar} disabled={saving} className="px-5 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm">{saving ? 'Salvando...' : 'Salvar'}</button>
             </div>
           </div>
         </div>

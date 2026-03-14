@@ -105,18 +105,18 @@ export function DiarioObraPage() {
     return list
   }, [diarios, filtroObra, filtroBusca, obraMap])
 
-  const ClimaBtn = ({ val, selected, onClick }: any) => { const Icon = CLIMA_ICON[val] || Sun; return (<button type="button" onClick={() => onClick(val)} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-all ${selected === val ? 'bg-amber-500 text-white border-amber-500' : 'bg-white border-slate-200 text-slate-600'}`}><Icon size={14}/> {CLIMA_LABEL[val]}</button>) }
+  const ClimaBtn = ({ val, selected, onClick }: any) => { const Icon = CLIMA_ICON[val] || Sun; return (<button type="button" onClick={() => onClick(val)} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-all ${selected === val ? 'bg-primary-500 text-white border-primary-500' : 'bg-white border-slate-200 text-slate-600'}`}><Icon size={14}/> {CLIMA_LABEL[val]}</button>) }
 
   return (
     <div className="p-6 max-w-5xl overflow-y-auto" style={{ height: '100%' }}>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><BookOpen size={24} className="text-amber-500"/> Diário de Obra</h1>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><BookOpen size={24} className="text-primary-500"/> Diário de Obra</h1>
           <p className="text-sm text-slate-500">Registro diário de atividades, equipe e ocorrências</p>
         </div>
         <div className="flex gap-2">
           <button onClick={fetchAll} className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50"><RefreshCw size={14}/> Atualizar</button>
-          <button onClick={() => { resetForm(); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm"><Plus size={14}/> Novo Diário</button>
+          <button onClick={() => { resetForm(); setShowForm(true) }} className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm"><Plus size={14}/> Novo Diário</button>
         </div>
       </div>
 
@@ -132,7 +132,7 @@ export function DiarioObraPage() {
         </div>
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
           <p className="text-[10px] text-slate-400 uppercase font-semibold">Pendentes</p>
-          <p className="text-2xl font-bold text-amber-600">{filtrados.filter(d => !d.validado).length}</p>
+          <p className="text-2xl font-bold text-primary-600">{filtrados.filter(d => !d.validado).length}</p>
         </div>
       </div>
 
@@ -194,7 +194,7 @@ export function DiarioObraPage() {
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-700">
               <button onClick={() => setShowForm(false)} className="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600">Cancelar</button>
-              <button onClick={salvar} disabled={saving} className="flex items-center gap-2 px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm disabled:opacity-50">
+              <button onClick={salvar} disabled={saving} className="flex items-center gap-2 px-5 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm disabled:opacity-50">
                 {saving ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} {editId ? 'Atualizar' : 'Registrar'}
               </button>
             </div>
@@ -235,7 +235,7 @@ export function DiarioObraPage() {
                     </div>
                     {d.atividades && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">{d.atividades}</p>}
                   </div>
-                  {aberto ? <ChevronUp size={16} className="text-amber-500"/> : <ChevronDown size={16} className="text-slate-400"/>}
+                  {aberto ? <ChevronUp size={16} className="text-primary-500"/> : <ChevronDown size={16} className="text-slate-400"/>}
                 </div>
                 {aberto && (
                   <div className="border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 p-5 space-y-3">

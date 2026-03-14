@@ -209,7 +209,7 @@ export function DashboardPage() {
 
       {loading && indicadores.length === 0 ? (
         <div className="flex items-center justify-center py-20">
-          <RefreshCw size={24} className="animate-spin text-amber-500 mr-3"/>
+          <RefreshCw size={24} className="animate-spin text-primary-500 mr-3"/>
           <span className="text-slate-500">Carregando indicadores...</span>
         </div>
       ) : (
@@ -218,7 +218,7 @@ export function DashboardPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {[
               { label: 'Contratos Ativos', value: String(stats.contratosAtivos), icon: Building2, color: 'from-blue-500 to-blue-600', sub: `${contratos.length} total` },
-              { label: 'Obras em Andamento', value: String(stats.obrasAtivas), icon: HardHat, color: 'from-amber-500 to-amber-600', sub: `${indicadores.length} total` },
+              { label: 'Obras em Andamento', value: String(stats.obrasAtivas), icon: HardHat, color: 'from-primary-500 to-primary-600', sub: `${indicadores.length} total` },
               { label: 'Total Contratado', value: formatCurrency(stats.totalContratado), icon: DollarSign, color: 'from-emerald-500 to-emerald-600', sub: `${(stats.pctGeral * 100).toFixed(1)}% executado` },
               { label: 'Total Faturado', value: formatCurrency(stats.totalFaturado), icon: TrendingUp, color: 'from-purple-500 to-purple-600', sub: `Saldo: ${formatCurrency(stats.totalSaldo)}` },
             ].map(({ label, value, icon: Icon, color, sub }) => (
@@ -239,13 +239,13 @@ export function DashboardPage() {
           <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Activity size={16} className="text-amber-500"/>
+                <Activity size={16} className="text-primary-500"/>
                 <p className="font-bold text-sm text-slate-700">Execução Geral</p>
               </div>
-              <span className="text-lg font-bold text-amber-600">{(stats.pctGeral * 100).toFixed(1)}%</span>
+              <span className="text-lg font-bold text-primary-600">{(stats.pctGeral * 100).toFixed(1)}%</span>
             </div>
             <div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden">
-              <div className="h-4 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-1000"
+              <div className="h-4 rounded-full bg-gradient-to-r from-primary-400 to-primary-500 transition-all duration-1000"
                 style={{ width: `${Math.min(100, stats.pctGeral * 100)}%` }}/>
             </div>
             <div className="flex justify-between text-[10px] text-slate-400 mt-1.5">
@@ -260,7 +260,7 @@ export function DashboardPage() {
             <div className="lg:col-span-1">
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden h-full">
                 <div className="flex items-center gap-2 px-5 py-3 border-b border-slate-100 bg-slate-50">
-                  <AlertTriangle size={15} className="text-amber-500"/>
+                  <AlertTriangle size={15} className="text-primary-500"/>
                   <p className="font-bold text-sm text-slate-700">Alertas</p>
                   {alertas.length > 0 && (
                     <span className="ml-auto px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-[10px] font-bold">{alertas.length}</span>
@@ -278,10 +278,10 @@ export function DashboardPage() {
                         className={`flex items-start gap-2.5 px-4 py-3 border-b border-slate-50 cursor-pointer hover:bg-slate-50 transition-colors`}>
                         {a.tipo === 'erro'
                           ? <div className="w-2 h-2 rounded-full bg-red-500 mt-1.5 shrink-0"/>
-                          : <div className="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0"/>}
+                          : <div className="w-2 h-2 rounded-full bg-primary-400 mt-1.5 shrink-0"/>}
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold text-slate-700 truncate">{a.obra.obra.nome_obra}</p>
-                          <p className={`text-[10px] mt-0.5 ${a.tipo === 'erro' ? 'text-red-600' : 'text-amber-600'}`}>{a.texto}</p>
+                          <p className={`text-[10px] mt-0.5 ${a.tipo === 'erro' ? 'text-red-600' : 'text-primary-600'}`}>{a.texto}</p>
                           <p className="text-[9px] text-slate-400 mt-0.5">{a.obra.contrato.nome_obra}</p>
                         </div>
                         <ArrowRight size={12} className="text-slate-300 shrink-0 mt-1"/>
@@ -309,7 +309,7 @@ export function DashboardPage() {
                   ) : (
                     obrasOrdenadas.map(ind => {
                       const pct = Math.min(100, ind.percentual * 100)
-                      const barColor = pct >= 100 ? 'bg-emerald-500' : pct > 50 ? 'bg-blue-500' : pct > 0 ? 'bg-amber-500' : 'bg-slate-300'
+                      const barColor = pct >= 100 ? 'bg-emerald-500' : pct > 50 ? 'bg-blue-500' : pct > 0 ? 'bg-primary-500' : 'bg-slate-300'
                       return (
                         <div key={ind.obra.id} onClick={() => abrirObra(ind)}
                           className="flex items-center gap-4 px-5 py-3 border-b border-slate-50 cursor-pointer hover:bg-slate-50 transition-colors">
@@ -328,7 +328,7 @@ export function DashboardPage() {
                               <span className="text-[10px] text-slate-400">{ind.contrato.nome_obra}</span>
                               <span className="text-[10px] text-slate-400">{ind.numMedicoes} med.</span>
                               {ind.diasRestantes !== null && ind.diasRestantes <= 30 && (
-                                <span className={`text-[10px] font-bold ${ind.diasRestantes < 0 ? 'text-red-500' : 'text-amber-500'}`}>
+                                <span className={`text-[10px] font-bold ${ind.diasRestantes < 0 ? 'text-red-500' : 'text-primary-500'}`}>
                                   {ind.diasRestantes < 0 ? `${Math.abs(ind.diasRestantes)}d atrasada` : `${ind.diasRestantes}d restantes`}
                                 </span>
                               )}
@@ -368,7 +368,7 @@ export function DashboardPage() {
                     const pct = ind.percentual * 100
                     return (
                       <tr key={ind.obra.id} onClick={() => abrirObra(ind)}
-                        className="border-b border-slate-50 hover:bg-amber-50/30 cursor-pointer transition-colors">
+                        className="border-b border-slate-50 hover:bg-primary-50/30 cursor-pointer transition-colors">
                         <td className="px-4 py-2.5 font-medium text-slate-600 max-w-32 truncate">{ind.contrato.nome_obra}</td>
                         <td className="px-4 py-2.5 font-semibold text-slate-800 max-w-40 truncate">{ind.obra.nome_obra}</td>
                         <td className="px-4 py-2.5">
@@ -379,7 +379,7 @@ export function DashboardPage() {
                           }`}>{ind.obra.status}</span>
                         </td>
                         <td className="px-4 py-2.5 text-right font-medium">{formatCurrency(ind.totalOrcamento)}</td>
-                        <td className="px-4 py-2.5 text-right font-bold text-amber-600">{formatCurrency(ind.valorMedido)}</td>
+                        <td className="px-4 py-2.5 text-right font-bold text-primary-600">{formatCurrency(ind.valorMedido)}</td>
                         <td className="px-4 py-2.5 text-right">
                           <span className={ind.saldo < -0.01 ? 'text-red-600 font-bold' : 'text-slate-600'}>
                             {formatCurrency(ind.saldo)}
@@ -388,7 +388,7 @@ export function DashboardPage() {
                         <td className="px-4 py-2.5">
                           <div className="flex items-center gap-2">
                             <div className="w-16 bg-slate-100 rounded-full h-1.5">
-                              <div className={`h-1.5 rounded-full ${pct >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                              <div className={`h-1.5 rounded-full ${pct >= 100 ? 'bg-emerald-500' : 'bg-primary-500'}`}
                                 style={{ width: `${Math.min(100, pct)}%` }}/>
                             </div>
                             <span className="font-bold text-slate-700 w-10 text-right">{pct.toFixed(1)}%</span>
@@ -397,7 +397,7 @@ export function DashboardPage() {
                         <td className="px-4 py-2.5 text-center">{ind.numMedicoes}</td>
                         <td className="px-4 py-2.5 text-center">
                           {ind.diasRestantes === null ? '—' : (
-                            <span className={`font-bold ${ind.diasRestantes < 0 ? 'text-red-500' : ind.diasRestantes <= 30 ? 'text-amber-500' : 'text-slate-600'}`}>
+                            <span className={`font-bold ${ind.diasRestantes < 0 ? 'text-red-500' : ind.diasRestantes <= 30 ? 'text-primary-500' : 'text-slate-600'}`}>
                               {ind.diasRestantes}d
                             </span>
                           )}

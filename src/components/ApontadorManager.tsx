@@ -101,9 +101,9 @@ export function ApontadorManager() {
 
       {/* Vincular apontadores a obras */}
       {apontadores.length > 0 ? (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <p className="text-xs font-bold text-amber-800 mb-3 flex items-center gap-1.5"><Users size={14}/> Vincular apontadores a obras</p>
-          <p className="text-[10px] text-amber-600 mb-3">Selecione um apontador e marque as obras que ele pode acessar no app de campo.</p>
+        <div className="bg-primary-50 border border-primary-200 rounded-xl p-4">
+          <p className="text-xs font-bold text-primary-800 mb-3 flex items-center gap-1.5"><Users size={14}/> Vincular apontadores a obras</p>
+          <p className="text-[10px] text-primary-600 mb-3">Selecione um apontador e marque as obras que ele pode acessar no app de campo.</p>
 
           {/* Tabs de apontadores */}
           <div className="flex gap-2 mb-4 flex-wrap">
@@ -113,10 +113,10 @@ export function ApontadorManager() {
               return (
                 <button key={ap.id} onClick={() => setSelectedAp(active ? '' : ap.id)}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border transition-all ${
-                    active ? 'bg-amber-500 text-white border-amber-500 shadow-sm' : 'bg-white text-slate-700 border-slate-200 hover:border-amber-300'
+                    active ? 'bg-primary-500 text-white border-primary-500 shadow-sm' : 'bg-white text-slate-700 border-slate-200 hover:border-primary-300'
                   }`}>
                   <span>{ap.nome || ap.email}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${active ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'}`}>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${active ? 'bg-white/20 text-white' : 'bg-primary-100 text-primary-700'}`}>
                     {qtd} obra{qtd !== 1 ? 's' : ''}
                   </span>
                 </button>
@@ -142,10 +142,10 @@ export function ApontadorManager() {
                   return (
                     <label key={o.id}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-xs transition-all border ${
-                        checked ? 'bg-amber-100 border-amber-300 text-amber-800' : 'bg-white border-slate-200 text-slate-600 hover:border-amber-200 hover:bg-amber-50/50'
+                        checked ? 'bg-primary-100 border-primary-300 text-primary-800' : 'bg-white border-slate-200 text-slate-600 hover:border-primary-200 hover:bg-primary-50/50'
                       }`}>
                       <input type="checkbox" checked={checked} onChange={() => toggleVinculo(selectedAp, o.id)}
-                        className="w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 shrink-0"/>
+                        className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 shrink-0"/>
                       <span className="font-medium truncate">{o.nome_obra}</span>
                     </label>
                   )
@@ -155,7 +155,7 @@ export function ApontadorManager() {
           )}
 
           {!selectedAp && (
-            <div className="text-center py-6 text-xs text-amber-600/60">Selecione um apontador acima para gerenciar as obras</div>
+            <div className="text-center py-6 text-xs text-primary-600/60">Selecione um apontador acima para gerenciar as obras</div>
           )}
         </div>
       ) : (

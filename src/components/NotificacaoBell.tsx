@@ -6,14 +6,14 @@ import { useNavigate } from 'react-router-dom'
 const ICONS: Record<string, React.ReactNode> = {
   info:    <Info size={14} className="text-blue-500"/>,
   sucesso: <CheckCircle2 size={14} className="text-emerald-500"/>,
-  alerta:  <AlertTriangle size={14} className="text-amber-500"/>,
+  alerta:  <AlertTriangle size={14} className="text-primary-500"/>,
   erro:    <XCircle size={14} className="text-red-500"/>,
 }
 
 const BG: Record<string, string> = {
   info:    'bg-blue-50 border-blue-200',
   sucesso: 'bg-emerald-50 border-emerald-200',
-  alerta:  'bg-amber-50 border-amber-200',
+  alerta:  'bg-primary-50 border-primary-200',
   erro:    'bg-red-50 border-red-200',
 }
 

@@ -32,9 +32,9 @@ interface OrcRevisao {
   obs_fiscal: string | null; data_retorno_fiscal: string | null
 }
 
-const URG = { BAIXA: 'bg-slate-100 text-slate-600', NORMAL: 'bg-blue-100 text-blue-700', ALTA: 'bg-amber-100 text-amber-700', URGENTE: 'bg-red-100 text-red-700' }
+const URG = { BAIXA: 'bg-slate-100 text-slate-600', NORMAL: 'bg-blue-100 text-blue-700', ALTA: 'bg-primary-100 text-primary-700', URGENTE: 'bg-red-100 text-red-700' }
 const ST = {
-  PENDENTE:        { label: 'Na fila',         color: 'bg-amber-100 text-amber-700 border-amber-200', icon: Clock },
+  PENDENTE:        { label: 'Na fila',         color: 'bg-primary-100 text-primary-700 border-primary-200', icon: Clock },
   EM_REVISAO:      { label: 'Em revisão',      color: 'bg-blue-100 text-blue-700 border-blue-200', icon: Eye },
   CONCLUIDO:       { label: 'Concluído',       color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
   RETORNO_FISCAL:  { label: 'Retorno Fiscal',  color: 'bg-purple-100 text-purple-700 border-purple-200', icon: CheckCircle2 },
@@ -183,13 +183,13 @@ export function OrcamentosSolicitarPage() {
         </div>
         <div className="flex gap-2">
           <button onClick={fetchOrcamentos} className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50"><RefreshCw size={14}/> Atualizar</button>
-          <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm"><Plus size={15}/> Nova Solicitação</button>
+          <button onClick={() => setShowForm(true)} className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm"><Plus size={15}/> Nova Solicitação</button>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
-        {[{ l: 'Na fila', v: pendentes.length, c: 'from-amber-500 to-amber-600', i: Clock },
+        {[{ l: 'Na fila', v: pendentes.length, c: 'from-primary-500 to-primary-600', i: Clock },
           { l: 'Em revisão', v: emRevisao.length, c: 'from-blue-500 to-blue-600', i: Eye },
           { l: 'Concluídos', v: concluidos.length, c: 'from-emerald-500 to-emerald-600', i: CheckCircle2 },
         ].map(({ l, v, c, i: Icon }) => (
@@ -202,8 +202,8 @@ export function OrcamentosSolicitarPage() {
 
       {/* Form */}
       {showForm && (
-        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 mb-6">
-          <p className="font-bold text-amber-800 mb-4">Nova Solicitação de Revisão</p>
+        <div className="bg-primary-50 border-2 border-primary-300 rounded-2xl p-5 mb-6">
+          <p className="font-bold text-primary-800 mb-4">Nova Solicitação de Revisão</p>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="col-span-2">
               <label className="text-xs font-semibold text-slate-600 block mb-1">Título *</label>
@@ -238,7 +238,7 @@ export function OrcamentosSolicitarPage() {
           </div>
           <div className="flex gap-3">
             <button onClick={() => setShowForm(false)} className="px-4 py-2 border border-slate-200 rounded-lg text-sm bg-white">Cancelar</button>
-            <button onClick={enviarSolicitacao} disabled={enviando} className="flex items-center gap-2 px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-sm disabled:opacity-50">
+            <button onClick={enviarSolicitacao} disabled={enviando} className="flex items-center gap-2 px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg text-sm disabled:opacity-50">
               {enviando ? <Loader2 size={14} className="animate-spin"/> : <Send size={14}/>} Enviar para Revisão
             </button>
           </div>
@@ -262,8 +262,8 @@ export function OrcamentosSolicitarPage() {
               <div key={orc.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
                 {/* Header */}
                 <div className="p-5 flex items-start gap-4 cursor-pointer" onClick={() => setDetalheId(aberto ? null : orc.id)}>
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${orc.status==='CONCLUIDO'?'bg-emerald-100':orc.status==='EM_REVISAO'?'bg-blue-100':'bg-amber-100'}`}>
-                    <Icon size={18} className={orc.status==='CONCLUIDO'?'text-emerald-600':orc.status==='EM_REVISAO'?'text-blue-600':'text-amber-600'}/>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${orc.status==='CONCLUIDO'?'bg-emerald-100':orc.status==='EM_REVISAO'?'bg-blue-100':'bg-primary-100'}`}>
+                    <Icon size={18} className={orc.status==='CONCLUIDO'?'text-emerald-600':orc.status==='EM_REVISAO'?'text-blue-600':'text-primary-600'}/>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -271,7 +271,7 @@ export function OrcamentosSolicitarPage() {
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${st.color}`}>{st.label}</span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${(URG as any)[orc.urgencia] || URG.NORMAL}`}>{orc.urgencia}</span>
                       {orc.status !== 'CONCLUIDO' && orc.status !== 'CANCELADO' && (
-                        <span className={`text-[10px] font-medium ${dias < 0 ? 'text-red-600' : dias <= 1 ? 'text-red-500' : dias <= 3 ? 'text-amber-600' : 'text-slate-400'}`}>
+                        <span className={`text-[10px] font-medium ${dias < 0 ? 'text-red-600' : dias <= 1 ? 'text-red-500' : dias <= 3 ? 'text-primary-600' : 'text-slate-400'}`}>
                           {dias < 0 ? `${Math.abs(dias)}d atrasado` : dias === 0 ? 'Vence hoje' : `${dias}d restantes`}
                         </span>
                       )}
@@ -348,11 +348,11 @@ export function OrcamentosSolicitarPage() {
                               <div key={i} className={`flex items-start gap-2 px-3 py-2 rounded-lg text-xs ${
                                 isRem ? 'bg-red-50 border border-red-100' :
                                 isAdd ? 'bg-emerald-50 border border-emerald-100' :
-                                isEdit ? 'bg-amber-50 border border-amber-100' :
+                                isEdit ? 'bg-primary-50 border border-primary-100' :
                                 'bg-slate-50 border border-slate-100'
                               }`}>
                                 <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold mt-0.5 ${
-                                  isRem ? 'bg-red-200 text-red-700' : isAdd ? 'bg-emerald-200 text-emerald-700' : isEdit ? 'bg-amber-200 text-amber-700' : 'bg-slate-200 text-slate-600'
+                                  isRem ? 'bg-red-200 text-red-700' : isAdd ? 'bg-emerald-200 text-emerald-700' : isEdit ? 'bg-primary-200 text-primary-700' : 'bg-slate-200 text-slate-600'
                                 }`}>{isRem ? '−' : isAdd ? '+' : '~'}</span>
                                 <p className="text-slate-700 leading-relaxed">{String(desc).replace(/^[✚✖✎]\s*/, '')}</p>
                               </div>
@@ -420,8 +420,8 @@ export function OrcamentosSolicitarPage() {
                                 const d = g.descricao || g
                                 const isR = String(d).startsWith('✖')
                                 return (
-                                  <div key={i} className={`flex items-start gap-2 px-2 py-1 rounded text-[10px] ${isR ? 'bg-red-50' : 'bg-amber-50'}`}>
-                                    <span className={`shrink-0 font-bold ${isR ? 'text-red-500' : 'text-amber-500'}`}>{isR ? '✖' : '✎'}</span>
+                                  <div key={i} className={`flex items-start gap-2 px-2 py-1 rounded text-[10px] ${isR ? 'bg-red-50' : 'bg-primary-50'}`}>
+                                    <span className={`shrink-0 font-bold ${isR ? 'text-red-500' : 'text-primary-500'}`}>{isR ? '✖' : '✎'}</span>
                                     <span className="text-slate-600">{String(d).replace(/^[✖✎]\s*/, '')}</span>
                                   </div>
                                 )
@@ -474,7 +474,7 @@ export function OrcamentosSolicitarPage() {
                   <p className="text-xs font-bold text-red-800 mb-1">Glosas Detectadas</p>
                   <div className="flex gap-3 text-[10px] mb-2">
                     <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">{fiscalComp.resumo.removidos} removido(s)</span>
-                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{fiscalComp.resumo.alterados} alterado(s)</span>
+                    <span className="px-2 py-0.5 rounded-full bg-primary-100 text-primary-700 font-medium">{fiscalComp.resumo.alterados} alterado(s)</span>
                   </div>
                 </div>
               )}

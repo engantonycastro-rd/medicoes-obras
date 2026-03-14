@@ -26,7 +26,7 @@ interface KanbanItem {
 const MESES = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
 const COLUNAS: { key: KanbanCard['status']; label: string; color: string; icon: any; bg: string }[] = [
-  { key: 'PLANEJADO',    label: 'Planejado',    color: 'text-amber-600',   icon: Clock,          bg: 'bg-amber-50 border-amber-200' },
+  { key: 'PLANEJADO',    label: 'Planejado',    color: 'text-primary-600',   icon: Clock,          bg: 'bg-primary-50 border-primary-200' },
   { key: 'EM_EXECUCAO',  label: 'Em Execução',  color: 'text-blue-600',    icon: Play,           bg: 'bg-blue-50 border-blue-200' },
   { key: 'CONFERENCIA',  label: 'Conferência',  color: 'text-purple-600',  icon: ClipboardCheck, bg: 'bg-purple-50 border-purple-200' },
   { key: 'CONCLUIDO',    label: 'Concluído',    color: 'text-emerald-600', icon: CheckCircle2,   bg: 'bg-emerald-50 border-emerald-200' },
@@ -149,7 +149,7 @@ export function KanbanObraPage() {
       <div className="p-8 text-center">
         <AlertCircle size={36} className="mx-auto text-slate-300 mb-3"/>
         <p className="text-slate-500">Selecione uma obra para acessar o planejamento</p>
-        <button onClick={() => navigate('/')} className="mt-3 px-4 py-2 bg-amber-500 text-white rounded-lg text-sm">Ir para Contratos</button>
+        <button onClick={() => navigate('/')} className="mt-3 px-4 py-2 bg-primary-500 text-white rounded-lg text-sm">Ir para Contratos</button>
       </div>
     )
   }
@@ -160,7 +160,7 @@ export function KanbanObraPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
-            <button onClick={() => navigate('/medicoes')} className="hover:text-amber-600 flex items-center gap-1"><ArrowLeft size={12}/> Medições</button>
+            <button onClick={() => navigate('/medicoes')} className="hover:text-primary-600 flex items-center gap-1"><ArrowLeft size={12}/> Medições</button>
             <span>›</span>
             <span>{obraAtiva.nome_obra}</span>
           </div>
@@ -168,15 +168,15 @@ export function KanbanObraPage() {
           <p className="text-sm text-slate-500">Kanban de planejamento quinzenal</p>
         </div>
         <button onClick={() => setShowNovoCard(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm shadow-sm">
+          className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm shadow-sm">
           <Plus size={15}/> Novo Planejamento
         </button>
       </div>
 
       {/* Modal novo card */}
       {showNovoCard && (
-        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 mb-6">
-          <p className="font-bold text-amber-800 mb-4">Novo Planejamento Quinzenal</p>
+        <div className="bg-primary-50 border-2 border-primary-300 rounded-2xl p-5 mb-6">
+          <p className="font-bold text-primary-800 mb-4">Novo Planejamento Quinzenal</p>
           <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
               <label className="text-xs font-semibold text-slate-600 block mb-1">Ano</label>
@@ -218,7 +218,7 @@ export function KanbanObraPage() {
               ))}
             </div>
             <button onClick={() => setNovoItens([...novoItens, ''])}
-              className="flex items-center gap-1 text-xs text-amber-600 hover:underline mt-2">
+              className="flex items-center gap-1 text-xs text-primary-600 hover:underline mt-2">
               <Plus size={12}/> Adicionar serviço
             </button>
           </div>
@@ -226,7 +226,7 @@ export function KanbanObraPage() {
           <div className="flex gap-3">
             <button onClick={() => setShowNovoCard(false)} className="px-4 py-2 border border-slate-200 rounded-lg text-sm bg-white">Cancelar</button>
             <button onClick={criarCard} disabled={criando}
-              className="flex items-center gap-2 px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-sm disabled:opacity-50">
+              className="flex items-center gap-2 px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg text-sm disabled:opacity-50">
               {criando ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Criar Planejamento
             </button>
           </div>
@@ -401,7 +401,7 @@ function AddItemInline({ cardId, onAdd }: { cardId: string; onAdd: (desc: string
   if (!adding) {
     return (
       <button onClick={() => setAdding(true)}
-        className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-amber-600 py-1">
+        className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-primary-600 py-1">
         <Plus size={10}/> Adicionar serviço
       </button>
     )

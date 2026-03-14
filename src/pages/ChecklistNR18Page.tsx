@@ -93,19 +93,19 @@ export function ChecklistNR18Page() {
   const categorias = useMemo(() => [...new Set(itensModelo.map(i => i.categoria))], [itensModelo])
   const filtrados = filtroObra === 'todas' ? checklists : checklists.filter(c => c.obra_id === filtroObra)
 
-  const scoreColor = (s: number) => s >= 80 ? 'text-emerald-600' : s >= 50 ? 'text-amber-600' : 'text-red-600'
-  const scoreBg = (s: number) => s >= 80 ? 'bg-emerald-50 border-emerald-200' : s >= 50 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'
+  const scoreColor = (s: number) => s >= 80 ? 'text-emerald-600' : s >= 50 ? 'text-primary-600' : 'text-red-600'
+  const scoreBg = (s: number) => s >= 80 ? 'bg-emerald-50 border-emerald-200' : s >= 50 ? 'bg-primary-50 border-primary-200' : 'bg-red-50 border-red-200'
 
   return (
     <div className="p-6 max-w-5xl overflow-y-auto" style={{ height: '100%' }}>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><Shield size={24} className="text-amber-500"/> Checklist NR-18</h1>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><Shield size={24} className="text-primary-500"/> Checklist NR-18</h1>
           <p className="text-sm text-slate-500">Segurança do trabalho — itens de conformidade</p>
         </div>
         <div className="flex gap-2">
           <button onClick={fetchAll} className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50"><RefreshCw size={14}/></button>
-          <button onClick={iniciarForm} className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm"><Plus size={14}/> Novo Checklist</button>
+          <button onClick={iniciarForm} className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm"><Plus size={14}/> Novo Checklist</button>
         </div>
       </div>
 
@@ -160,7 +160,7 @@ export function ChecklistNR18Page() {
                       <span>Por: {perfis[chk.preenchido_por] || '—'}</span>
                     </div>
                   </div>
-                  {aberto ? <ChevronUp size={16} className="text-amber-500"/> : <ChevronDown size={16} className="text-slate-400"/>}
+                  {aberto ? <ChevronUp size={16} className="text-primary-500"/> : <ChevronDown size={16} className="text-slate-400"/>}
                 </div>
                 {aberto && (
                   <div className="border-t p-4 bg-white/50 space-y-2">
@@ -200,7 +200,7 @@ export function ChecklistNR18Page() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-6 overflow-y-auto">
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl mx-4 mb-10">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
-              <h2 className="text-lg font-bold dark:text-white flex items-center gap-2"><Shield size={18} className="text-amber-500"/> Novo Checklist NR-18</h2>
+              <h2 className="text-lg font-bold dark:text-white flex items-center gap-2"><Shield size={18} className="text-primary-500"/> Novo Checklist NR-18</h2>
               <button onClick={() => setShowForm(false)} className="p-2 hover:bg-slate-100 rounded-lg"><X size={18}/></button>
             </div>
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
@@ -248,7 +248,7 @@ export function ChecklistNR18Page() {
               </p>
               <div className="flex gap-2">
                 <button onClick={() => setShowForm(false)} className="px-4 py-2 border border-slate-200 rounded-lg text-sm">Cancelar</button>
-                <button onClick={salvar} disabled={saving} className="flex items-center gap-2 px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm disabled:opacity-50">
+                <button onClick={salvar} disabled={saving} className="flex items-center gap-2 px-5 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm disabled:opacity-50">
                   {saving ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Salvar
                 </button>
               </div>

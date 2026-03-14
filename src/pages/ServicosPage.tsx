@@ -51,11 +51,11 @@ export function ServicosPage() {
   if (!obraAtiva || !contratoAtivo) {
     return (
       <div className="p-8">
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 flex items-center gap-4">
-          <AlertCircle size={24} className="text-amber-500 shrink-0" />
+        <div className="bg-primary-50 border border-primary-200 rounded-xl p-6 flex items-center gap-4">
+          <AlertCircle size={24} className="text-primary-500 shrink-0" />
           <div>
-            <p className="font-semibold text-amber-800">Nenhuma obra selecionada</p>
-            <p className="text-sm text-amber-600 mt-1">Vá em <strong>Contratos</strong>, expanda um contrato e clique em uma obra.</p>
+            <p className="font-semibold text-primary-800">Nenhuma obra selecionada</p>
+            <p className="text-sm text-primary-600 mt-1">Vá em <strong>Contratos</strong>, expanda um contrato e clique em uma obra.</p>
           </div>
         </div>
       </div>
@@ -72,7 +72,7 @@ export function ServicosPage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <p className="text-xs text-slate-400 mb-0.5">{contratoAtivo.nome_obra} › <span className="text-amber-600 font-medium">{obraAtiva.nome_obra}</span></p>
+          <p className="text-xs text-slate-400 mb-0.5">{contratoAtivo.nome_obra} › <span className="text-primary-600 font-medium">{obraAtiva.nome_obra}</span></p>
           <h1 className="text-2xl font-bold text-slate-800">Serviços do Orçamento</h1>
           <p className="text-slate-500 text-sm mt-1">Importe a planilha de orçamento para carregar os serviços</p>
         </div>
@@ -80,11 +80,11 @@ export function ServicosPage() {
           {lista.length > 0 && (
             <div className="text-right">
               <p className="text-xs text-slate-400">Total do Orçamento</p>
-              <p className="text-2xl font-bold text-amber-600">{formatCurrency(totalOrc)}</p>
+              <p className="text-2xl font-bold text-primary-600">{formatCurrency(totalOrc)}</p>
             </div>
           )}
           <button onClick={() => fileRef.current?.click()} disabled={importing}
-            className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm shadow-sm disabled:opacity-50">
+            className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm shadow-sm disabled:opacity-50">
             <Upload size={16} /> Importar Orçamento (.xlsx)
           </button>
           <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} className="hidden" />
@@ -99,20 +99,20 @@ export function ServicosPage() {
       )}
 
       {preview.length > 0 && (
-        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
+        <div className="mb-6 bg-primary-50 border border-primary-200 rounded-xl p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <FileSpreadsheet size={20} className="text-amber-600" />
+            <FileSpreadsheet size={20} className="text-primary-600" />
             <div>
-              <p className="font-semibold text-amber-800">{preview.length} itens importados — aguardando confirmação</p>
-              <p className="text-xs text-amber-600 mt-0.5">Ao confirmar, os serviços anteriores serão substituídos</p>
+              <p className="font-semibold text-primary-800">{preview.length} itens importados — aguardando confirmação</p>
+              <p className="text-xs text-primary-600 mt-0.5">Ao confirmar, os serviços anteriores serão substituídos</p>
             </div>
           </div>
           <div className="flex gap-3">
-            <button onClick={() => setPreview([])} className="px-4 py-2 border border-amber-300 text-amber-700 rounded-lg text-sm hover:bg-amber-100">
+            <button onClick={() => setPreview([])} className="px-4 py-2 border border-primary-300 text-primary-700 rounded-lg text-sm hover:bg-primary-100">
               Cancelar
             </button>
             <button onClick={handleSalvar} disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50">
+              className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50">
               <CheckCircle2 size={16} /> {saving ? 'Salvando...' : 'Confirmar Importação'}
             </button>
           </div>

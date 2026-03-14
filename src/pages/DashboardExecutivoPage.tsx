@@ -61,7 +61,7 @@ export function DashboardExecutivoPage() {
   return (
     <div className="p-6 overflow-y-auto" style={{ height: '100%' }}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><BarChart3 size={24} className="text-amber-500"/> Painel Executivo</h1>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><BarChart3 size={24} className="text-primary-500"/> Painel Executivo</h1>
         <p className="text-sm text-slate-500">Visão geral de contratos, obras e indicadores — RD Construtora</p>
       </div>
 
@@ -73,7 +73,7 @@ export function DashboardExecutivoPage() {
         <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-5 text-white">
           <HardHat size={20} className="opacity-60 mb-2"/><p className="text-3xl font-bold">{stats.obrasAtivas}</p><p className="text-xs opacity-80">Obras ativas <span className="text-white/60">de {stats.obras}</span></p>
         </div>
-        <div className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl p-5 text-white">
+        <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl p-5 text-white">
           <DollarSign size={20} className="opacity-60 mb-2"/><p className="text-2xl font-bold">{fmtM(stats.valorTotal)}</p><p className="text-xs opacity-80">Valor total contratos</p>
         </div>
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-5 text-white">
@@ -116,7 +116,7 @@ export function DashboardExecutivoPage() {
                     <span className="font-bold text-slate-800 dark:text-white shrink-0">{fmt(o.valorMedido)}</span>
                   </div>
                   <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-amber-500 rounded-full" style={{ width: `${(o.valorMedido / max) * 100}%` }}/>
+                    <div className="h-full bg-primary-500 rounded-full" style={{ width: `${(o.valorMedido / max) * 100}%` }}/>
                   </div>
                 </div>
               )
@@ -128,16 +128,16 @@ export function DashboardExecutivoPage() {
         {/* Contratos vencendo */}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5">
           <p className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-            <AlertTriangle size={14} className="text-amber-500"/> Contratos vencendo (60 dias)
+            <AlertTriangle size={14} className="text-primary-500"/> Contratos vencendo (60 dias)
           </p>
           <div className="space-y-2">
             {contratosVencendo.map((c: any) => {
               const dias = Math.ceil((new Date(c.data_validade).getTime() - Date.now()) / 86400000)
               const vencido = dias < 0
               return (
-                <div key={c.id} className={`flex items-center justify-between p-3 rounded-lg border ${vencido ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}>
+                <div key={c.id} className={`flex items-center justify-between p-3 rounded-lg border ${vencido ? 'bg-red-50 border-red-200' : 'bg-primary-50 border-primary-200'}`}>
                   <div><p className="text-xs font-bold text-slate-800">{c.nome_obra}</p><p className="text-[10px] text-slate-500">{new Date(c.data_validade + 'T12:00:00').toLocaleDateString('pt-BR')}</p></div>
-                  <span className={`text-xs font-bold ${vencido ? 'text-red-700' : 'text-amber-700'}`}>{vencido ? `Vencido há ${Math.abs(dias)}d` : `${dias} dias`}</span>
+                  <span className={`text-xs font-bold ${vencido ? 'text-red-700' : 'text-primary-700'}`}>{vencido ? `Vencido há ${Math.abs(dias)}d` : `${dias} dias`}</span>
                 </div>
               )
             })}

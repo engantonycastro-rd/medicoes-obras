@@ -371,7 +371,7 @@ function ImageCropper({ src, onConfirm, onCancel }: CropperProps) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
           <div className="flex items-center gap-2">
-            <Crop size={16} className="text-amber-600" />
+            <Crop size={16} className="text-primary-600" />
             <span className="font-semibold text-slate-800 text-sm">Recortar imagem</span>
           </div>
           <button onClick={onCancel} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500">
@@ -475,7 +475,7 @@ function ImageCropper({ src, onConfirm, onCancel }: CropperProps) {
             <button
               onClick={handleConfirm}
               disabled={!imgLoaded}
-              className="px-4 py-2 text-sm bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium disabled:opacity-50 flex items-center gap-1.5"
+              className="px-4 py-2 text-sm bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium disabled:opacity-50 flex items-center gap-1.5"
             >
               <Crop size={13}/> Aplicar Recorte
             </button>
@@ -535,7 +535,7 @@ function FotoCard({
         onDragOver={e => e.preventDefault()}
       >
         <div className="flex items-center justify-between px-2 pt-2 pb-1">
-          <span className="text-xs font-bold text-amber-600">Figura {idx + 1}</span>
+          <span className="text-xs font-bold text-primary-600">Figura {idx + 1}</span>
           {!isAprovada && (
             <div className="flex items-center gap-0.5">
               <button onClick={() => onMove(foto.id, -1)} disabled={idx === 0} className="p-0.5 rounded hover:bg-slate-100 disabled:opacity-30">
@@ -556,7 +556,7 @@ function FotoCard({
             <button
               onClick={() => setShowCropper(true)}
               title="Recortar imagem"
-              className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2.5 py-1 bg-black/60 hover:bg-amber-500 text-white text-xs rounded-full opacity-0 group-hover:opacity-100 transition-all"
+              className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2.5 py-1 bg-black/60 hover:bg-primary-500 text-white text-xs rounded-full opacity-0 group-hover:opacity-100 transition-all"
             >
               <Crop size={11}/> Recortar
             </button>
@@ -572,7 +572,7 @@ function FotoCard({
               onChange={e => setLegenda(e.target.value)}
               onBlur={() => onLegendaChange(foto.id, legenda)}
               placeholder="Legenda..."
-              className="w-full text-xs border-b border-transparent hover:border-slate-300 focus:border-amber-400 outline-none bg-transparent py-0.5"
+              className="w-full text-xs border-b border-transparent hover:border-slate-300 focus:border-primary-400 outline-none bg-transparent py-0.5"
             />
           )}
         </div>
@@ -758,11 +758,11 @@ export function RelatorioFotografico({ medicaoId, isAprovada }: Props) {
   }
 
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-4">
+    <div className="bg-primary-50 border border-primary-200 rounded-xl p-5 mb-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
             <Camera size={16} className="text-white" />
           </div>
           <div>
@@ -803,7 +803,7 @@ export function RelatorioFotografico({ medicaoId, isAprovada }: Props) {
           {!isAprovada && (
             <button
               onClick={() => fileRef.current?.click()}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-lg transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white text-xs font-medium rounded-lg transition-all"
             >
               <Plus size={13}/> Adicionar Foto
             </button>
@@ -826,9 +826,9 @@ export function RelatorioFotografico({ medicaoId, isAprovada }: Props) {
           onDrop={handleDrop}
           onDragOver={e => e.preventDefault()}
           onClick={() => fileRef.current?.click()}
-          className="border-2 border-dashed border-amber-300 rounded-xl p-8 text-center cursor-pointer hover:border-amber-500 hover:bg-amber-50 transition-all mb-4"
+          className="border-2 border-dashed border-primary-300 rounded-xl p-8 text-center cursor-pointer hover:border-primary-500 hover:bg-primary-50 transition-all mb-4"
         >
-          <Camera size={32} className="mx-auto text-amber-400 mb-2" />
+          <Camera size={32} className="mx-auto text-primary-400 mb-2" />
           <p className="text-sm font-medium text-slate-600">Arraste fotos aqui ou clique para selecionar</p>
           <p className="text-xs text-slate-400 mt-1">PNG, JPG, WEBP • múltiplas fotos permitidas • máx 5MB cada</p>
         </div>
@@ -836,7 +836,7 @@ export function RelatorioFotografico({ medicaoId, isAprovada }: Props) {
 
       {/* Preview de confirmação (foto única) */}
       {preview && (
-        <div className="mb-4 bg-white border border-amber-300 rounded-xl p-4">
+        <div className="mb-4 bg-white border border-primary-300 rounded-xl p-4">
           <p className="text-xs font-semibold text-slate-600 mb-3">Nova foto — adicione uma legenda:</p>
           <div className="flex gap-4">
             <img src={preview.base64} alt="preview" className="w-40 h-28 object-cover rounded-lg border border-slate-200 shrink-0" />
@@ -847,7 +847,7 @@ export function RelatorioFotografico({ medicaoId, isAprovada }: Props) {
                   value={preview.legenda}
                   onChange={e => setPreview(p => p ? { ...p, legenda: e.target.value } : null)}
                   placeholder="Ex: Parede após demolição — Item 2.1"
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
                   autoFocus
                   onKeyDown={e => { if (e.key === 'Enter') confirmarFoto() }}
                 />
@@ -862,7 +862,7 @@ export function RelatorioFotografico({ medicaoId, isAprovada }: Props) {
                 <button
                   onClick={confirmarFoto}
                   disabled={loading}
-                  className="flex items-center gap-2 px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-1.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-sm font-medium disabled:opacity-50"
                 >
                   {loading ? 'Salvando...' : 'Confirmar Foto'}
                 </button>
@@ -875,8 +875,8 @@ export function RelatorioFotografico({ medicaoId, isAprovada }: Props) {
       {/* Grid de fotos */}
       {localFotos.length === 0 && !preview ? (
         isAprovada && (
-          <div className="text-center py-8 border-2 border-dashed border-amber-200 rounded-xl">
-            <ImageOff size={28} className="mx-auto text-amber-400 mb-2" />
+          <div className="text-center py-8 border-2 border-dashed border-primary-200 rounded-xl">
+            <ImageOff size={28} className="mx-auto text-primary-400 mb-2" />
             <p className="text-slate-400 text-sm">Nenhuma foto registrada nesta medição</p>
           </div>
         )
@@ -887,7 +887,7 @@ export function RelatorioFotografico({ medicaoId, isAprovada }: Props) {
             <div
               onDrop={handleDrop}
               onDragOver={e => e.preventDefault()}
-              className="border border-dashed border-amber-300 rounded-lg px-4 py-2 text-center text-xs text-slate-400 mb-3 hover:border-amber-400 transition-all cursor-pointer"
+              className="border border-dashed border-primary-300 rounded-lg px-4 py-2 text-center text-xs text-slate-400 mb-3 hover:border-primary-400 transition-all cursor-pointer"
               onClick={() => fileRef.current?.click()}
             >
               + Arraste mais fotos aqui
@@ -922,7 +922,7 @@ export function RelatorioFotografico({ medicaoId, isAprovada }: Props) {
 
       {/* Prévia do relatório */}
       {mostraPrevia && localFotos.length > 0 && (
-        <div className="mt-6 border-t border-amber-200 pt-4">
+        <div className="mt-6 border-t border-primary-200 pt-4">
           <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 flex items-center gap-2">
             <Eye size={13}/> Prévia do Relatório
           </p>

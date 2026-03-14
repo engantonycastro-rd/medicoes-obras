@@ -169,7 +169,7 @@ export function ContratosPage() {
   }, [contratos, busca, estadoFiltro])
 
   const statusObraIcon = (s: string) => s === 'ATIVA' ? <CheckCircle2 size={12} className="text-emerald-500"/>
-    : s === 'SUSPENSA' ? <PauseCircle size={12} className="text-amber-500"/> : <CheckCircle2 size={12} className="text-slate-400"/>
+    : s === 'SUSPENSA' ? <PauseCircle size={12} className="text-primary-500"/> : <CheckCircle2 size={12} className="text-slate-400"/>
 
   const totalObras = Object.values(obrasPorContrato).reduce((s, o) => s + o.length, 0)
   const obrasAtivas = Object.values(obrasPorContrato).reduce((s, o) => s + o.filter(x => x.status === 'ATIVA').length, 0)
@@ -182,7 +182,7 @@ export function ContratosPage() {
           <p className="text-slate-500 text-sm mt-1">Expanda um contrato para gerenciar suas obras e medições</p>
         </div>
         <button onClick={() => { setEditandoContrato(null); setModalContrato(true) }}
-          className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm shadow-sm">
+          className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm shadow-sm">
           <Plus size={16}/> Novo Contrato
         </button>
       </div>
@@ -193,7 +193,7 @@ export function ContratosPage() {
           { label: 'Contratos', val: contratos.length, color: 'bg-blue-50 text-blue-600', icon: Building2 },
           { label: 'Obras criadas', val: totalObras, color: 'bg-slate-100 text-slate-600', icon: HardHat },
           { label: 'Obras ativas', val: obrasAtivas, color: 'bg-emerald-50 text-emerald-600', icon: CheckCircle2 },
-          { label: 'Ativos', val: contratos.filter(c=>c.status==='ATIVO').length, color: 'bg-amber-50 text-amber-600', icon: FolderOpen },
+          { label: 'Ativos', val: contratos.filter(c=>c.status==='ATIVO').length, color: 'bg-primary-50 text-primary-600', icon: FolderOpen },
         ].map(({ label, val, color, icon: Icon }) => (
           <div key={label} className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3">
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color}`}><Icon size={18}/></div>
@@ -207,7 +207,7 @@ export function ContratosPage() {
         <div className="relative flex-1">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
           <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar contrato, cidade..."
-            className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"/>
+            className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"/>
         </div>
         {estadosUnicos.length > 1 && (
           <select value={estadoFiltro} onChange={e => setEstadoFiltro(e.target.value)}
@@ -226,7 +226,7 @@ export function ContratosPage() {
           <Building2 size={36} className="mx-auto text-slate-300 mb-3"/>
           <p className="text-slate-500 font-medium">Nenhum contrato encontrado</p>
           <button onClick={() => { setEditandoContrato(null); setModalContrato(true) }}
-            className="mt-3 px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium">Criar primeiro contrato</button>
+            className="mt-3 px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium">Criar primeiro contrato</button>
         </div>
       ) : (
         <div className="space-y-3">
@@ -242,8 +242,8 @@ export function ContratosPage() {
             return (
               <div key={contrato.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                 <div onClick={() => toggleExpandir(contrato.id)} className="p-5 flex items-center gap-4 cursor-pointer hover:bg-slate-50 transition-colors">
-                  <div className="w-11 h-11 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
-                    <Building2 size={20} className="text-amber-600"/>
+                  <div className="w-11 h-11 bg-primary-100 rounded-xl flex items-center justify-center shrink-0">
+                    <Building2 size={20} className="text-primary-600"/>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -260,7 +260,7 @@ export function ContratosPage() {
                         </span>
                       )}
                       {diasValidade !== null && diasValidade <= 30 && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${diasValidade <= 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${diasValidade <= 0 ? 'bg-red-100 text-red-700' : 'bg-primary-100 text-primary-700'}`}>
                           {diasValidade <= 0 ? 'VENCIDO' : `${diasValidade}d p/ vencer`}
                         </span>
                       )}
@@ -280,13 +280,13 @@ export function ContratosPage() {
                       <div className="mt-2">
                         <div className="flex items-center justify-between text-[10px] mb-0.5">
                           <span className="text-slate-400">Consumo: <strong className="text-slate-600">{formatCurrency(consumido)}</strong> de {formatCurrency(valorContrato)}</span>
-                          <span className={`font-bold ${pctConsumo > 90 ? 'text-red-600' : pctConsumo > 70 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                          <span className={`font-bold ${pctConsumo > 90 ? 'text-red-600' : pctConsumo > 70 ? 'text-primary-600' : 'text-emerald-600'}`}>
                             {pctConsumo.toFixed(1)}%
                           </span>
                         </div>
                         <div className="w-full bg-slate-100 rounded-full h-2">
                           <div className={`h-2 rounded-full transition-all ${
-                            pctConsumo > 90 ? 'bg-red-500' : pctConsumo > 70 ? 'bg-amber-500' : 'bg-emerald-500'
+                            pctConsumo > 90 ? 'bg-red-500' : pctConsumo > 70 ? 'bg-primary-500' : 'bg-emerald-500'
                           }`} style={{ width: `${Math.min(pctConsumo, 100)}%` }}/>
                         </div>
                         <div className="flex items-center justify-between text-[10px] mt-0.5">
@@ -307,7 +307,7 @@ export function ContratosPage() {
                       <button onClick={e => handleDeletarContrato(e, contrato.id)}
                         className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50"><Trash2 size={15}/></button>
                     </>}
-                    {expandido ? <ChevronDown size={18} className="text-amber-500 ml-1"/> : <ChevronRight size={18} className="text-slate-400 ml-1"/>}
+                    {expandido ? <ChevronDown size={18} className="text-primary-500 ml-1"/> : <ChevronRight size={18} className="text-slate-400 ml-1"/>}
                   </div>
                 </div>
 
@@ -319,7 +319,7 @@ export function ContratosPage() {
                         <HardHat size={12}/> Obras do Contrato
                       </p>
                       <button onClick={() => setModalObra({ contratoId: contrato.id })}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-lg">
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white text-xs font-medium rounded-lg">
                         <Plus size={12}/> Nova Obra
                       </button>
                     </div>
@@ -334,7 +334,7 @@ export function ContratosPage() {
                         {obsContrato.map((obra, idx) => (
                           <div key={obra.id} onClick={() => abrirObra(contrato, obra)}
                             className="px-5 py-4 flex items-center gap-4 cursor-pointer hover:bg-white transition-colors group">
-                            <div className="w-9 h-9 bg-white border border-slate-200 rounded-lg flex items-center justify-center shrink-0 group-hover:border-amber-300">
+                            <div className="w-9 h-9 bg-white border border-slate-200 rounded-lg flex items-center justify-center shrink-0 group-hover:border-primary-300">
                               <HardHat size={16} className="text-slate-500"/>
                             </div>
                             <div className="flex-1 min-w-0">
@@ -342,7 +342,7 @@ export function ContratosPage() {
                                 <p className="font-semibold text-slate-800 text-sm truncate">{obra.nome_obra}</p>
                                 <span className={`flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full font-medium ${
                                   obra.status === 'ATIVA' ? 'bg-emerald-100 text-emerald-700' :
-                                  obra.status === 'SUSPENSA' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
+                                  obra.status === 'SUSPENSA' ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-600'
                                 }`}>{statusObraIcon(obra.status)} {obra.status}</span>
                                 {obra.centro_custo && <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded font-mono">CC: {obra.centro_custo}</span>}
                               </div>
@@ -351,7 +351,7 @@ export function ContratosPage() {
                                 <span>Desc: {(obra.desconto_percentual*100).toFixed(2)}%</span>
                                 <span>BDI: {(obra.bdi_percentual*100).toFixed(2)}%</span>
                                 {valorPorObra[obra.id] > 0 && (
-                                  <span className="font-medium text-amber-600">OS: {formatCurrency(valorPorObra[obra.id])}</span>
+                                  <span className="font-medium text-primary-600">OS: {formatCurrency(valorPorObra[obra.id])}</span>
                                 )}
                               </div>
                             </div>
@@ -383,7 +383,7 @@ export function ContratosPage() {
                                 className="p-1.5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50"><Pencil size={14}/></button>
                               <button onClick={e => handleDeletarObra(e, obra)}
                                 className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50"><Trash2 size={14}/></button>
-                              <ChevronRight size={16} className="text-slate-300 group-hover:text-amber-400 ml-1"/>
+                              <ChevronRight size={16} className="text-slate-300 group-hover:text-primary-400 ml-1"/>
                             </div>
                           </div>
                         ))}
@@ -422,8 +422,8 @@ export function ContratosPage() {
             <div className="p-5 space-y-2 max-h-60 overflow-auto">
               {contratos.filter(c => c.id !== moverModal.contratoAtual).map(c => (
                 <button key={c.id} onClick={() => confirmarMoverObra(c.id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 border border-slate-200 rounded-lg hover:border-amber-300 hover:bg-amber-50 transition-all text-left">
-                  <Building2 size={16} className="text-amber-500 shrink-0"/>
+                  className="w-full flex items-center gap-3 px-4 py-3 border border-slate-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-all text-left">
+                  <Building2 size={16} className="text-primary-500 shrink-0"/>
                   <div>
                     <p className="text-sm font-medium text-slate-800">{c.nome_obra}</p>
                     <p className="text-[10px] text-slate-400">{c.estado ? `${c.cidade||''} ${c.estado}` : c.local_obra} • {(obrasPorContrato[c.id]||[]).length} obras</p>

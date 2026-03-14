@@ -17,7 +17,7 @@ interface AuditEntry {
 
 const TABELA_CONFIG: Record<string, { label: string; icon: any; color: string }> = {
   contratos:          { label: 'Contrato',       icon: Building2,       color: 'bg-blue-100 text-blue-700' },
-  obras:              { label: 'Obra',            icon: HardHat,         color: 'bg-amber-100 text-amber-700' },
+  obras:              { label: 'Obra',            icon: HardHat,         color: 'bg-primary-100 text-primary-700' },
   medicoes:           { label: 'Medição',         icon: FileText,        color: 'bg-emerald-100 text-emerald-700' },
   linhas_memoria:     { label: 'Linha Memória',   icon: ClipboardList,   color: 'bg-slate-100 text-slate-600' },
   orcamentos_revisao: { label: 'Orçamento',       icon: FileSpreadsheet, color: 'bg-purple-100 text-purple-700' },
@@ -26,7 +26,7 @@ const TABELA_CONFIG: Record<string, { label: string; icon: any; color: string }>
 
 const ACAO_CONFIG: Record<string, { label: string; icon: any; color: string }> = {
   INSERT: { label: 'Criado',    icon: Plus,   color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  UPDATE: { label: 'Alterado',  icon: Edit3,  color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  UPDATE: { label: 'Alterado',  icon: Edit3,  color: 'bg-primary-100 text-primary-700 border-primary-200' },
   DELETE: { label: 'Excluído',  icon: Trash2, color: 'bg-red-100 text-red-700 border-red-200' },
 }
 
@@ -153,7 +153,7 @@ export function AuditoriaPage() {
     <div className="p-6 max-w-5xl overflow-y-auto" style={{ height: '100%' }}>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><History size={24} className="text-amber-500"/> Histórico & Auditoria</h1>
+          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><History size={24} className="text-primary-500"/> Histórico & Auditoria</h1>
           <p className="text-sm text-slate-500">Registro de todas as ações no sistema</p>
         </div>
         <button onClick={() => fetchEntries(0)} className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-sm hover:bg-slate-50">
@@ -165,7 +165,7 @@ export function AuditoriaPage() {
       <div className="flex items-center gap-3 mb-5 flex-wrap">
         <span className="text-xs text-slate-500">{total} registros</span>
         <span className="text-xs px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full">{stats.inserts} criações</span>
-        <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">{stats.updates} alterações</span>
+        <span className="text-xs px-2 py-0.5 bg-primary-100 text-primary-700 rounded-full">{stats.updates} alterações</span>
         <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full">{stats.deletes} exclusões</span>
         {[...stats.tabelas.entries()].map(([tab, n]) => {
           const cfg = TABELA_CONFIG[tab]

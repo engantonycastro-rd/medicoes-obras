@@ -35,7 +35,7 @@ interface Perfil { id: string; nome: string | null; email: string }
 
 const URG: Record<string, { label: string; color: string; ordem: number }> = {
   URGENTE: { label: 'Urgente', color: 'bg-red-100 text-red-700', ordem: 0 },
-  ALTA:    { label: 'Alta', color: 'bg-amber-100 text-amber-700', ordem: 1 },
+  ALTA:    { label: 'Alta', color: 'bg-primary-100 text-primary-700', ordem: 1 },
   NORMAL:  { label: 'Normal', color: 'bg-blue-100 text-blue-700', ordem: 2 },
   BAIXA:   { label: 'Baixa', color: 'bg-slate-100 text-slate-600', ordem: 3 },
 }
@@ -269,13 +269,13 @@ export function OrcamentosSetorPage() {
       {/* Abas */}
       <div className="grid grid-cols-4 gap-3 mb-6">
         {[
-          { key: 'PENDENTE', label: 'Na fila', val: pendentes.length, color: 'from-amber-500 to-amber-600', icon: Clock, alert: pendentes.filter(p => diasAte(p.prazo_retorno) <= 2).length },
+          { key: 'PENDENTE', label: 'Na fila', val: pendentes.length, color: 'from-primary-500 to-primary-600', icon: Clock, alert: pendentes.filter(p => diasAte(p.prazo_retorno) <= 2).length },
           { key: 'EM_REVISAO', label: 'Em revisão', val: emRevisao.length, color: 'from-blue-500 to-blue-600', icon: Eye },
           { key: 'CONCLUIDO', label: 'Concluídos', val: concluidos.length, color: 'from-emerald-500 to-emerald-600', icon: CheckCircle2 },
           { key: 'RELATORIO', label: 'Relatórios', val: null, color: 'from-purple-500 to-purple-600', icon: BarChart3 },
         ].map(({ key, label, val, color, icon: Icon, alert }) => (
           <button key={key} onClick={() => setAbaAtiva(key as any)}
-            className={`bg-white rounded-xl border-2 p-4 text-left transition-all ${abaAtiva === key ? 'border-amber-400 shadow-md' : 'border-slate-200 hover:border-slate-300'}`}>
+            className={`bg-white rounded-xl border-2 p-4 text-left transition-all ${abaAtiva === key ? 'border-primary-400 shadow-md' : 'border-slate-200 hover:border-slate-300'}`}>
             <div className="flex items-center justify-between">
               <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center shadow-sm`}><Icon size={18} className="text-white"/></div>
               {alert && alert > 0 && <span className="text-[10px] px-1.5 py-0.5 bg-red-100 text-red-700 rounded-full font-bold">{alert} urg.</span>}
@@ -299,7 +299,7 @@ export function OrcamentosSetorPage() {
               <option value="todos">Todos os orçamentos</option>
               {concluidos.map(o => <option key={o.id} value={o.id}>{o.titulo}</option>)}
             </select>
-            {(relDataInicio || relDataFim || relOrcFiltro !== 'todos') && <button onClick={() => { setRelDataInicio(''); setRelDataFim(''); setRelOrcFiltro('todos') }} className="text-[10px] text-amber-600 hover:underline">Limpar filtros</button>}
+            {(relDataInicio || relDataFim || relOrcFiltro !== 'todos') && <button onClick={() => { setRelDataInicio(''); setRelDataFim(''); setRelOrcFiltro('todos') }} className="text-[10px] text-primary-600 hover:underline">Limpar filtros</button>}
             <div className="ml-auto">
               <button onClick={exportarRelatorio} disabled={relConcluidos.length === 0}
                 className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg text-sm shadow-sm disabled:opacity-40">
@@ -434,7 +434,7 @@ export function OrcamentosSetorPage() {
                 const dias = diasAte(orc.prazo_retorno)
                 const meuRevisor = orc.revisor_id === perfilAtual?.id
                 return (
-                  <div key={orc.id} className={`bg-white border rounded-xl p-5 ${dias <= 1 && orc.status !== 'CONCLUIDO' ? 'border-red-300' : dias <= 3 && orc.status !== 'CONCLUIDO' ? 'border-amber-200' : 'border-slate-200'}`}>
+                  <div key={orc.id} className={`bg-white border rounded-xl p-5 ${dias <= 1 && orc.status !== 'CONCLUIDO' ? 'border-red-300' : dias <= 3 && orc.status !== 'CONCLUIDO' ? 'border-primary-200' : 'border-slate-200'}`}>
                     <div className="flex items-start gap-4">
                       <div className="text-center shrink-0">
                         <p className="text-[10px] text-slate-400 font-semibold">FILA</p>
@@ -445,7 +445,7 @@ export function OrcamentosSetorPage() {
                           <h3 className="font-bold text-slate-800 text-sm">{orc.titulo}</h3>
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${urg.color}`}>{urg.label}</span>
                           {orc.status !== 'CONCLUIDO' && (
-                            <span className={`text-[10px] font-bold flex items-center gap-1 ${dias < 0 ? 'text-red-600' : dias <= 1 ? 'text-red-500' : dias <= 3 ? 'text-amber-600' : 'text-slate-400'}`}>
+                            <span className={`text-[10px] font-bold flex items-center gap-1 ${dias < 0 ? 'text-red-600' : dias <= 1 ? 'text-red-500' : dias <= 3 ? 'text-primary-600' : 'text-slate-400'}`}>
                               <Calendar size={10}/> {dias < 0 ? `${Math.abs(dias)}d ATRASADO` : dias === 0 ? 'VENCE HOJE' : `${dias}d`}
                             </span>
                           )}
@@ -499,8 +499,8 @@ export function OrcamentosSetorPage() {
                                     const d = item.descricao || item
                                     const isA = String(d).startsWith('✚'), isR = String(d).startsWith('✖'), isE = String(d).startsWith('✎')
                                     return (
-                                      <div key={i} className={`flex items-start gap-2 px-2 py-1 rounded text-[10px] ${isR ? 'bg-red-50' : isA ? 'bg-emerald-50' : isE ? 'bg-amber-50' : 'bg-slate-50'}`}>
-                                        <span className={`shrink-0 font-bold ${isR ? 'text-red-500' : isA ? 'text-emerald-500' : 'text-amber-500'}`}>{isR ? '−' : isA ? '+' : '~'}</span>
+                                      <div key={i} className={`flex items-start gap-2 px-2 py-1 rounded text-[10px] ${isR ? 'bg-red-50' : isA ? 'bg-emerald-50' : isE ? 'bg-primary-50' : 'bg-slate-50'}`}>
+                                        <span className={`shrink-0 font-bold ${isR ? 'text-red-500' : isA ? 'text-emerald-500' : 'text-primary-500'}`}>{isR ? '−' : isA ? '+' : '~'}</span>
                                         <span className="text-slate-600">{String(d).replace(/^[✚✖✎]\s*/, '')}</span>
                                       </div>
                                     )
@@ -616,7 +616,7 @@ export function OrcamentosSetorPage() {
                   <p className="text-xs font-bold text-blue-800 mb-2">Comparativo Automático <span className="font-normal text-blue-500">({autoComp.modo === 'EXCEL' ? 'célula por célula' : 'texto PDF'})</span></p>
                   <div className="flex gap-3 text-xs mb-2">
                     <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium"><Minus size={10} className="inline"/> {autoComp.resumo.removidos} removido(s)</span>
-                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium"><Edit3 size={10} className="inline"/> {autoComp.resumo.alterados} alterado(s)</span>
+                    <span className="px-2 py-0.5 rounded-full bg-primary-100 text-primary-700 font-medium"><Edit3 size={10} className="inline"/> {autoComp.resumo.alterados} alterado(s)</span>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium"><Plus size={10} className="inline"/> {autoComp.resumo.adicionados} adicionado(s)</span>
                   </div>
                 </div>
@@ -628,12 +628,12 @@ export function OrcamentosSetorPage() {
                     <div key={i} className="flex items-start gap-2">
                       <span className="text-[10px] text-slate-400 shrink-0 mt-2">{i+1}.</span>
                       <input value={item} onChange={e => { const n = [...cComparativo]; n[i] = e.target.value; setCComparativo(n) }} placeholder="Ex: Corrigido quantitativo item 3.2.1"
-                        className={`flex-1 border rounded-lg px-3 py-1.5 text-xs ${item.startsWith('✖')?'border-red-200 bg-red-50/50':item.startsWith('✚')?'border-emerald-200 bg-emerald-50/50':item.startsWith('✎')?'border-amber-200 bg-amber-50/50':'border-slate-200'}`}/>
+                        className={`flex-1 border rounded-lg px-3 py-1.5 text-xs ${item.startsWith('✖')?'border-red-200 bg-red-50/50':item.startsWith('✚')?'border-emerald-200 bg-emerald-50/50':item.startsWith('✎')?'border-primary-200 bg-primary-50/50':'border-slate-200'}`}/>
                       {cComparativo.length > 1 && <button onClick={() => setCComparativo(cComparativo.filter((_, j) => j !== i))} className="p-1 text-slate-300 hover:text-red-500 mt-1"><Minus size={12}/></button>}
                     </div>
                   ))}
                 </div>
-                <button onClick={() => setCComparativo([...cComparativo, ''])} className="flex items-center gap-1 text-[10px] text-amber-600 hover:underline mt-2"><Plus size={10}/> Adicionar</button>
+                <button onClick={() => setCComparativo([...cComparativo, ''])} className="flex items-center gap-1 text-[10px] text-primary-600 hover:underline mt-2"><Plus size={10}/> Adicionar</button>
               </div>
 
               <div><label className="text-xs font-semibold text-slate-600 block mb-1">Observações gerais</label>

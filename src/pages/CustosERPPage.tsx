@@ -22,7 +22,7 @@ interface CustoRow {
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   PAGO:      { label: 'Pago',        color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  PENDENTE:  { label: 'Pendente',    color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  PENDENTE:  { label: 'Pendente',    color: 'bg-primary-100 text-primary-700 border-primary-200' },
   VENCIDO:   { label: 'Vencido',     color: 'bg-red-100 text-red-700 border-red-200' },
   VENCENDO:  { label: 'Vencendo',    color: 'bg-orange-100 text-orange-700 border-orange-200' },
   CANCELADO: { label: 'Cancelado',   color: 'bg-slate-100 text-slate-500 border-slate-200' },
@@ -264,7 +264,7 @@ export function CustosERPPage() {
           </button>
           {isAdmin && (
             <button onClick={() => fileRef.current?.click()} disabled={importing}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm shadow-sm">
+              className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm shadow-sm">
               <Upload size={15}/> Importar Excel RM
             </button>
           )}
@@ -274,11 +274,11 @@ export function CustosERPPage() {
 
       {/* ═══ PREVIEW ═══ */}
       {preview.length > 0 && previewStats && (
-        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 mb-6">
+        <div className="bg-primary-50 border-2 border-primary-300 rounded-2xl p-5 mb-6">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="font-bold text-amber-800">{previewStats.total} registros detectados</p>
-              <p className="text-xs text-amber-600 mt-0.5">
+              <p className="font-bold text-primary-800">{previewStats.total} registros detectados</p>
+              <p className="text-xs text-primary-600 mt-0.5">
                 {previewStats.ccs} centro(s) de custo encontrado(s) •
                 <span className="text-emerald-600 font-semibold"> {previewStats.matched} com obra vinculada</span>
                 {previewStats.unmatched > 0 && <span className="text-red-600 font-semibold"> • {previewStats.unmatched} sem obra (serão ignorados)</span>}
@@ -287,7 +287,7 @@ export function CustosERPPage() {
             <div className="flex items-center gap-3">
               <button onClick={() => setPreview([])} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white">Cancelar</button>
               <button onClick={confirmarImport} disabled={importing}
-                className="flex items-center gap-2 px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-sm disabled:opacity-50">
+                className="flex items-center gap-2 px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg text-sm disabled:opacity-50">
                 {importing ? <Loader2 size={14} className="animate-spin"/> : <CheckCircle2 size={14}/>}
                 Importar e Distribuir
               </button>
@@ -295,7 +295,7 @@ export function CustosERPPage() {
           </div>
 
           {/* Mapa CC → Obra */}
-          <div className="bg-white rounded-lg border border-amber-200 p-3 mb-3">
+          <div className="bg-white rounded-lg border border-primary-200 p-3 mb-3">
             <p className="text-xs font-bold text-slate-600 mb-2">Mapeamento Centro de Custo → Obra:</p>
             <div className="space-y-1">
               {[...new Set(preview.map(c => c.centro_custo).filter(Boolean))].map(cc => {
@@ -366,7 +366,7 @@ export function CustosERPPage() {
           className="border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-white"/>
         {(dataInicio || dataFim) && (
           <button onClick={() => { setDataInicio(''); setDataFim('') }}
-            className="text-[10px] text-amber-600 hover:underline">Limpar datas</button>
+            className="text-[10px] text-primary-600 hover:underline">Limpar datas</button>
         )}
         {isAdmin && obraFiltro !== 'todas' && (
           <button onClick={() => {

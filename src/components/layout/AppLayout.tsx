@@ -12,16 +12,19 @@ export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { perfilAtual, fetchPerfilAtual } = usePerfilStore()
   const { contratoAtivo, obraAtiva } = useStore()
-  const { temaEscuro, setTemaEscuro } = useModeloStore()
+  const { temaEscuro, setTemaEscuro, corTema } = useModeloStore()
   const navigate = useNavigate()
   const isAdmin = perfilAtual?.role === 'ADMIN'
 
   useEffect(() => { fetchPerfilAtual() }, [])
 
-  // Aplica dark mode ao carregar (hydrate do localStorage)
   useEffect(() => {
     document.documentElement.classList.toggle('dark', temaEscuro)
   }, [temaEscuro])
+  useEffect(() => {
+    document.documentElement.classList.remove('theme-orange', 'theme-amber')
+    document.documentElement.classList.add(`theme-${corTema}`)
+  }, [corTema])
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -110,7 +113,7 @@ export function AppLayout() {
         {/* Logo */}
         <div className="px-4 py-4 border-b border-slate-700 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-amber-500 rounded-xl flex items-center justify-center shrink-0 font-black text-white text-sm shadow">RD</div>
+            <div className="w-9 h-9 bg-primary-500 rounded-xl flex items-center justify-center shrink-0 font-black text-white text-sm shadow">RD</div>
             {sidebarOpen && (
               <div className="min-w-0 flex-1">
                 <p className="font-bold text-white text-sm leading-tight">Central de Obras</p>
@@ -122,8 +125,8 @@ export function AppLayout() {
 
         {/* Obra ativa */}
         {sidebarOpen && obraAtiva && (
-          <div className="mx-3 my-2 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-            <p className="text-xs text-amber-400 font-medium truncate">{contratoAtivo?.nome_obra}</p>
+          <div className="mx-3 my-2 p-2.5 bg-primary-500/10 border border-primary-500/30 rounded-lg">
+            <p className="text-xs text-primary-400 font-medium truncate">{contratoAtivo?.nome_obra}</p>
             <p className="text-xs text-white font-semibold truncate mt-0.5 flex items-center gap-1">
               <HardHat size={10}/> {obraAtiva.nome_obra}
             </p>
@@ -135,7 +138,7 @@ export function AppLayout() {
           {nav.map(({ to, icon: Icon, label }) => (
             <NavLink key={to} to={to}
               className={({ isActive }) => `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                isActive ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/25' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                isActive ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
               }`}>
               <Icon size={18} className="shrink-0" />
               {sidebarOpen && <span className="truncate">{label}</span>}
@@ -156,7 +159,7 @@ export function AppLayout() {
               </div>
             </div>
             <div className={`mx-2 mt-1 text-xs px-2 py-0.5 rounded-full font-medium text-center ${
-              isAdmin ? 'bg-amber-500/20 text-amber-400'
+              isAdmin ? 'bg-primary-500/20 text-primary-400'
               : role === 'GESTOR' ? 'bg-purple-500/20 text-purple-400'
               : role === 'APONTADOR' ? 'bg-cyan-500/20 text-cyan-400'
               : role === 'ORCAMENTISTA' ? 'bg-emerald-500/20 text-emerald-400'
@@ -197,7 +200,7 @@ export function AppLayout() {
           </button>
           <button onClick={() => setTemaEscuro(!temaEscuro)} title={temaEscuro ? 'Modo claro' : 'Modo escuro'}
             className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-            {temaEscuro ? <Sun size={18} className="text-amber-400"/> : <Moon size={18} className="text-slate-400"/>}
+            {temaEscuro ? <Sun size={18} className="text-primary-400"/> : <Moon size={18} className="text-slate-400"/>}
           </button>
         </div>
         <div className="flex-1 overflow-auto dark:text-slate-200">

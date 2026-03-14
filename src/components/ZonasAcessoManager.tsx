@@ -128,7 +128,7 @@ export function ZonasAcessoManager({ perfis }: Props) {
     !buscaUser || (p.nome || p.email).toLowerCase().includes(buscaUser.toLowerCase())
   ))
 
-  const inputCls = "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+  const inputCls = "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
 
   return (
     <div className="space-y-6">
@@ -144,21 +144,21 @@ export function ZonasAcessoManager({ perfis }: Props) {
           </div>
         </div>
         <button onClick={() => setNovaZona(!novaZona)}
-          className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg text-sm">
+          className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm">
           <Plus size={15}/> Nova Zona
         </button>
       </div>
 
       {/* ═══ FORM NOVA ZONA ═══ */}
       {novaZona && (
-        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5">
-          <p className="font-bold text-amber-800 text-sm mb-4">Criar Nova Zona de Acesso</p>
+        <div className="bg-primary-50 border-2 border-primary-300 rounded-2xl p-5">
+          <p className="font-bold text-primary-800 text-sm mb-4">Criar Nova Zona de Acesso</p>
 
           <div className="flex gap-3 mb-4">
             {(['ESCRITORIO', 'CIDADE'] as const).map(t => (
               <button key={t} onClick={() => setFormTipo(t)}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${
-                  formTipo === t ? 'border-amber-500 bg-amber-500 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-amber-300'
+                  formTipo === t ? 'border-primary-500 bg-primary-500 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-primary-300'
                 }`}>
                 {t === 'ESCRITORIO' ? <Building2 size={15}/> : <Map size={15}/>}
                 {t === 'ESCRITORIO' ? 'Escritório (raio)' : 'Cidade / Estado'}
@@ -221,7 +221,7 @@ export function ZonasAcessoManager({ perfis }: Props) {
           <div className="flex gap-3">
             <button onClick={resetForm} className="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 bg-white">Cancelar</button>
             <button onClick={criarZona}
-              className="flex items-center gap-2 px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-sm">
+              className="flex items-center gap-2 px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg text-sm">
               <CheckCircle2 size={14}/> Criar Zona
             </button>
           </div>
@@ -310,7 +310,7 @@ export function ZonasAcessoManager({ perfis }: Props) {
                       <p className="text-xs font-semibold text-slate-700 truncate">{user.nome || 'Sem nome'}</p>
                       <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
                     </div>
-                    {isAdmin && <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-bold shrink-0">ADMIN</span>}
+                    {isAdmin && <span className="text-[9px] px-1.5 py-0.5 bg-primary-100 text-primary-700 rounded-full font-bold shrink-0">ADMIN</span>}
                   </div>
                   {zonasAtivas.map(z => (
                     <div key={z.id} className="flex justify-center">

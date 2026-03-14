@@ -124,7 +124,7 @@ export function GeoGuard({ children }: { children: React.ReactNode }) {
 
   if (status === 'checking') return (
     <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-4">
-      <MapPin size={32} className="text-amber-400 animate-pulse"/>
+      <MapPin size={32} className="text-primary-400 animate-pulse"/>
       <p className="text-slate-400 text-sm">Verificando localização...</p>
     </div>
   )
@@ -145,7 +145,7 @@ export function GeoGuard({ children }: { children: React.ReactNode }) {
             <p className="text-xs text-slate-400 font-semibold mb-1.5">Zonas permitidas:</p>
             {zonas.map(z => (
               <p key={z.id} className="text-xs text-slate-300 flex items-center gap-1.5 py-0.5">
-                <MapPin size={10} className="text-amber-400"/>
+                <MapPin size={10} className="text-primary-400"/>
                 {z.nome}
                 <span className="text-slate-500">
                   {z.tipo === 'ESCRITORIO' ? `(${z.raio_metros}m de raio)` : `(${z.cidade || ''} - ${z.estado || ''})`}
@@ -156,7 +156,7 @@ export function GeoGuard({ children }: { children: React.ReactNode }) {
         )}
         <div className="flex gap-3">
           <button onClick={verificarAcesso}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium">
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-sm font-medium">
             <RefreshCw size={14}/> Tentar novamente
           </button>
           <button onClick={() => supabase.auth.signOut()}
@@ -170,9 +170,9 @@ export function GeoGuard({ children }: { children: React.ReactNode }) {
 
   if (status === 'no-gps') return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="bg-slate-800 border border-amber-500/30 rounded-2xl p-8 max-w-md w-full text-center">
-        <div className="w-14 h-14 bg-amber-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
-          <AlertTriangle size={28} className="text-amber-400"/>
+      <div className="bg-slate-800 border border-primary-500/30 rounded-2xl p-8 max-w-md w-full text-center">
+        <div className="w-14 h-14 bg-primary-500/20 rounded-xl flex items-center justify-center mx-auto mb-4">
+          <AlertTriangle size={28} className="text-primary-400"/>
         </div>
         <h2 className="text-xl font-bold text-white mb-2">Localização Necessária</h2>
         <p className="text-slate-400 text-sm mb-4">{motivo}</p>
@@ -182,7 +182,7 @@ export function GeoGuard({ children }: { children: React.ReactNode }) {
         </p>
         <div className="flex gap-3">
           <button onClick={verificarAcesso}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium">
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-sm font-medium">
             <RefreshCw size={14}/> Tentar novamente
           </button>
           <button onClick={() => supabase.auth.signOut()}
