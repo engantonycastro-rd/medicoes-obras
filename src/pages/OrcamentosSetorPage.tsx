@@ -560,7 +560,9 @@ export function OrcamentosSetorPage() {
                           <button onClick={() => { setConcluindoId(orc.id); setCObs(''); setCArquivo(null); setCComparativo(['']); setAutoComp(null); setCValorOrig(''); setCValorRev('') }}
                             className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg"><CheckCircle2 size={12}/> Concluir</button>
                         )}
-                        <button onClick={() => deletarOrcamento(orc)} className="p-2 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50" title="Excluir"><Trash2 size={15}/></button>
+                        {perfilAtual?.role !== 'ORCAMENTISTA' && (
+                          <button onClick={() => deletarOrcamento(orc)} className="p-2 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50" title="Excluir"><Trash2 size={15}/></button>
+                        )}
                       </div>
                     </div>
                   </div>
