@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { supabase } from './lib/supabase'
@@ -21,8 +21,9 @@ import { OrcamentosSetorPage } from './pages/OrcamentosSetorPage'
 import { KanbanObraPage } from './pages/KanbanObraPage'
 import { FAQPage } from './pages/FAQPage'
 import { ApontamentosAdminPage } from './pages/ApontamentosAdminPage'
-import { AppMobilePage } from './pages/AppMobilePage'
 import { AlertCircle } from 'lucide-react'
+
+const AppMobilePage = lazy(() => import('./pages/AppMobilePage').then(m => ({ default: m.AppMobilePage })))
 
 export { ContratoModal } from './components/contracts/ContratoModal'
 
@@ -89,7 +90,7 @@ function App() {
       }} />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/app" element={<RequireAuth><AppMobilePage /></RequireAuth>} />
+        <Route path="/app" element={<RequireAuth><Suspense fallback={<div className="flex items-center justify-center h-screen text-slate-400">Carregando...</div>}><AppMobilePage /></Suspense></RequireAuth>} />
         <Route path="/" element={<RequireAuth><GeoGuard><AppLayout /></GeoGuard></RequireAuth>}>
           <Route index element={<IndexRedirect />} />
           <Route path="dashboard"     element={<DashboardPage />} />

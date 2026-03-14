@@ -33,23 +33,28 @@ let dbInstance: IDBPDatabase<AppDB> | null = null
 
 export async function getDB(): Promise<IDBPDatabase<AppDB>> {
   if (dbInstance) return dbInstance
-  dbInstance = await openDB<AppDB>('rd-apontamentos', 2, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains('obras-cache')) db.createObjectStore('obras-cache', { keyPath: 'id' })
-      if (!db.objectStoreNames.contains('funcoes-cache')) db.createObjectStore('funcoes-cache', { keyPath: 'id' })
-      if (!db.objectStoreNames.contains('kanban-cache')) db.createObjectStore('kanban-cache', { keyPath: 'id' })
-      if (!db.objectStoreNames.contains('apontamentos-offline')) {
-        const s = db.createObjectStore('apontamentos-offline', { keyPath: 'sync_id' })
-        s.createIndex('by-status', 'status')
-        s.createIndex('by-obra', 'obra_id')
-      }
-      if (!db.objectStoreNames.contains('fotos-offline')) {
-        const s = db.createObjectStore('fotos-offline', { keyPath: 'id' })
-        s.createIndex('by-sync', 'sync_id')
-        s.createIndex('by-status', 'status')
-      }
-    },
-  })
+  try {
+    dbInstance = await openDB<AppDB>('rd-apontamentos', 2, {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains('obras-cache')) db.createObjectStore('obras-cache', { keyPath: 'id' })
+        if (!db.objectStoreNames.contains('funcoes-cache')) db.createObjectStore('funcoes-cache', { keyPath: 'id' })
+        if (!db.objectStoreNames.contains('kanban-cache')) db.createObjectStore('kanban-cache', { keyPath: 'id' })
+        if (!db.objectStoreNames.contains('apontamentos-offline')) {
+          const s = db.createObjectStore('apontamentos-offline', { keyPath: 'sync_id' })
+          s.createIndex('by-status', 'status')
+          s.createIndex('by-obra', 'obra_id')
+        }
+        if (!db.objectStoreNames.contains('fotos-offline')) {
+          const s = db.createObjectStore('fotos-offline', { keyPath: 'id' })
+          s.createIndex('by-sync', 'sync_id')
+          s.createIndex('by-status', 'status')
+        }
+      },
+    })
+  } catch (err) {
+    console.warn('IndexedDB não disponível:', err)
+    throw err
+  }
   return dbInstance
 }
 
