@@ -151,8 +151,6 @@ export function LicitacoesPage() {
     if (!solicitacoes[lic.id]) {
       fetchSolicitacoes(lic.id)
     }
-      if (h) setHistorico(prev => ({ ...prev, [lic.id]: h }))
-    }
   }
 
   function abrirNovo() {
