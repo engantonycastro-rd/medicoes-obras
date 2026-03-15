@@ -10,6 +10,7 @@ import { usePerfilStore } from '../lib/perfilStore'
 import { formatDate, formatCurrency } from '../utils/calculations'
 import { supabase } from '../lib/supabase'
 import { compararOrcamentos, ComparativoResult } from '../utils/compararOrcamentos'
+import { gerarComparativoPDF, gerarDadosFromAutoComp } from '../utils/gerarComparativoPDF'
 
 function sanitizeFileName(name: string): string {
   return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_+/g, '_')
@@ -223,6 +224,41 @@ export function OrcamentosSetorPage() {
     const { data, error } = await supabase.storage.from('orcamentos').download(path)
     if (error || !data) { toast.error('Erro ao baixar'); return }
     const url = URL.createObjectURL(data); const a = document.createElement('a'); a.href = url; a.download = nome; a.click(); URL.revokeObjectURL(url)
+  }
+
+  function exportarComparativoPDF(orc: OrcRevisao) {
+    if (!orc.comparativo_resumo?.length && !autoComp) { toast.error('Sem dados de comparativo'); return }
+
+    // Se tem comparativo automático ativo (durante revisão)
+    if (autoComp && concluindoId === orc.id) {
+      const dados = gerarDadosFromAutoComp(autoComp, {
+        titulo: orc.titulo,
+        valor_original: Number(cValorOrig.replace(/[^\d.,]/g, '').replace(',', '.')) || orc.valor_original || 0,
+        valor_revisado: Number(cValorRev.replace(/[^\d.,]/g, '').replace(',', '.')) || orc.valor_revisado || 0,
+      })
+      gerarComparativoPDF(dados)
+      toast.success('PDF comparativo gerado!')
+      return
+    }
+
+    // Para orçamentos já concluídos
+    const alteracoes = (orc.comparativo_resumo || []).map((item: any) => {
+      const desc = String(item.descricao || item || '')
+      const isA = desc.startsWith('✚'), isR = desc.startsWith('✖')
+      return {
+        tipo: isR ? 'REMOVIDO' : isA ? 'ADICIONADO' : 'ALTERADO',
+        item: '',
+        descricao: desc.replace(/^[✚✖✎]\s*/, ''),
+        detalhes: '',
+      }
+    })
+
+    const dados = gerarDadosFromAutoComp(
+      { alteracoes, resumo: { adicionados: 0, removidos: 0, alterados: 0, totalOriginal: 0, totalRevisado: 0 } },
+      { titulo: orc.titulo, valor_original: orc.valor_original || 0, valor_revisado: orc.valor_revisado || 0 },
+    )
+    gerarComparativoPDF(dados)
+    toast.success('PDF comparativo gerado!')
   }
 
   const diasAte = (d: string) => Math.ceil((new Date(d).getTime() - Date.now()) / 86400000)
@@ -553,6 +589,11 @@ export function OrcamentosSetorPage() {
                         {orc.arquivo_fiscal_url && (
                           <button onClick={() => downloadArquivo(orc.arquivo_fiscal_url!, orc.arquivo_fiscal_nome || 'fiscal')} className="p-2 rounded-lg text-purple-400 hover:text-purple-600 hover:bg-purple-50" title="Versão Fiscal"><Download size={16}/></button>
                         )}
+                        {orc.status === 'CONCLUIDO' && orc.comparativo_resumo?.length > 0 && (
+                          <button onClick={() => exportarComparativoPDF(orc)} className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 text-[10px] font-medium" title="Comparativo PDF">
+                            <FileDown size={14}/> PDF
+                          </button>
+                        )}
                         {orc.status === 'PENDENTE' && (
                           <button onClick={() => pegarParaRevisao(orc)} className="flex items-center gap-1.5 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg"><Play size={12}/> Pegar</button>
                         )}
@@ -613,7 +654,13 @@ export function OrcamentosSetorPage() {
 
               {autoComp && (
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                  <p className="text-xs font-bold text-blue-800 mb-2">Comparativo Automático <span className="font-normal text-blue-500">({autoComp.modo === 'EXCEL' ? 'célula por célula' : 'texto PDF'})</span></p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-bold text-blue-800">Comparativo Automático <span className="font-normal text-blue-500">({autoComp.modo === 'EXCEL' ? 'célula por célula' : 'texto PDF'})</span></p>
+                    <button onClick={() => { const orc = orcamentos.find(o => o.id === concluindoId); if (orc) exportarComparativoPDF(orc) }}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-[10px] font-medium rounded-lg">
+                      <FileDown size={11}/> Exportar Comparativo PDF
+                    </button>
+                  </div>
                   <div className="flex gap-3 text-xs mb-2">
                     <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium"><Minus size={10} className="inline"/> {autoComp.resumo.removidos} removido(s)</span>
                     <span className="px-2 py-0.5 rounded-full bg-primary-100 text-primary-700 font-medium"><Edit3 size={10} className="inline"/> {autoComp.resumo.alterados} alterado(s)</span>
