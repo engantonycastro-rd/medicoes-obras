@@ -47,6 +47,7 @@ export const MODULO_ROTAS: Record<string, string[]> = {
   relatorio_fotos: ['/relatorio-fotos'],
   dashboard_executivo: ['/dashboard-executivo'],
   custos_erp: ['/custos-erp', '/custos-obra'],
+  setor_licitacao: ['/setor-licitacao'],
 }
 
 // Mapeamento módulo → label para exibição

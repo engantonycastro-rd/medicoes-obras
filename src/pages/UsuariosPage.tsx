@@ -164,6 +164,7 @@ export function UsuariosPage() {
                     <option value="APONTADOR">Apontador</option>
                     <option value="ORCAMENTISTA">Orçamentista</option>
                     <option value="DIRETOR">Diretor</option>
+                    <option value="LICITANTE">Licitante</option>
                     <option value="ADMIN">Administrador</option>
                   </select>
                   <button onClick={() => handleAtivar(p)}
@@ -361,6 +362,7 @@ export function UsuariosPage() {
                       <option value="APONTADOR">📋 Apontador</option>
                       <option value="ORCAMENTISTA">📊 Orçamentista</option>
                       <option value="DIRETOR">📈 Diretor</option>
+                      <option value="LICITANTE">📋 Licitante</option>
                       <option value="ADMIN">👑 Admin</option>
                     </select>
                     <ChevronDown size={11} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60"/>

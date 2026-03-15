@@ -30,6 +30,7 @@ import { ChecklistNR18Page } from './pages/ChecklistNR18Page'
 import { RDOPage } from './pages/RDOPage'
 import { RelatorioFotograficoPage } from './pages/RelatorioFotograficoPage'
 import { SuperAdminPage } from './pages/SuperAdminPage'
+import { LicitacoesPage } from './pages/LicitacoesPage'
 import { useEmpresaStore } from './lib/empresaStore'
 import { AlertCircle } from 'lucide-react'
 
@@ -91,6 +92,7 @@ function IndexRedirect() {
   if (perfilAtual?.role === 'APONTADOR') return <Navigate to="/apontamentos" replace />
   if (perfilAtual?.role === 'DIRETOR') return <Navigate to="/dashboard-executivo" replace />
   if (perfilAtual?.role === 'SUPERADMIN') return <Navigate to="/super-admin" replace />
+  if (perfilAtual?.role === 'LICITANTE') return <Navigate to="/setor-licitacao" replace />
   return <ContratosPage />
 }
 
@@ -103,6 +105,7 @@ const ROTAS_POR_ROLE: Record<string, string[]> = {
   GESTOR: ['/dashboard', '/', '/servicos', '/medicoes', '/memoria', '/kanban', '/diario-obra', '/rdo', '/cronograma', '/aditivos', '/checklist-nr18', '/custos-obra', '/orcamentos', '/relatorio-fotos', '/subempreiteiros', '/configuracoes', '/ajuda'],
   ADMIN: ['*'],
   SUPERADMIN: ['*'],
+  LICITANTE: ['/dashboard', '/setor-licitacao', '/configuracoes', '/ajuda'],
 }
 
 function RoleGuard({ children, path }: { children: React.ReactNode; path: string }) {
@@ -116,6 +119,7 @@ function RoleGuard({ children, path }: { children: React.ReactNode; path: string
     if (role === 'DIRETOR') return <Navigate to="/dashboard-executivo" replace />
     if (role === 'APONTADOR') return <Navigate to="/apontamentos" replace />
     if (role === 'SUPERADMIN') return <Navigate to="/super-admin" replace />
+    if (role === 'LICITANTE') return <Navigate to="/setor-licitacao" replace />
     return <Navigate to="/" replace />
   }
 
@@ -169,6 +173,7 @@ export default function App() {
           <Route path="rdo"                element={<RoleGuard path="/rdo"><RDOPage /></RoleGuard>} />
           <Route path="relatorio-fotos"    element={<RoleGuard path="/relatorio-fotos"><RelatorioFotograficoPage /></RoleGuard>} />
           <Route path="super-admin"         element={<RoleGuard path="/super-admin"><SuperAdminPage /></RoleGuard>} />
+          <Route path="setor-licitacao"     element={<RoleGuard path="/setor-licitacao"><LicitacoesPage /></RoleGuard>} />
         </Route>
       </Routes>
     </BrowserRouter>

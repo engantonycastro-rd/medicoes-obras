@@ -101,6 +101,7 @@ export function AppLayout() {
       { to: '/setor-orcamentos', icon: FileSpreadsheet, label: 'Setor Orçamentos' },
       { to: '/apontamentos', icon: ClipboardList, label: 'Apontamentos' },
       { to: '/subempreiteiros', icon: Briefcase,  label: 'Subempreiteiros' },
+      { to: '/setor-licitacao', icon: Briefcase, label: 'Licitações' },
       { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
       { to: '/auditoria', icon: History,          label: 'Auditoria' },
       { to: '/usuarios',  icon: Users,            label: 'Usuários' },
@@ -121,12 +122,18 @@ export function AppLayout() {
       { to: '/checklist-nr18', icon: Shield,      label: 'Checklist NR-18' },
       { to: '/custos-erp', icon: DollarSign,      label: 'Custos ERP' },
       { to: '/setor-orcamentos', icon: FileSpreadsheet, label: 'Setor Orçamentos' },
+      { to: '/setor-licitacao', icon: Briefcase,  label: 'Licitações' },
       { to: '/apontamentos', icon: ClipboardList, label: 'Apontamentos' },
       { to: '/subempreiteiros', icon: Briefcase,  label: 'Subempreiteiros' },
       { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
       { to: '/auditoria', icon: History,          label: 'Auditoria' },
       { to: '/usuarios',  icon: Users,            label: 'Usuários' },
       { to: '/configuracoes', icon: Settings,     label: 'Config.' },
+    ],
+    LICITANTE: [
+      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/setor-licitacao', icon: Briefcase, label: 'Licitações' },
+      { to: '/configuracoes', icon: Settings,    label: 'Config.' },
     ],
   }
   const nav = navMap[role || 'ENGENHEIRO'] || navMap.ENGENHEIRO
@@ -191,6 +198,7 @@ export function AppLayout() {
               : role === 'APONTADOR' ? 'bg-cyan-500/20 text-cyan-400'
               : role === 'ORCAMENTISTA' ? 'bg-emerald-500/20 text-emerald-400'
               : role === 'DIRETOR' ? 'bg-rose-500/20 text-rose-400'
+              : role === 'LICITANTE' ? 'bg-amber-500/20 text-amber-400'
               : 'bg-blue-500/20 text-blue-400'
             }`}>
               {role === 'SUPERADMIN' ? <><Shield size={9} className="inline mr-1"/>SuperAdmin</>
@@ -199,6 +207,7 @@ export function AppLayout() {
               : role === 'APONTADOR' ? <><ClipboardList size={9} className="inline mr-1"/>Apontador</>
               : role === 'ORCAMENTISTA' ? <><FileSpreadsheet size={9} className="inline mr-1"/>Orçamentista</>
               : role === 'DIRETOR' ? <><BarChart3 size={9} className="inline mr-1"/>Diretor</>
+              : role === 'LICITANTE' ? <><Briefcase size={9} className="inline mr-1"/>Licitante</>
               : <><HardHat size={9} className="inline mr-1"/>Engenheiro</>}
             </div>
           </div>
