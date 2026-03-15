@@ -94,11 +94,11 @@ export function SuperAdminPage() {
   const isModuloOn = (eId: string, mod: string) => modulos.some(m => m.empresa_id === eId && m.modulo === mod && m.habilitado)
 
   const planoBadge = (p: string) => {
-    if (p === 'ILIMITADO') return 'background: #EDE9FE; color: #5B21B6;'
-    if (p === 'ENTERPRISE') return 'background: #FFF7ED; color: #9A3412;'
-    if (p === 'PROFISSIONAL') return 'background: #DBEAFE; color: #1E40AF;'
-    if (p === 'STARTER') return 'background: #F1F5F9; color: #475569;'
-    return 'background: #FEF3C7; color: #92400E;'
+    if (p === 'ILIMITADO') return 'bg-purple-100 text-purple-700'
+    if (p === 'ENTERPRISE') return 'bg-orange-100 text-orange-700'
+    if (p === 'PROFISSIONAL') return 'bg-blue-100 text-blue-700'
+    if (p === 'STARTER') return 'bg-slate-100 text-slate-600'
+    return 'bg-yellow-100 text-yellow-700'
   }
   const statusBadge = (s: string) => {
     if (s === 'ATIVA') return 'bg-emerald-100 text-emerald-700'
@@ -185,7 +185,7 @@ export function SuperAdminPage() {
                   <p className="text-xs font-bold text-slate-800 dark:text-white truncate">{e.nome}</p>
                   <p className="text-[10px] text-slate-400">{e.cnpj || 'Sem CNPJ'}</p>
                 </div>
-                <span className="text-[9px] px-2 py-0.5 rounded-full font-bold" style={planoBadge(e.plano)}>{e.plano}</span>
+                <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${planoBadge(e.plano)}`}>{e.plano}</span>
                 <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${statusBadge(e.status)}`}>{e.status}</span>
               </div>
             ))}
@@ -336,7 +336,7 @@ export function SuperAdminPage() {
             {empresas.map(e => (
               <div key={e.id} className="flex items-center gap-3 px-3 py-2.5 border-b border-slate-50 dark:border-slate-700/50 last:border-0 text-xs">
                 <span className="flex-1 font-medium text-slate-800 dark:text-white">{e.nome}</span>
-                <span className="w-20 text-center"><span className="text-[9px] px-2 py-0.5 rounded-full font-bold" style={planoBadge(e.plano)}>{e.plano}</span></span>
+                <span className="w-20 text-center"><span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${planoBadge(e.plano)}`}>{e.plano}</span></span>
                 <span className="w-20 text-right font-bold text-slate-700 dark:text-white">R$ {Number(e.valor_mensal).toFixed(0)}</span>
                 <span className="w-20 text-right">
                   {!e.cobranca_ativa ? <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-500">Grátis</span> :
