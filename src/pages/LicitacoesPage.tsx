@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Gavel, Plus, Search, Filter, RefreshCw, ChevronDown, ChevronUp, Send, CheckCircle2, XCircle, Download, Upload, Save, X, Loader2, AlertTriangle, TrendingUp, Clock, Trophy, DollarSign, FileText, User, Calendar, Building2, ArrowRight } from 'lucide-react'
+import { Gavel, Plus, Search, Filter, RefreshCw, ChevronDown, ChevronUp, Send, CheckCircle2, XCircle, Download, Upload, Save, X, Loader2, AlertTriangle, TrendingUp, Clock, Trophy, DollarSign, FileText, User, Calendar, Building2, ArrowRight, MessageCircle, RotateCcw, Eye, Paperclip } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import { usePerfilStore } from '../lib/perfilStore'
@@ -15,6 +15,44 @@ interface Licitacao {
 }
 interface Documento { id: string; licitacao_id: string; tipo: string; nome: string; path: string; size: number; uploaded_by: string | null; data_validade: string | null; created_at: string }
 interface Historico { id: string; licitacao_id: string; acao: string; descricao: string | null; user_id: string | null; created_at: string }
+
+interface Solicitacao {
+  id: string; created_at: string; updated_at: string; licitacao_id: string; empresa_id: string
+  solicitante_id: string; engenheiro_id: string; tipo: string; status: string
+  descricao: string; prazo: string | null; prioridade: string; revisoes: number
+}
+interface SolicitacaoInteracao {
+  id: string; created_at: string; solicitacao_id: string; autor_id: string
+  acao: string; mensagem: string | null; arquivo_nome: string | null; arquivo_path: string | null
+  arquivo_size: number; numero_revisao: number
+}
+
+const SOLIC_STATUS_LABELS: Record<string, string> = {
+  ABERTA: 'Aberta', EM_ANDAMENTO: 'Em andamento', ENTREGUE: 'Entregue',
+  EM_REVISAO: 'Em revisão', APROVADA: 'Aprovada', CANCELADA: 'Cancelada',
+}
+const SOLIC_STATUS_COLORS: Record<string, string> = {
+  ABERTA: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  EM_ANDAMENTO: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+  ENTREGUE: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
+  EM_REVISAO: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  APROVADA: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  CANCELADA: 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400',
+}
+const SOLIC_ACAO_LABELS: Record<string, string> = {
+  CRIADA: 'Solicitação criada', ASSUMIDA: 'Engenheiro assumiu', ENTREGUE: 'Entrega realizada',
+  APROVADA: 'Aprovada pelo licitante', REVISAO: 'Revisão solicitada', RETOMADA: 'Engenheiro retomou',
+  COMENTARIO: 'Comentário', CANCELADA: 'Cancelada',
+}
+const SOLIC_ACAO_COLORS: Record<string, string> = {
+  CRIADA: 'text-blue-500', ASSUMIDA: 'text-yellow-500', ENTREGUE: 'text-teal-500',
+  APROVADA: 'text-emerald-500', REVISAO: 'text-orange-500', RETOMADA: 'text-yellow-500',
+  COMENTARIO: 'text-slate-400', CANCELADA: 'text-red-500',
+}
+const PRIORIDADE_COLORS: Record<string, string> = {
+  BAIXA: 'bg-slate-100 text-slate-500', NORMAL: 'bg-blue-100 text-blue-600',
+  ALTA: 'bg-orange-100 text-orange-700', URGENTE: 'bg-red-100 text-red-700',
+}
 
 const STATUS_LABELS: Record<string, string> = {
   CADASTRADA: 'Cadastrada', EM_ANALISE: 'Em análise', PROPOSTA_PENDENTE: 'Proposta pendente',
@@ -62,10 +100,6 @@ export function LicitacoesPage() {
     responsavel_id: '', engenheiro_designado_id: '', status: 'CADASTRADA', observacoes: '',
   })
 
-  // Modal encaminhamento
-  const [showEncaminhar, setShowEncaminhar] = useState<string | null>(null)
-  const [engSelecionado, setEngSelecionado] = useState('')
-
   // Modal finalizar
   const [showFinalizar, setShowFinalizar] = useState<Licitacao | null>(null)
   const [resultadoFinal, setResultadoFinal] = useState('')
@@ -73,6 +107,21 @@ export function LicitacoesPage() {
   // Modal converter contrato
   const [showConverter, setShowConverter] = useState<Licitacao | null>(null)
   const [gestorSel, setGestorSel] = useState('')
+
+  // ─── SOLICITAÇÕES ───────────────────────────────────────────────────────────
+  const [solicitacoes, setSolicitacoes] = useState<Record<string, Solicitacao[]>>({})
+  const [interacoes, setInteracoes] = useState<Record<string, SolicitacaoInteracao[]>>({})
+  const [showNovaSolic, setShowNovaSolic] = useState<string | null>(null) // licitacao_id
+  const [showDetalheSolic, setShowDetalheSolic] = useState<Solicitacao | null>(null)
+  const [solicMsg, setSolicMsg] = useState('')
+  const [solicFile, setSolicFile] = useState<File | null>(null)
+  const [solicSaving, setSolicSaving] = useState(false)
+  // Form nova solicitação
+  const [solicDesc, setSolicDesc] = useState('')
+  const [solicTipo, setSolicTipo] = useState('READEQUACAO_PLANILHA')
+  const [solicPrioridade, setSolicPrioridade] = useState('NORMAL')
+  const [solicPrazo, setSolicPrazo] = useState('')
+  const [solicEngId, setSolicEngId] = useState('')
 
   useEffect(() => { fetchAll() }, [])
 
@@ -96,6 +145,12 @@ export function LicitacoesPage() {
     }
     if (!historico[lic.id]) {
       const { data: h } = await supabase.from('licitacao_historico').select('*').eq('licitacao_id', lic.id).order('created_at', { ascending: false })
+      if (h) setHistorico(prev => ({ ...prev, [lic.id]: h }))
+    }
+    // Fetch solicitações
+    if (!solicitacoes[lic.id]) {
+      fetchSolicitacoes(lic.id)
+    }
       if (h) setHistorico(prev => ({ ...prev, [lic.id]: h }))
     }
   }
@@ -172,23 +227,6 @@ export function LicitacoesPage() {
     window.open(data.publicUrl, '_blank')
   }
 
-  // Encaminhar para engenheiro
-  async function encaminharEngenheiro(licId: string) {
-    if (!engSelecionado) { toast.error('Selecione um engenheiro'); return }
-    await supabase.from('licitacoes').update({ engenheiro_designado_id: engSelecionado, status: 'PROPOSTA_PENDENTE' }).eq('id', licId)
-    const eng = perfis.find(p => p.id === engSelecionado)
-    // Notificação para o engenheiro
-    await supabase.from('notificacoes').insert({
-      user_id: engSelecionado, tipo: 'alerta',
-      titulo: 'Planilha readequada solicitada',
-      mensagem: `Você foi designado para readequar a planilha da licitação ${licitacoes.find(l => l.id === licId)?.numero_edital}. Acesse o Setor de Licitação para baixar a planilha original e enviar a readequada.`,
-      link: '/setor-licitacao',
-    })
-    await supabase.from('licitacao_historico').insert({ licitacao_id: licId, acao: 'ENCAMINHAMENTO', descricao: `Planilha encaminhada para ${eng?.nome || 'Engenheiro'}`, user_id: perfilAtual?.id })
-    toast.success(`Planilha encaminhada para ${eng?.nome}!`)
-    setShowEncaminhar(null); fetchAll()
-  }
-
   // Finalizar licitação
   async function finalizar(lic: Licitacao) {
     if (!resultadoFinal) { toast.error('Selecione o resultado'); return }
@@ -221,6 +259,109 @@ export function LicitacoesPage() {
     await supabase.from('licitacao_historico').insert({ licitacao_id: lic.id, acao: 'CONTRATO_GERADO', descricao: `Contrato gerado a partir da licitação. ${gestorSel ? 'Gestor designado: ' + (perfis.find(p => p.id === gestorSel)?.nome || '') : 'Sem gestor designado.'}`, user_id: perfilAtual?.id })
     toast.success('Contrato gerado com sucesso!')
     setShowConverter(null); setGestorSel(''); setSaving(false); fetchAll()
+  }
+
+  // ─── SOLICITAÇÕES FUNÇÕES ─────────────────────────────────────────────────
+  async function fetchSolicitacoes(licId: string) {
+    const { data: solics } = await supabase.from('licitacao_solicitacoes').select('*').eq('licitacao_id', licId).order('created_at', { ascending: false })
+    if (solics) setSolicitacoes(prev => ({ ...prev, [licId]: solics }))
+  }
+
+  async function fetchInteracoes(solicId: string) {
+    const { data: ints } = await supabase.from('licitacao_solicitacao_interacoes').select('*').eq('solicitacao_id', solicId).order('created_at', { ascending: true })
+    if (ints) setInteracoes(prev => ({ ...prev, [solicId]: ints }))
+  }
+
+  async function criarSolicitacao(licId: string) {
+    if (!solicDesc || !solicEngId) { toast.error('Preencha descrição e engenheiro'); return }
+    setSolicSaving(true)
+    const { data: solic, error } = await supabase.from('licitacao_solicitacoes').insert({
+      licitacao_id: licId, empresa_id: empresa!.id,
+      solicitante_id: perfilAtual!.id, engenheiro_id: solicEngId,
+      tipo: solicTipo, descricao: solicDesc,
+      prazo: solicPrazo || null, prioridade: solicPrioridade,
+    }).select().single()
+    if (error || !solic) { toast.error(error?.message || 'Erro'); setSolicSaving(false); return }
+
+    // Primeira interação: CRIADA
+    let arquivoPath = null, arquivoNome = null, arquivoSize = 0
+    if (solicFile) {
+      const path = `solicitacoes/${Date.now()}_${sanitize(solicFile.name)}`
+      const { error: upErr } = await supabase.storage.from('licitacoes').upload(path, solicFile)
+      if (!upErr) { arquivoPath = path; arquivoNome = solicFile.name; arquivoSize = solicFile.size }
+    }
+    await supabase.from('licitacao_solicitacao_interacoes').insert({
+      solicitacao_id: solic.id, autor_id: perfilAtual!.id, acao: 'CRIADA',
+      mensagem: solicDesc, arquivo_nome: arquivoNome, arquivo_path: arquivoPath, arquivo_size: arquivoSize,
+    })
+
+    // Notificação para o engenheiro
+    const eng = perfis.find(p => p.id === solicEngId)
+    const lic = licitacoes.find(l => l.id === licId)
+    await supabase.from('notificacoes').insert({
+      user_id: solicEngId, tipo: 'alerta',
+      titulo: 'Nova solicitação de licitação',
+      mensagem: `${perfilAtual?.nome || 'Licitante'} solicitou ${solicTipo === 'READEQUACAO_PLANILHA' ? 'readequação de planilha' : solicTipo.toLowerCase()} para a licitação ${lic?.numero_edital}. Prioridade: ${solicPrioridade}.`,
+      link: '/setor-licitacao',
+    })
+
+    // Histórico da licitação
+    await supabase.from('licitacao_historico').insert({
+      licitacao_id: licId, acao: 'SOLICITACAO',
+      descricao: `Solicitação criada para ${eng?.nome || 'Engenheiro'}: ${solicTipo === 'READEQUACAO_PLANILHA' ? 'Readequação de planilha' : solicTipo}`,
+      user_id: perfilAtual?.id,
+    })
+
+    toast.success('Solicitação criada!')
+    setSolicSaving(false); setShowNovaSolic(null)
+    setSolicDesc(''); setSolicFile(null); setSolicPrazo(''); setSolicPrioridade('NORMAL'); setSolicTipo('READEQUACAO_PLANILHA'); setSolicEngId('')
+    fetchSolicitacoes(licId)
+  }
+
+  async function acaoSolicitacao(solic: Solicitacao, acao: string, novoStatus: string) {
+    if ((acao === 'REVISAO' || acao === 'ENTREGUE' || acao === 'COMENTARIO') && !solicMsg && !solicFile) {
+      toast.error(acao === 'COMENTARIO' ? 'Digite uma mensagem' : 'Adicione uma mensagem ou arquivo'); return
+    }
+    setSolicSaving(true)
+
+    // Upload arquivo se houver
+    let arquivoPath = null, arquivoNome = null, arquivoSize = 0
+    if (solicFile) {
+      const path = `solicitacoes/${Date.now()}_${sanitize(solicFile.name)}`
+      const { error: upErr } = await supabase.storage.from('licitacoes').upload(path, solicFile)
+      if (!upErr) { arquivoPath = path; arquivoNome = solicFile.name; arquivoSize = solicFile.size }
+    }
+
+    // Criar interação
+    await supabase.from('licitacao_solicitacao_interacoes').insert({
+      solicitacao_id: solic.id, autor_id: perfilAtual!.id, acao,
+      mensagem: solicMsg || null, arquivo_nome: arquivoNome, arquivo_path: arquivoPath, arquivo_size: arquivoSize,
+      numero_revisao: acao === 'REVISAO' ? solic.revisoes + 1 : solic.revisoes,
+    })
+
+    // Atualizar status da solicitação
+    const updates: any = { status: novoStatus }
+    if (acao === 'REVISAO') updates.revisoes = solic.revisoes + 1
+    await supabase.from('licitacao_solicitacoes').update(updates).eq('id', solic.id)
+
+    // Notificar a outra parte
+    const destinatario = acao === 'ENTREGUE' || acao === 'RETOMADA' ? solic.solicitante_id : solic.engenheiro_id
+    const lic = licitacoes.find(l => l.id === solic.licitacao_id)
+    const tituloNotif = acao === 'ENTREGUE' ? 'Solicitação entregue' : acao === 'REVISAO' ? 'Revisão solicitada' : acao === 'APROVADA' ? 'Solicitação aprovada' : acao === 'RETOMADA' ? 'Trabalho retomado' : 'Atualização na solicitação'
+    await supabase.from('notificacoes').insert({
+      user_id: destinatario, tipo: acao === 'APROVADA' ? 'sucesso' : 'alerta',
+      titulo: tituloNotif,
+      mensagem: `Licitação ${lic?.numero_edital}: ${solicMsg || SOLIC_ACAO_LABELS[acao]}${acao === 'REVISAO' ? ` (revisão #${solic.revisoes + 1})` : ''}`,
+      link: '/setor-licitacao',
+    })
+
+    toast.success(SOLIC_ACAO_LABELS[acao])
+    setSolicSaving(false); setSolicMsg(''); setSolicFile(null)
+    // Recarregar
+    const { data: updated } = await supabase.from('licitacao_solicitacoes').select('*').eq('id', solic.id).single()
+    if (updated) setShowDetalheSolic(updated)
+    fetchInteracoes(solic.id)
+    fetchSolicitacoes(solic.licitacao_id)
   }
 
   // Computed
@@ -365,9 +506,9 @@ export function LicitacoesPage() {
                   <div className="flex flex-wrap gap-2">
                     <button onClick={() => abrirEditar(lic)} className="flex items-center gap-1 px-3 py-1.5 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">Editar</button>
 
-                    {['CADASTRADA','EM_ANALISE'].includes(lic.status) && (
-                      <button onClick={() => { setEngSelecionado(''); setShowEncaminhar(lic.id) }}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg"><Send size={12}/> Solicitar readequação</button>
+                    {!['VENCEDORA','NAO_CLASSIFICADA','DESISTENCIA','INABILITADA','REVOGADA'].includes(lic.status) && (
+                      <button onClick={() => { setSolicDesc(''); setSolicFile(null); setSolicPrazo(''); setSolicPrioridade('NORMAL'); setSolicTipo('READEQUACAO_PLANILHA'); setSolicEngId(''); setShowNovaSolic(lic.id) }}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg"><Send size={12}/> Nova solicitação</button>
                     )}
 
                     {['PROPOSTA_ENVIADA','LANCE_REALIZADO','AGUARDANDO_RESULTADO'].includes(lic.status) && (
@@ -380,6 +521,38 @@ export function LicitacoesPage() {
                         className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg"><ArrowRight size={12}/> Converter em contrato</button>
                     )}
                   </div>
+
+                  {/* ── SOLICITAÇÕES ──────────────────────────────────── */}
+                  {(solicitacoes[lic.id] || []).length > 0 && (
+                    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3">
+                      <p className="text-xs font-bold text-slate-700 dark:text-white mb-2 flex items-center gap-2">
+                        <MessageCircle size={12}/> Solicitações ({(solicitacoes[lic.id] || []).length})
+                      </p>
+                      <div className="space-y-1.5">
+                        {(solicitacoes[lic.id] || []).map(s => (
+                          <div key={s.id} className="flex items-center gap-2 py-2 px-3 rounded-lg border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 cursor-pointer"
+                            onClick={async () => { setShowDetalheSolic(s); setSolicMsg(''); setSolicFile(null); await fetchInteracoes(s.id) }}>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-medium text-slate-800 dark:text-white truncate">{s.descricao.length > 60 ? s.descricao.slice(0, 60) + '...' : s.descricao}</span>
+                              </div>
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                Para: {getNome(s.engenheiro_id)} · {new Date(s.created_at).toLocaleDateString('pt-BR')}
+                                {s.revisoes > 0 && <span className="text-orange-500 font-bold ml-1">· {s.revisoes} revisão(ões)</span>}
+                              </p>
+                            </div>
+                            <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap ${SOLIC_STATUS_COLORS[s.status]}`}>
+                              {SOLIC_STATUS_LABELS[s.status]}
+                            </span>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${PRIORIDADE_COLORS[s.prioridade]}`}>
+                              {s.prioridade}
+                            </span>
+                            <Eye size={14} className="text-slate-400 flex-shrink-0"/>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -456,19 +629,209 @@ export function LicitacoesPage() {
         </div>
       )}
 
-      {/* ── MODAL ENCAMINHAR ─────────────────────────────────────── */}
-      {showEncaminhar && (
+      {/* ── MODAL NOVA SOLICITAÇÃO ─────────────────────────────── */}
+      {showNovaSolic && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
-            <h2 className="text-lg font-bold dark:text-white flex items-center gap-2"><Send size={18} className="text-blue-500"/> Solicitar planilha readequada</h2>
-            <p className="text-xs text-slate-500">O engenheiro receberá uma notificação e poderá baixar a planilha original e enviar a readequada.</p>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-4">
+            <h2 className="text-lg font-bold dark:text-white flex items-center gap-2"><Send size={18} className="text-blue-500"/> Nova solicitação</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">O engenheiro receberá a solicitação e poderá trabalhar na entrega. Você acompanha tudo pela timeline.</p>
+
             <div><label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">Engenheiro *</label>
-              <select value={engSelecionado} onChange={e => setEngSelecionado(e.target.value)} className="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-sm">
+              <select value={solicEngId} onChange={e => setSolicEngId(e.target.value)} className="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-sm">
                 <option value="">Selecione...</option>{engenheiros.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></div>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setShowEncaminhar(null)} className="px-4 py-2 border border-slate-200 rounded-lg text-sm">Cancelar</button>
-              <button onClick={() => encaminharEngenheiro(showEncaminhar)} className="px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg text-sm">Encaminhar</button>
+
+            <div><label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">Tipo</label>
+              <select value={solicTipo} onChange={e => setSolicTipo(e.target.value)} className="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-sm">
+                <option value="READEQUACAO_PLANILHA">Readequação de planilha</option>
+                <option value="PROPOSTA_TECNICA">Proposta técnica</option>
+                <option value="MEMORIA_CALCULO">Memória de cálculo</option>
+                <option value="OUTRO">Outro</option>
+              </select></div>
+
+            <div><label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">Descrição *</label>
+              <textarea value={solicDesc} onChange={e => setSolicDesc(e.target.value)} rows={3} placeholder="Descreva o que precisa ser feito..."
+                className="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-sm"/></div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">Prioridade</label>
+                <select value={solicPrioridade} onChange={e => setSolicPrioridade(e.target.value)} className="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-sm">
+                  <option value="BAIXA">Baixa</option><option value="NORMAL">Normal</option><option value="ALTA">Alta</option><option value="URGENTE">Urgente</option>
+                </select></div>
+              <div><label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">Prazo</label>
+                <input type="date" value={solicPrazo} onChange={e => setSolicPrazo(e.target.value)} className="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-sm"/></div>
             </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">Anexo (opcional)</label>
+              <label className="flex items-center gap-2 text-xs text-primary-500 cursor-pointer hover:text-primary-700">
+                <Paperclip size={12}/> {solicFile ? solicFile.name : 'Anexar arquivo'}
+                <input type="file" className="hidden" onChange={e => { if (e.target.files?.[0]) setSolicFile(e.target.files[0]) }}/>
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowNovaSolic(null)} className="px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-600 dark:text-slate-400">Cancelar</button>
+              <button onClick={() => criarSolicitacao(showNovaSolic)} disabled={solicSaving}
+                className="flex items-center gap-2 px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg text-sm disabled:opacity-50">
+                {solicSaving ? <Loader2 size={14} className="animate-spin"/> : <Send size={14}/>} Criar solicitação
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL DETALHE SOLICITAÇÃO (TIMELINE) ──────────────── */}
+      {showDetalheSolic && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-6 overflow-y-auto">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-xl mx-4 mb-10">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold dark:text-white flex items-center gap-2">
+                    <MessageCircle size={18} className="text-blue-500"/> Solicitação
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    De: {getNome(showDetalheSolic.solicitante_id)} → Para: {getNome(showDetalheSolic.engenheiro_id)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${SOLIC_STATUS_COLORS[showDetalheSolic.status]}`}>
+                    {SOLIC_STATUS_LABELS[showDetalheSolic.status]}
+                  </span>
+                  {showDetalheSolic.revisoes > 0 && (
+                    <span className="text-[9px] px-2 py-0.5 rounded-full font-bold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                      {showDetalheSolic.revisoes}× revisão
+                    </span>
+                  )}
+                  <button onClick={() => setShowDetalheSolic(null)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"><X size={16}/></button>
+                </div>
+              </div>
+
+              {/* Info */}
+              <div className="grid grid-cols-3 gap-2 mt-3 text-[10px]">
+                <div><span className="text-slate-400">Tipo:</span> <span className="font-medium text-slate-700 dark:text-white">{showDetalheSolic.tipo.replace(/_/g, ' ')}</span></div>
+                <div><span className="text-slate-400">Prioridade:</span> <span className={`px-1.5 py-0.5 rounded font-bold ${PRIORIDADE_COLORS[showDetalheSolic.prioridade]}`}>{showDetalheSolic.prioridade}</span></div>
+                <div><span className="text-slate-400">Prazo:</span> <span className="font-medium text-slate-700 dark:text-white">{showDetalheSolic.prazo ? new Date(showDetalheSolic.prazo + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}</span></div>
+              </div>
+            </div>
+
+            {/* Timeline */}
+            <div className="px-6 py-4 max-h-[50vh] overflow-y-auto space-y-0">
+              {(interacoes[showDetalheSolic.id] || []).map((inter, idx) => (
+                <div key={inter.id} className="flex gap-3">
+                  {/* Linha vertical da timeline */}
+                  <div className="flex flex-col items-center">
+                    <div className={`w-3 h-3 rounded-full flex-shrink-0 mt-1 ${SOLIC_ACAO_COLORS[inter.acao].replace('text-', 'bg-')}`}/>
+                    {idx < (interacoes[showDetalheSolic.id] || []).length - 1 && (
+                      <div className="w-0.5 flex-1 bg-slate-200 dark:bg-slate-700 my-1"/>
+                    )}
+                  </div>
+
+                  <div className="flex-1 pb-4">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-xs font-medium ${SOLIC_ACAO_COLORS[inter.acao]}`}>{SOLIC_ACAO_LABELS[inter.acao]}</span>
+                      <span className="text-[10px] text-slate-400">
+                        por {getNome(inter.autor_id)} · {new Date(inter.created_at).toLocaleDateString('pt-BR')} {new Date(inter.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      {inter.numero_revisao > 0 && inter.acao !== 'CRIADA' && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-50 dark:bg-orange-900/20 text-orange-600 font-medium">Revisão #{inter.numero_revisao}</span>
+                      )}
+                    </div>
+                    {inter.mensagem && (
+                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 bg-slate-50 dark:bg-slate-900/50 rounded-lg px-3 py-2">{inter.mensagem}</p>
+                    )}
+                    {inter.arquivo_nome && (
+                      <button onClick={() => { const { data } = supabase.storage.from('licitacoes').getPublicUrl(inter.arquivo_path!); window.open(data.publicUrl, '_blank') }}
+                        className="flex items-center gap-1.5 mt-1.5 text-[10px] text-blue-500 hover:text-blue-700 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-2.5 py-1.5">
+                        <Paperclip size={10}/> {inter.arquivo_nome} <span className="text-slate-400">({(inter.arquivo_size / 1024).toFixed(0)} KB)</span>
+                        <Download size={10}/>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {(interacoes[showDetalheSolic.id] || []).length === 0 && (
+                <div className="text-center py-8 text-slate-400 text-xs">
+                  <Loader2 size={18} className="animate-spin mx-auto mb-2"/> Carregando timeline...
+                </div>
+              )}
+            </div>
+
+            {/* Ações baseadas no status e no papel do usuário */}
+            {showDetalheSolic.status !== 'APROVADA' && showDetalheSolic.status !== 'CANCELADA' && (
+              <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 space-y-3">
+                {/* Input de mensagem + arquivo */}
+                <div className="flex gap-2">
+                  <input value={solicMsg} onChange={e => setSolicMsg(e.target.value)} placeholder="Mensagem (obrigatória para entrega e revisão)..."
+                    className="flex-1 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-xs"/>
+                  <label className="flex items-center gap-1 px-3 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-xs text-slate-500 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700">
+                    <Paperclip size={12}/> {solicFile ? '1 arquivo' : 'Anexar'}
+                    <input type="file" className="hidden" onChange={e => { if (e.target.files?.[0]) setSolicFile(e.target.files[0]) }}/>
+                  </label>
+                </div>
+
+                {/* Botões de ação por status */}
+                <div className="flex flex-wrap gap-2">
+                  {/* ABERTA: Engenheiro pode assumir */}
+                  {showDetalheSolic.status === 'ABERTA' && perfilAtual?.id === showDetalheSolic.engenheiro_id && (
+                    <button onClick={() => acaoSolicitacao(showDetalheSolic, 'ASSUMIDA', 'EM_ANDAMENTO')} disabled={solicSaving}
+                      className="flex items-center gap-1 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-medium rounded-lg disabled:opacity-50">
+                      {solicSaving ? <Loader2 size={12} className="animate-spin"/> : <CheckCircle2 size={12}/>} Assumir solicitação
+                    </button>
+                  )}
+
+                  {/* EM_ANDAMENTO: Engenheiro pode entregar */}
+                  {showDetalheSolic.status === 'EM_ANDAMENTO' && perfilAtual?.id === showDetalheSolic.engenheiro_id && (
+                    <button onClick={() => acaoSolicitacao(showDetalheSolic, 'ENTREGUE', 'ENTREGUE')} disabled={solicSaving || (!solicMsg && !solicFile)}
+                      className="flex items-center gap-1 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-xs font-medium rounded-lg disabled:opacity-50">
+                      {solicSaving ? <Loader2 size={12} className="animate-spin"/> : <Send size={12}/>} Entregar
+                    </button>
+                  )}
+
+                  {/* EM_REVISAO: Engenheiro pode retomar */}
+                  {showDetalheSolic.status === 'EM_REVISAO' && perfilAtual?.id === showDetalheSolic.engenheiro_id && (
+                    <button onClick={() => acaoSolicitacao(showDetalheSolic, 'RETOMADA', 'EM_ANDAMENTO')} disabled={solicSaving}
+                      className="flex items-center gap-1 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-medium rounded-lg disabled:opacity-50">
+                      {solicSaving ? <Loader2 size={12} className="animate-spin"/> : <RotateCcw size={12}/>} Retomar trabalho
+                    </button>
+                  )}
+
+                  {/* ENTREGUE: Licitante pode aprovar ou pedir revisão */}
+                  {showDetalheSolic.status === 'ENTREGUE' && perfilAtual?.id === showDetalheSolic.solicitante_id && (
+                    <>
+                      <button onClick={() => acaoSolicitacao(showDetalheSolic, 'APROVADA', 'APROVADA')} disabled={solicSaving}
+                        className="flex items-center gap-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg disabled:opacity-50">
+                        {solicSaving ? <Loader2 size={12} className="animate-spin"/> : <CheckCircle2 size={12}/>} Aprovar
+                      </button>
+                      <button onClick={() => acaoSolicitacao(showDetalheSolic, 'REVISAO', 'EM_REVISAO')} disabled={solicSaving || (!solicMsg && !solicFile)}
+                        className="flex items-center gap-1 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg disabled:opacity-50">
+                        {solicSaving ? <Loader2 size={12} className="animate-spin"/> : <RotateCcw size={12}/>} Solicitar revisão
+                      </button>
+                    </>
+                  )}
+
+                  {/* Admin/SuperAdmin pode agir em qualquer status */}
+                  {(perfilAtual?.role === 'ADMIN' || perfilAtual?.role === 'SUPERADMIN') && perfilAtual?.id !== showDetalheSolic.engenheiro_id && perfilAtual?.id !== showDetalheSolic.solicitante_id && (
+                    <p className="text-[10px] text-slate-400 italic self-center">Como admin, as ações ficam disponíveis para o solicitante e o engenheiro designado.</p>
+                  )}
+
+                  {/* Comentário: qualquer um pode */}
+                  <button onClick={() => { if (solicMsg) acaoSolicitacao(showDetalheSolic, 'COMENTARIO', showDetalheSolic.status) }} disabled={solicSaving || !solicMsg}
+                    className="flex items-center gap-1 px-3 py-2 border border-slate-200 dark:border-slate-600 text-xs text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 ml-auto">
+                    <MessageCircle size={12}/> Comentar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Status final */}
+            {(showDetalheSolic.status === 'APROVADA' || showDetalheSolic.status === 'CANCELADA') && (
+              <div className={`px-6 py-3 text-center text-xs font-medium rounded-b-2xl ${showDetalheSolic.status === 'APROVADA' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'}`}>
+                {showDetalheSolic.status === 'APROVADA' ? '✓ Solicitação aprovada e concluída' : 'Solicitação cancelada'}
+                {showDetalheSolic.revisoes > 0 && ` · Passou por ${showDetalheSolic.revisoes} revisão(ões)`}
+              </div>
+            )}
           </div>
         </div>
       )}
