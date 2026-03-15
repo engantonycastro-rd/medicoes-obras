@@ -2,12 +2,12 @@ export type TipoContrato    = 'ESTADO' | 'PREFEITURA'
 export type StatusObra      = 'ATIVA' | 'CONCLUIDA' | 'SUSPENSA'
 export type StatusMedicao   = 'RASCUNHO' | 'ENVIADA' | 'APROVADA'
 export type StatusLinha     = 'A pagar' | 'Pago' | 'Não executado'
-export type RolePerfil      = 'ADMIN' | 'GESTOR' | 'ENGENHEIRO' | 'APONTADOR' | 'ORCAMENTISTA' | 'DIRETOR'
+export type RolePerfil      = 'ADMIN' | 'GESTOR' | 'ENGENHEIRO' | 'APONTADOR' | 'ORCAMENTISTA' | 'DIRETOR' | 'SUPERADMIN'
 
 export interface Perfil {
   id: string; created_at: string; updated_at: string
   email: string; nome: string | null; role: RolePerfil; ativo: boolean; criado_por: string | null
-  gestor_id: string | null
+  gestor_id: string | null; empresa_id: string | null
 }
 
 export interface Contrato {

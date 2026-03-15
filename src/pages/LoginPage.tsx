@@ -47,8 +47,8 @@ export function LoginPage() {
           <div className="w-16 h-16 bg-primary-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-500/30">
             <HardHat size={32} className="text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Central de Obras</h1>
-          <p className="text-slate-400 mt-2 text-sm">RD Construtora — Sistema de Gestão de Obras Públicas</p>
+          <h1 className="text-3xl font-bold text-white tracking-tight">MedObras</h1>
+          <p className="text-slate-400 mt-2 text-sm">Gestão inteligente de obras públicas</p>
         </div>
 
         {/* Card */}

@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { usePerfilStore } from '../../lib/perfilStore'
 import { useStore } from '../../lib/store'
 import { useModeloStore } from '../../lib/modeloStore'
+import { useEmpresaStore } from '../../lib/empresaStore'
 import { NotificacaoBell } from '../NotificacaoBell'
 import toast from 'react-hot-toast'
 
@@ -13,8 +14,9 @@ export function AppLayout() {
   const { perfilAtual, fetchPerfilAtual } = usePerfilStore()
   const { contratoAtivo, obraAtiva } = useStore()
   const { temaEscuro, setTemaEscuro, corTema } = useModeloStore()
+  const { empresa } = useEmpresaStore()
   const navigate = useNavigate()
-  const isAdmin = perfilAtual?.role === 'ADMIN'
+  const isAdmin = perfilAtual?.role === 'ADMIN' || perfilAtual?.role === 'SUPERADMIN'
 
   useEffect(() => { fetchPerfilAtual() }, [])
 
@@ -104,6 +106,28 @@ export function AppLayout() {
       { to: '/usuarios',  icon: Users,            label: 'Usuários' },
       { to: '/configuracoes', icon: Settings,     label: 'Config.' },
     ],
+    SUPERADMIN: [
+      { to: '/super-admin', icon: Shield,          label: 'SuperAdmin' },
+      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/dashboard-executivo', icon: BarChart3, label: 'Painel Executivo' },
+      { to: '/',          icon: Building2,        label: 'Contratos' },
+      { to: '/servicos',  icon: ClipboardList,    label: 'Serviços' },
+      { to: '/medicoes',  icon: FileText,         label: 'Medições' },
+      { to: '/kanban',    icon: KanbanSquare,     label: 'Planejamento' },
+      { to: '/diario-obra', icon: BookOpen,       label: 'Diário de Obra' },
+      { to: '/rdo',       icon: ScrollText,       label: 'RDO' },
+      { to: '/cronograma', icon: GitBranch,       label: 'Cronograma' },
+      { to: '/aditivos',  icon: FileText,         label: 'Aditivos' },
+      { to: '/checklist-nr18', icon: Shield,      label: 'Checklist NR-18' },
+      { to: '/custos-erp', icon: DollarSign,      label: 'Custos ERP' },
+      { to: '/setor-orcamentos', icon: FileSpreadsheet, label: 'Setor Orçamentos' },
+      { to: '/apontamentos', icon: ClipboardList, label: 'Apontamentos' },
+      { to: '/subempreiteiros', icon: Briefcase,  label: 'Subempreiteiros' },
+      { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
+      { to: '/auditoria', icon: History,          label: 'Auditoria' },
+      { to: '/usuarios',  icon: Users,            label: 'Usuários' },
+      { to: '/configuracoes', icon: Settings,     label: 'Config.' },
+    ],
   }
   const nav = navMap[role || 'ENGENHEIRO'] || navMap.ENGENHEIRO
 
@@ -113,11 +137,13 @@ export function AppLayout() {
         {/* Logo */}
         <div className="px-4 py-4 border-b border-slate-700 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-primary-500 rounded-xl flex items-center justify-center shrink-0 font-black text-white text-sm shadow">RD</div>
+            <div className="w-9 h-9 bg-primary-500 rounded-xl flex items-center justify-center shrink-0 font-black text-white text-sm shadow">
+              {empresa?.nome ? empresa.nome.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'MO'}
+            </div>
             {sidebarOpen && (
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-white text-sm leading-tight">Central de Obras</p>
-                <p className="text-[11px] text-slate-400">RD Construtora</p>
+                <p className="font-bold text-white text-sm leading-tight">MedObras</p>
+                <p className="text-[11px] text-slate-400">{empresa?.nome || 'Central de Obras'}</p>
               </div>
             )}
           </div>
@@ -159,14 +185,16 @@ export function AppLayout() {
               </div>
             </div>
             <div className={`mx-2 mt-1 text-xs px-2 py-0.5 rounded-full font-medium text-center ${
-              isAdmin ? 'bg-primary-500/20 text-primary-400'
+              role === 'SUPERADMIN' ? 'bg-red-500/20 text-red-400'
+              : isAdmin ? 'bg-primary-500/20 text-primary-400'
               : role === 'GESTOR' ? 'bg-purple-500/20 text-purple-400'
               : role === 'APONTADOR' ? 'bg-cyan-500/20 text-cyan-400'
               : role === 'ORCAMENTISTA' ? 'bg-emerald-500/20 text-emerald-400'
               : role === 'DIRETOR' ? 'bg-rose-500/20 text-rose-400'
               : 'bg-blue-500/20 text-blue-400'
             }`}>
-              {isAdmin ? <><Crown size={9} className="inline mr-1"/>Admin</>
+              {role === 'SUPERADMIN' ? <><Shield size={9} className="inline mr-1"/>SuperAdmin</>
+              : isAdmin ? <><Crown size={9} className="inline mr-1"/>Admin</>
               : role === 'GESTOR' ? <><Crown size={9} className="inline mr-1"/>Gestor</>
               : role === 'APONTADOR' ? <><ClipboardList size={9} className="inline mr-1"/>Apontador</>
               : role === 'ORCAMENTISTA' ? <><FileSpreadsheet size={9} className="inline mr-1"/>Orçamentista</>

@@ -29,6 +29,8 @@ import { DashboardExecutivoPage } from './pages/DashboardExecutivoPage'
 import { ChecklistNR18Page } from './pages/ChecklistNR18Page'
 import { RDOPage } from './pages/RDOPage'
 import { RelatorioFotograficoPage } from './pages/RelatorioFotograficoPage'
+import { SuperAdminPage } from './pages/SuperAdminPage'
+import { useEmpresaStore } from './lib/empresaStore'
 import { AlertCircle } from 'lucide-react'
 
 const AppMobilePage = lazy(() => import('./pages/AppMobilePage').then(m => ({ default: m.AppMobilePage })))
@@ -38,6 +40,7 @@ export { ContratoModal } from './components/contracts/ContratoModal'
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<'loading'|'ok'|'noauth'|'pendente'>('loading')
   const { fetchPerfilAtual } = usePerfilStore()
+  const { fetchEmpresa } = useEmpresaStore()
 
   useEffect(() => {
     async function check() {
@@ -45,6 +48,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
       if (!session) { setStatus('noauth'); return }
       const perfil = await fetchPerfilAtual()
       if (!perfil || !perfil.ativo) { setStatus('pendente'); return }
+      await fetchEmpresa()
       setStatus('ok')
     }
     check()
@@ -86,6 +90,7 @@ function IndexRedirect() {
   const { perfilAtual } = usePerfilStore()
   if (perfilAtual?.role === 'APONTADOR') return <Navigate to="/apontamentos" replace />
   if (perfilAtual?.role === 'DIRETOR') return <Navigate to="/dashboard-executivo" replace />
+  if (perfilAtual?.role === 'SUPERADMIN') return <Navigate to="/super-admin" replace />
   return <ContratosPage />
 }
 
@@ -97,17 +102,35 @@ const ROTAS_POR_ROLE: Record<string, string[]> = {
   ENGENHEIRO: ['/dashboard', '/', '/servicos', '/medicoes', '/memoria', '/kanban', '/diario-obra', '/rdo', '/checklist-nr18', '/custos-obra', '/orcamentos', '/relatorio-fotos', '/configuracoes', '/ajuda'],
   GESTOR: ['/dashboard', '/', '/servicos', '/medicoes', '/memoria', '/kanban', '/diario-obra', '/rdo', '/cronograma', '/aditivos', '/checklist-nr18', '/custos-obra', '/orcamentos', '/relatorio-fotos', '/subempreiteiros', '/configuracoes', '/ajuda'],
   ADMIN: ['*'],
+  SUPERADMIN: ['*'],
 }
 
 function RoleGuard({ children, path }: { children: React.ReactNode; path: string }) {
   const { perfilAtual } = usePerfilStore()
+  const { isRotaLiberada } = useEmpresaStore()
   const role = perfilAtual?.role || 'ENGENHEIRO'
   const allowed = ROTAS_POR_ROLE[role] || []
-  if (allowed[0] === '*' || allowed.includes(path)) return <>{children}</>
-  // Redireciona para a home do cargo
-  if (role === 'DIRETOR') return <Navigate to="/dashboard-executivo" replace />
-  if (role === 'APONTADOR') return <Navigate to="/apontamentos" replace />
-  return <Navigate to="/" replace />
+
+  // Check role-level access first
+  if (allowed[0] !== '*' && !allowed.includes(path)) {
+    if (role === 'DIRETOR') return <Navigate to="/dashboard-executivo" replace />
+    if (role === 'APONTADOR') return <Navigate to="/apontamentos" replace />
+    if (role === 'SUPERADMIN') return <Navigate to="/super-admin" replace />
+    return <Navigate to="/" replace />
+  }
+
+  // Check module-level access (feature flags)
+  if (role !== 'SUPERADMIN' && !isRotaLiberada(path)) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-8">
+        <AlertCircle size={48} className="text-slate-300 mb-4"/>
+        <p className="text-lg font-bold text-slate-700 dark:text-white mb-2">Módulo não disponível</p>
+        <p className="text-sm text-slate-500 max-w-md">Este módulo não está habilitado no plano da sua empresa. Entre em contato com o administrador para solicitar acesso.</p>
+      </div>
+    )
+  }
+
+  return <>{children}</>
 }
 
 export default function App() {
@@ -145,6 +168,7 @@ export default function App() {
           <Route path="checklist-nr18"     element={<RoleGuard path="/checklist-nr18"><ChecklistNR18Page /></RoleGuard>} />
           <Route path="rdo"                element={<RoleGuard path="/rdo"><RDOPage /></RoleGuard>} />
           <Route path="relatorio-fotos"    element={<RoleGuard path="/relatorio-fotos"><RelatorioFotograficoPage /></RoleGuard>} />
+          <Route path="super-admin"         element={<RoleGuard path="/super-admin"><SuperAdminPage /></RoleGuard>} />
         </Route>
       </Routes>
     </BrowserRouter>
