@@ -1,0 +1,259 @@
+import { LinhaMemoria, Servico, Contrato, Obra } from '../types'
+
+// ─── FORMATAÇÃO ───────────────────────────────────────────────────────────────
+
+export function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value)
+}
+
+export function formatPercent(value: number, decimals = 2): string {
+  return `${(value * 100).toFixed(decimals)}%`
+}
+
+export function formatNumber(value: number, decimals = 4): string {
+  return new Intl.NumberFormat('pt-BR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals,
+  }).format(value)
+}
+
+export function formatDate(dateStr: string): string {
+  if (!dateStr) return ''
+  try {
+    const date = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00')
+    if (isNaN(date.getTime())) return ''
+    return new Intl.DateTimeFormat('pt-BR').format(date)
+  } catch {
+    return ''
+  }
+}
+
+// ─── ORDINAIS ────────────────────────────────────────────────────────────────
+
+export function toOrdinalFeminino(n: number): string {
+  const ordinais = ['1ª','2ª','3ª','4ª','5ª','6ª','7ª','8ª','9ª','10ª',
+                    '11ª','12ª','13ª','14ª','15ª','16ª','17ª','18ª','19ª','20ª']
+  return ordinais[n - 1] || `${n}ª`
+}
+
+// ─── CÁLCULOS DA MEMÓRIA ─────────────────────────────────────────────────────
+
+/**
+ * Calcula o TOTAL de uma linha de memória baseado nos campos dimensionais.
+ * Regra: produto de todos os campos não-nulos e não-zero.
+ * Equivalente à fórmula Excel:
+ *   =IF(SUM(C:L)<>0, PRODUCT(C,D,E,F,G,H,I,J,L), 0) - K
+ */
+export function calcularTotalLinha(linha: Partial<LinhaMemoria>): number {
+  const campos = [
+    linha.largura,
+    linha.comprimento,
+    linha.altura,
+    linha.perimetro,
+    linha.area,
+    linha.volume,
+    linha.kg,
+    linha.outros,
+    linha.quantidade,
+  ]
+
+  const validos = campos.filter(v => v !== null && v !== undefined && v !== 0)
+
+  if (validos.length === 0) return 0
+
+  const produto = validos.reduce<number>((acc, v) => acc * (v as number), 1)
+  const desconto = linha.desconto_dim ?? 0
+
+  return produto - desconto
+}
+
+// ─── CÁLCULOS DO SERVIÇO ──────────────────────────────────────────────────────
+
+export function calcPrecoComDesconto(preco: number, desconto: number): number {
+  return preco * (1 - desconto)
+}
+
+export function calcPrecoComBDI(precoComDesconto: number, bdi: number): number {
+  return precoComDesconto * (1 + bdi)
+}
+
+export function calcPrecoTotal(quantidade: number, precoComBDI: number): number {
+  return Math.trunc(quantidade * precoComBDI * 100) / 100
+}
+
+// ─── RESUMO DO SERVIÇO NA MEDIÇÃO ────────────────────────────────────────────
+
+export interface ResumoLinhasServico {
+  qtdAnterior: number
+  qtdPeriodo: number
+  qtdAcumulada: number
+  qtdSaldo: number
+}
+
+export function calcResumoServico(
+  servico: Servico,
+  linhas: LinhaMemoria[]
+): ResumoLinhasServico {
+  const qtdAnterior = linhas
+    .filter(l => l.status === 'Pago')
+    .reduce((sum, l) => sum + l.total, 0)
+
+  const qtdPeriodo = linhas
+    .filter(l => l.status === 'A pagar')
+    .reduce((sum, l) => sum + l.total, 0)
+
+  const qtdAcumulada = qtdAnterior + qtdPeriodo
+  const qtdSaldo = servico.quantidade - qtdAcumulada
+
+  return { qtdAnterior, qtdPeriodo, qtdAcumulada, qtdSaldo }
+}
+
+// ─── VALOR TOTAL DA MEDIÇÃO ───────────────────────────────────────────────────
+
+export interface ValoresMedicao {
+  totalOrcamento: number
+  valorPeriodo: number
+  valorAcumulado: number
+  valorSaldo: number
+  percentualPeriodo: number
+  percentualAcumulado: number
+  percentualSaldo: number
+}
+
+export function calcValoresMedicao(
+  servicos: Servico[],
+  linhasPorServico: Map<string, LinhaMemoria[]>,
+  contrato: Contrato | Obra
+): ValoresMedicao {
+  let totalOrcamento = 0
+  let valorPeriodo = 0
+  let valorAcumulado = 0
+
+  // Arredonda para 2 casas (padrão financeiro)
+  const r2 = (n: number) => Math.round(n * 100) / 100
+
+  for (const srv of servicos) {
+    if (srv.is_grupo) continue
+
+    const precoComDesconto = calcPrecoComDesconto(srv.preco_unitario, contrato.desconto_percentual)
+    const precoComBDI = calcPrecoComBDI(precoComDesconto, contrato.bdi_percentual)
+    const precoTotal = calcPrecoTotal(srv.quantidade, precoComBDI)
+    totalOrcamento += precoTotal
+
+    const linhas = linhasPorServico.get(srv.id) || []
+    const { qtdAnterior, qtdPeriodo, qtdAcumulada } = calcResumoServico(srv, linhas)
+
+    // Preço BDI usando o BDI real do contrato
+    const precoBDI = calcPrecoComBDI(precoComDesconto, contrato.bdi_percentual)
+
+    // Quando 100% medido, usa o valor do contrato (evita diferença de arredondamento)
+    if (qtdAcumulada >= srv.quantidade && srv.quantidade > 0) {
+      valorAcumulado += precoTotal
+      // Período = total apenas se tudo foi medido neste período (qtdAnterior == 0)
+      if (qtdAnterior === 0) {
+        valorPeriodo += precoTotal
+      } else {
+        // Parte do período: total - valor já acumulado anterior (arredondado)
+        const valAnterior = r2(qtdAnterior * precoBDI)
+        valorPeriodo += precoTotal - valAnterior
+      }
+    } else {
+      // Parcialmente medido: arredonda cada multiplicação individualmente
+      valorAcumulado += r2((qtdAnterior + qtdPeriodo) * precoBDI)
+      valorPeriodo += r2(qtdPeriodo * precoBDI)
+    }
+  }
+
+  const valorSaldo = totalOrcamento - valorAcumulado
+
+  return {
+    totalOrcamento,
+    valorPeriodo,
+    valorAcumulado,
+    valorSaldo,
+    percentualPeriodo: totalOrcamento > 0 ? valorPeriodo / totalOrcamento : 0,
+    percentualAcumulado: totalOrcamento > 0 ? valorAcumulado / totalOrcamento : 0,
+    percentualSaldo: totalOrcamento > 0 ? valorSaldo / totalOrcamento : 0,
+  }
+}
+
+// ─── IMPORT DE ORÇAMENTO ─────────────────────────────────────────────────────
+
+/**
+ * Determina se um item é de grupo (ex: "1.0", "2.0", "10") vs serviço (ex: "1.1")
+ */
+export function isItemGrupo(item: string): boolean {
+  // Remove espaços
+  const clean = item.trim()
+  // Grupo: número inteiro ou com ".0" no final
+  return /^\d+\.0$/.test(clean) || /^\d+$/.test(clean)
+}
+
+/**
+ * Determina o grupo pai de um item (ex: "1.3" → "1.0", "12.5" → "12.0")
+ */
+export function getGrupoItem(item: string): string | undefined {
+  const match = item.match(/^(\d+)\./)
+  if (!match) return undefined
+  return `${match[1]}.0`
+}
+
+// ─── GERAÇÃO DE SUB-ITEM ────────────────────────────────────────────────────
+
+export function gerarSubItem(itemPai: string, indice: number): string {
+  // ex: itemPai = "1.1", indice = 1 → "1.1.1"
+  return `${itemPai}.${indice}`
+}
+
+// ─── NÚMERO POR EXTENSO (R$) ────────────────────────────────────────────────
+
+const unidades = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove',
+  'dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove']
+const dezenas = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa']
+const centenas = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos',
+  'seiscentos', 'setecentos', 'oitocentos', 'novecentos']
+
+function numPorExtenso(n: number): string {
+  if (n === 0) return 'zero'
+  if (n === 100) return 'cem'
+  if (n < 20) return unidades[n]
+  if (n < 100) {
+    const d = Math.floor(n / 10)
+    const u = n % 10
+    return u === 0 ? dezenas[d] : `${dezenas[d]} e ${unidades[u]}`
+  }
+  if (n < 1000) {
+    const c = Math.floor(n / 100)
+    const resto = n % 100
+    return resto === 0 ? centenas[c] : `${centenas[c]} e ${numPorExtenso(resto)}`
+  }
+  if (n < 1000000) {
+    const mil = Math.floor(n / 1000)
+    const resto = n % 1000
+    const milStr = mil === 1 ? 'mil' : `${numPorExtenso(mil)} mil`
+    return resto === 0 ? milStr : `${milStr} e ${numPorExtenso(resto)}`
+  }
+  return n.toString()
+}
+
+export function valorPorExtenso(valor: number): string {
+  const inteiro = Math.floor(valor)
+  const centavos = Math.round((valor - inteiro) * 100)
+
+  const parteInteira = numPorExtenso(inteiro)
+  const sufixoInteiro = inteiro === 1 ? 'real' : 'reais'
+
+  if (centavos === 0) {
+    return `${parteInteira} ${sufixoInteiro}`
+  }
+
+  const parteCentavos = numPorExtenso(centavos)
+  const sufixoCentavos = centavos === 1 ? 'centavo' : 'centavos'
+
+  return `${parteInteira} ${sufixoInteiro} e ${parteCentavos} ${sufixoCentavos}`
+}

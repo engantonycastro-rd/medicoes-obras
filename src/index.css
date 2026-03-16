@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+/* ═══ Tema de cores — Primary ═══ */
+:root, .theme-orange {
+  --primary-50:  #FFF7ED;
+  --primary-100: #FFEDD5;
+  --primary-200: #FED7AA;
+  --primary-300: #FDBA74;
+  --primary-400: #FB923C;
+  --primary-500: #E8611A;
+  --primary-600: #D4550F;
+  --primary-700: #C2410C;
+  --primary-800: #9A3412;
+  --primary-900: #7C2D12;
+}
+.theme-amber {
+  --primary-50:  #FFFBEB;
+  --primary-100: #FEF3C7;
+  --primary-200: #FDE68A;
+  --primary-300: #FCD34D;
+  --primary-400: #FBBF24;
+  --primary-500: #F59E0B;
+  --primary-600: #D97706;
+  --primary-700: #B45309;
+  --primary-800: #92400E;
+  --primary-900: #78350F;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar customizada */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+.dark ::-webkit-scrollbar-track { background: #1e293b; }
+.dark ::-webkit-scrollbar-thumb { background: #475569; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* Dark mode — cards, borders, inputs */
+.dark .bg-white { background-color: #1e293b !important; }
+.dark .border-slate-200 { border-color: #334155 !important; }
+.dark .border-slate-100 { border-color: #1e293b !important; }
+.dark .border-slate-50 { border-color: #1e293b !important; }
+.dark .bg-slate-50 { background-color: #0f172a !important; }
+.dark .bg-slate-100 { background-color: #1e293b !important; }
+.dark .text-slate-800 { color: #e2e8f0 !important; }
+.dark .text-slate-700 { color: #cbd5e1 !important; }
+.dark .text-slate-600 { color: #94a3b8 !important; }
+.dark .text-slate-500 { color: #64748b !important; }
+.dark .hover\:bg-slate-50:hover { background-color: #334155 !important; }
+
+/* Dark mode — inputs/selects */
+.dark input, .dark select, .dark textarea {
+  background-color: #0f172a;
+  color: #e2e8f0;
+  border-color: #475569;
+}
+.dark input:focus, .dark select:focus, .dark textarea:focus {
+  border-color: #f59e0b;
+}
+.dark input::placeholder { color: #64748b; }
+
+/* Dark mode — tables */
+.dark th { color: #94a3b8 !important; }
+.dark .bg-slate-50 th { background-color: #1e293b !important; }
+.dark tr:hover { background-color: rgba(51, 65, 85, 0.3) !important; }
+
+/* Dark mode — border-dashed */
+.dark .border-dashed { border-color: #475569 !important; }
+
+/* Keyboard shortcut indicator */
+.kbd-hint {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  color: #64748b;
+  line-height: 1.4;
+}
+.dark .kbd-hint {
+  background: #334155;
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+/* Input number sem seta */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Linha clamp */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
