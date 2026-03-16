@@ -122,12 +122,12 @@ export const MODELO_ESTADO_DEFAULT: ModeloPlanilha = {
     linha_100pct:   '70AD47',
     linha_total:    '1F3864',
     mem_titulo:     '1F3864',
-    mem_grupo:      'BDD7EE',
-    mem_apagar:     'E2EFDA',
-    mem_pago:       'DDEEFF',
-    mem_tot_acum:   'D9D9D9',
-    mem_tot_ant:    'DDEEFF',
-    mem_tot_mes:    'FFF2CC',
+    mem_grupo:      'D6D6D6',
+    mem_apagar:     'F2F2F2',
+    mem_pago:       'F2F2F2',
+    mem_tot_acum:   'D6D6D6',
+    mem_tot_ant:    'D6D6D6',
+    mem_tot_mes:    'D6D6D6',
     extenso_bg:     'FFF8E7',
     extenso_borda:  'ED7D31',
     demo_cabec:     '1F3864',
@@ -277,12 +277,21 @@ export const useModeloStore = create<ModeloState>()(
     }),
     {
       name: 'rd-modelos-planilha',
-      // garante que os builtins sempre estão presentes mesmo após atualização do código
+      // Força atualização dos builtins: SEMPRE sobrescreve com os defaults do código
+      // Garante que mudanças de cores no código refletem imediatamente
       onRehydrateStorage: () => (state) => {
         if (!state) return
-        const ids = state.modelos.map(m => m.id)
-        if (!ids.includes('builtin-estado'))      state.modelos.unshift(MODELO_ESTADO_DEFAULT)
-        if (!ids.includes('builtin-prefeitura'))   state.modelos.unshift({ ...MODELO_PREFEITURA_DEFAULT })
+        const builtinMap: Record<string, ModeloPlanilha> = {
+          'builtin-estado': MODELO_ESTADO_DEFAULT,
+          'builtin-prefeitura': MODELO_PREFEITURA_DEFAULT,
+        }
+        // Substitui builtins existentes com defaults atualizados
+        state.modelos = state.modelos
+          .map(m => builtinMap[m.id] ? { ...builtinMap[m.id] } : m)
+        // Adiciona faltantes
+        for (const [id, def] of Object.entries(builtinMap)) {
+          if (!state.modelos.some(m => m.id === id)) state.modelos.unshift(def)
+        }
       },
     }
   )
