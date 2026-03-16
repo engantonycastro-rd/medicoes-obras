@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import {
   Plus, Trash2, CheckCircle2, ChevronRight, ArrowLeft, Clock, Play,
   ClipboardCheck, CheckSquare, Square, Loader2, GripVertical, Calendar,
-  AlertCircle, Edit3, X, Save, MessageSquare,
+  AlertCircle, Edit3, X, Save, MessageSquare, Building2, User, Filter,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
@@ -23,6 +23,14 @@ interface KanbanItem {
   executado: boolean; obs_conferencia: string | null
 }
 
+interface ObraResumo {
+  id: string; nome_obra: string; local_obra: string; contrato_id: string
+  status: string; engenheiro_responsavel_id: string | null
+  contrato_nome?: string
+}
+
+interface PerfilResumo { id: string; nome: string; role: string }
+
 const MESES = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
 
 const COLUNAS: { key: KanbanCard['status']; label: string; color: string; icon: any; bg: string }[] = [
@@ -33,13 +41,21 @@ const COLUNAS: { key: KanbanCard['status']; label: string; color: string; icon: 
 ]
 
 export function KanbanObraPage() {
-  const { obraAtiva, contratoAtivo } = useStore()
+  const { obraAtiva } = useStore()
   const { perfilAtual } = usePerfilStore()
   const navigate = useNavigate()
 
+  // Obras e perfis
+  const [obras, setObras] = useState<ObraResumo[]>([])
+  const [perfis, setPerfis] = useState<PerfilResumo[]>([])
+  const [obraSel, setObraSel] = useState<string>('')
+  const [filtroEng, setFiltroEng] = useState('todos')
+  const [loadingObras, setLoadingObras] = useState(true)
+
+  // Kanban
   const [cards, setCards] = useState<KanbanCard[]>([])
   const [itens, setItens] = useState<Record<string, KanbanItem[]>>({})
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
 
   // Novo card
   const [showNovoCard, setShowNovoCard] = useState(false)
@@ -53,15 +69,66 @@ export function KanbanObraPage() {
   const [editandoItem, setEditandoItem] = useState<string | null>(null)
   const [editDesc, setEditDesc] = useState('')
 
-  useEffect(() => {
-    if (obraAtiva) fetchAll()
-  }, [obraAtiva])
+  // Designar engenheiro
+  const [showDesignar, setShowDesignar] = useState(false)
+  const [engDesignado, setEngDesignado] = useState('')
 
-  async function fetchAll() {
-    if (!obraAtiva) return
+  // ── Fetch obras e perfis ──
+  useEffect(() => {
+    if (perfilAtual) fetchObras()
+  }, [perfilAtual])
+
+  // Pré-selecionar se vem de obraAtiva
+  useEffect(() => {
+    if (obraAtiva && !obraSel && obras.length > 0) {
+      const found = obras.find(o => o.id === obraAtiva.id)
+      if (found) setObraSel(found.id)
+    }
+  }, [obraAtiva, obras])
+
+  // Carregar kanban quando seleciona obra
+  useEffect(() => {
+    if (obraSel) fetchKanban(obraSel)
+    else { setCards([]); setItens({}) }
+  }, [obraSel])
+
+  async function fetchObras() {
+    setLoadingObras(true)
+    const [obrasRes, perfisRes, contratosRes, gestoresRes] = await Promise.all([
+      supabase.from('obras').select('id, nome_obra, local_obra, contrato_id, status, engenheiro_responsavel_id').eq('status', 'ATIVA'),
+      supabase.from('perfis').select('id, nome, role').eq('ativo', true),
+      supabase.from('contratos').select('id, nome_obra'),
+      supabase.from('contrato_gestores').select('contrato_id, gestor_id'),
+    ])
+
+    const allObras = (obrasRes.data || []) as ObraResumo[]
+    const allPerfis = (perfisRes.data || []) as PerfilResumo[]
+    const contratos = contratosRes.data || []
+    const gestores = gestoresRes.data || []
+
+    // Enriquecer com nome do contrato
+    const cMap = new Map(contratos.map((c: any) => [c.id, c.nome_obra]))
+    allObras.forEach(o => { o.contrato_nome = cMap.get(o.contrato_id) || '' })
+
+    // Filtrar por role
+    let obrasVisiveis = allObras
+    if (perfilAtual?.role === 'ENGENHEIRO') {
+      obrasVisiveis = allObras.filter(o => o.engenheiro_responsavel_id === perfilAtual.id)
+    } else if (perfilAtual?.role === 'GESTOR') {
+      const meusContratos = gestores.filter((g: any) => g.gestor_id === perfilAtual.id).map((g: any) => g.contrato_id)
+      obrasVisiveis = allObras.filter(o => meusContratos.includes(o.contrato_id))
+    }
+    // ADMIN e SUPERADMIN veem tudo
+
+    setObras(obrasVisiveis)
+    setPerfis(allPerfis)
+    setLoadingObras(false)
+  }
+
+  async function fetchKanban(obraId: string) {
     setLoading(true)
     const { data: cardsData } = await supabase.from('kanban_cards').select('*')
-      .eq('obra_id', obraAtiva.id).order('ano', { ascending: false }).order('mes', { ascending: false }).order('quinzena', { ascending: false })
+      .eq('obra_id', obraId).order('ano', { ascending: false }).order('mes', { ascending: false }).order('quinzena', { ascending: false })
     if (cardsData) {
       setCards(cardsData as KanbanCard[])
       const iMap: Record<string, KanbanItem[]> = {}
@@ -75,14 +142,14 @@ export function KanbanObraPage() {
   }
 
   async function criarCard() {
-    if (!obraAtiva || !perfilAtual) return
+    if (!obraSel || !perfilAtual) return
     const servicos = novoItens.filter(s => s.trim())
     if (servicos.length === 0) { toast.error('Adicione ao menos um serviço'); return }
 
     setCriando(true)
     try {
       const { data: card, error } = await supabase.from('kanban_cards').insert({
-        obra_id: obraAtiva.id, criado_por: perfilAtual.id,
+        obra_id: obraSel, criado_por: perfilAtual.id,
         ano: novoAno, mes: novoMes, quinzena: novoQuinzena, status: 'PLANEJADO',
       }).select().single()
       if (error) throw error
@@ -92,7 +159,7 @@ export function KanbanObraPage() {
 
       toast.success(`Card ${MESES[novoMes]} ${novoQuinzena}ª quinzena criado!`)
       setShowNovoCard(false); setNovoItens([''])
-      fetchAll()
+      fetchKanban(obraSel)
     } catch (err: any) {
       if (err.message?.includes('duplicate')) toast.error('Já existe um card para esta quinzena!')
       else toast.error(err.message)
@@ -144,37 +211,123 @@ export function KanbanObraPage() {
     toast.success('Card excluído')
   }
 
-  if (!obraAtiva || !contratoAtivo) {
-    return (
-      <div className="p-8 text-center">
-        <AlertCircle size={36} className="mx-auto text-slate-300 mb-3"/>
-        <p className="text-slate-500">Selecione uma obra para acessar o planejamento</p>
-        <button onClick={() => navigate('/')} className="mt-3 px-4 py-2 bg-primary-500 text-white rounded-lg text-sm">Ir para Contratos</button>
-      </div>
-    )
+  async function designarEngenheiro() {
+    if (!obraSel) return
+    await supabase.from('obras').update({ engenheiro_responsavel_id: engDesignado || null }).eq('id', obraSel)
+    toast.success(engDesignado ? 'Engenheiro designado!' : 'Engenheiro removido')
+    setShowDesignar(false)
+    fetchObras()
   }
+
+  // Helpers
+  const getNome = (id: string | null) => perfis.find(p => p.id === id)?.nome || '—'
+  const engenheiros = perfis.filter(p => p.role === 'ENGENHEIRO' || p.role === 'ADMIN')
+  const obraAtual = obras.find(o => o.id === obraSel)
+  const isGestorOrAdmin = perfilAtual?.role === 'ADMIN' || perfilAtual?.role === 'GESTOR' || perfilAtual?.role === 'SUPERADMIN'
+
+  // Filtro por engenheiro
+  const obrasFiltradas = filtroEng === 'todos' ? obras : obras.filter(o => o.engenheiro_responsavel_id === filtroEng)
 
   return (
     <div className="p-6 overflow-y-auto" style={{ height: '100%' }}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-5">
         <div>
-          <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
-            <button onClick={() => navigate('/medicoes')} className="hover:text-primary-600 flex items-center gap-1"><ArrowLeft size={12}/> Medições</button>
-            <span>›</span>
-            <span>{obraAtiva.nome_obra}</span>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-800">Planejamento de Serviços</h1>
-          <p className="text-sm text-slate-500">Kanban de planejamento quinzenal</p>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+            <Calendar size={24} className="text-primary-500"/> Planejamento de Serviços
+          </h1>
+          <p className="text-sm text-slate-500">Kanban de planejamento quinzenal por obra</p>
         </div>
-        <button onClick={() => setShowNovoCard(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm shadow-sm">
-          <Plus size={15}/> Novo Planejamento
-        </button>
+        {obraSel && (
+          <button onClick={() => setShowNovoCard(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm shadow-sm">
+            <Plus size={15}/> Novo Planejamento
+          </button>
+        )}
       </div>
 
+      {/* Seletor de obra + filtro engenheiro */}
+      <div className="flex items-center gap-3 mb-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3">
+        <Building2 size={16} className="text-slate-400 shrink-0"/>
+        <select value={obraSel} onChange={e => { setObraSel(e.target.value); setShowNovoCard(false) }}
+          className="flex-1 border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-sm">
+          <option value="">— Selecione uma obra —</option>
+          {obrasFiltradas.map(o => (
+            <option key={o.id} value={o.id}>
+              {o.nome_obra} — {o.contrato_nome || 'Sem contrato'} {o.engenheiro_responsavel_id ? `(${getNome(o.engenheiro_responsavel_id)})` : ''}
+            </option>
+          ))}
+        </select>
+        {isGestorOrAdmin && engenheiros.length > 0 && (
+          <>
+            <Filter size={14} className="text-slate-400 shrink-0"/>
+            <select value={filtroEng} onChange={e => { setFiltroEng(e.target.value); setObraSel('') }}
+              className="border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-2 py-2 text-xs w-48">
+              <option value="todos">Todos engenheiros</option>
+              {engenheiros.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+            </select>
+          </>
+        )}
+      </div>
+
+      {/* Info da obra selecionada */}
+      {obraAtual && (
+        <div className="flex items-center gap-4 mb-5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-3">
+          <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900/30 rounded-lg flex items-center justify-center shrink-0">
+            <Building2 size={18} className="text-primary-600"/>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{obraAtual.nome_obra}</p>
+            <p className="text-[10px] text-slate-400">{obraAtual.local_obra} · {obraAtual.contrato_nome}</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <User size={14} className="text-slate-400"/>
+            <span className="text-xs text-slate-600 dark:text-slate-300">
+              {obraAtual.engenheiro_responsavel_id ? getNome(obraAtual.engenheiro_responsavel_id) : 'Sem engenheiro'}
+            </span>
+            {isGestorOrAdmin && (
+              <button onClick={() => { setEngDesignado(obraAtual.engenheiro_responsavel_id || ''); setShowDesignar(true) }}
+                className="text-[10px] px-2 py-1 bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200 font-medium">
+                {obraAtual.engenheiro_responsavel_id ? 'Trocar' : 'Designar'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Sem obra selecionada */}
+      {!obraSel && !loadingObras && (
+        <div className="text-center py-16 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl">
+          <Building2 size={36} className="mx-auto text-slate-300 mb-3"/>
+          <p className="text-slate-500">{obras.length === 0 ? 'Nenhuma obra disponível' : 'Selecione uma obra acima para ver o planejamento'}</p>
+        </div>
+      )}
+
+      {loadingObras && (
+        <div className="text-center py-16 text-slate-400"><Loader2 size={24} className="animate-spin mx-auto mb-2"/> Carregando obras...</div>
+      )}
+
+      {/* Modal designar engenheiro */}
+      {showDesignar && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+            <h2 className="text-lg font-bold dark:text-white flex items-center gap-2"><User size={18} className="text-primary-500"/> Designar engenheiro</h2>
+            <p className="text-xs text-slate-500">Selecione o engenheiro responsável por esta obra:</p>
+            <select value={engDesignado} onChange={e => setEngDesignado(e.target.value)}
+              className="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-sm">
+              <option value="">Sem engenheiro</option>
+              {engenheiros.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+            </select>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowDesignar(false)} className="px-4 py-2 border border-slate-200 rounded-lg text-sm">Cancelar</button>
+              <button onClick={designarEngenheiro} className="px-5 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm">Confirmar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal novo card */}
-      {showNovoCard && (
+      {obraSel && showNovoCard && (
         <div className="bg-primary-50 border-2 border-primary-300 rounded-2xl p-5 mb-6">
           <p className="font-bold text-primary-800 mb-4">Novo Planejamento Quinzenal</p>
           <div className="grid grid-cols-3 gap-4 mb-4">
@@ -234,7 +387,7 @@ export function KanbanObraPage() {
       )}
 
       {/* Kanban Board */}
-      {loading ? (
+      {obraSel && loading ? (
         <div className="text-center py-16 text-slate-400"><Loader2 size={24} className="animate-spin mx-auto mb-2"/> Carregando...</div>
       ) : cards.length === 0 && !showNovoCard ? (
         <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-xl">

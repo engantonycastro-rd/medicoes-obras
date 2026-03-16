@@ -49,6 +49,7 @@ export interface Obra {
   status: StatusObra
   centro_custo: string | null
   ordem: number
+  engenheiro_responsavel_id: string | null
 }
 
 export interface LogoSistema {
