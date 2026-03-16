@@ -83,7 +83,7 @@ export function calcPrecoComBDI(precoComDesconto: number, bdi: number): number {
 }
 
 export function calcPrecoTotal(quantidade: number, precoComBDI: number): number {
-  return Math.trunc(quantidade * precoComBDI * 100) / 100
+  return Math.round(quantidade * precoComBDI * 100) / 100
 }
 
 // ─── RESUMO DO SERVIÇO NA MEDIÇÃO ────────────────────────────────────────────

@@ -12,7 +12,7 @@ interface PerfilStore {
   fetchTodosPerfis: () => Promise<void>
   ativarUsuario: (userId: string) => Promise<void>
   desativarUsuario: (userId: string) => Promise<void>
-  alterarRole: (userId: string, role: 'ADMIN' | 'GESTOR' | 'ENGENHEIRO' | 'APONTADOR' | 'ORCAMENTISTA' | 'DIRETOR') => Promise<void>
+  alterarRole: (userId: string, role: 'ADMIN' | 'GESTOR' | 'ENGENHEIRO' | 'APONTADOR' | 'ORCAMENTISTA' | 'DIRETOR' | 'SUPERADMIN' | 'LICITANTE') => Promise<void>
   atualizarNome: (userId: string, nome: string) => Promise<void>
   atribuirGestor: (userId: string, gestorId: string | null) => Promise<void>
 }
@@ -70,10 +70,16 @@ export const usePerfilStore = create<PerfilStore>((set) => ({
   },
 
   ativarUsuario: async (userId) => {
+    // Obter empresa_id do admin logado
+    const state = usePerfilStore.getState()
+    const empresaId = state.perfilAtual?.empresa_id
+    const updates: Record<string, any> = { ativo: true }
+    if (empresaId) updates.empresa_id = empresaId
+
     const { error } = await supabase
-      .from('perfis').update({ ativo: true }).eq('id', userId)
+      .from('perfis').update(updates).eq('id', userId)
     if (error) { set({ error: error.message }); throw error }
-    set(s => ({ perfis: s.perfis.map(p => p.id === userId ? { ...p, ativo: true } : p) }))
+    set(s => ({ perfis: s.perfis.map(p => p.id === userId ? { ...p, ...updates } : p) }))
     // Notifica o usuário ativado
     try { await supabase.rpc('criar_notificacao', {
       p_user_id: userId, p_tipo: 'sucesso',

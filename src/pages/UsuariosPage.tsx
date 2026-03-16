@@ -157,7 +157,7 @@ export function UsuariosPage() {
                   <p className="text-xs text-slate-400">Cadastrado em {formatDate(p.created_at)}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <select defaultValue="ENGENHEIRO" onChange={e => alterarRole(p.id, e.target.value as RolePerfil)}
+                  <select defaultValue={p.role} onChange={e => alterarRole(p.id, e.target.value as RolePerfil)}
                     className="text-xs border border-slate-200 rounded-lg px-2 py-1.5">
                     <option value="ENGENHEIRO">Engenheiro</option>
                     <option value="GESTOR">Gestor de Contrato</option>
