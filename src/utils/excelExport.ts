@@ -178,6 +178,14 @@ async function gerarAbaESTADO(
   h7.forEach(([a,v]) => setCell(ws,a,v, { font:fW(8), fill:solidFill(C.th_base),    align:align('center'), border:bC }))
   h8.forEach(([a,v]) => setCell(ws,a,v, { font:fW(8), fill:solidFill(C.th_medicao), align:align('center'), border:bC }))
 
+  // Pré-calcula total por grupo (soma dos filhos)
+  const grupoTotais = new Map<string, number>()
+  for (const srv of servicos) {
+    if (srv.is_grupo) continue
+    const grupoItem = srv.grupo_item || srv.item.split('.')[0]
+    grupoTotais.set(grupoItem, (grupoTotais.get(grupoItem) || 0) + getPrecoTotalServico(srv, obra.bdi_percentual, obra.desconto_percentual))
+  }
+
   let row = 9
   for (const srv of [...servicos].sort((a,b) => a.ordem - b.ordem)) {
     const pBDI     = getPUEfetivo(srv, obra.bdi_percentual)
@@ -191,9 +199,10 @@ async function gerarAbaESTADO(
         const cell = ws.getCell(`${c}${row}`)
         cell.fill = solidFill(C.linha_grupo); cell.font = fB(9); cell.border = bD
       })
+      const grpTotal = grupoTotais.get(srv.item) || 0
       ws.getCell(`A${row}`).value = srv.item;     ws.getCell(`A${row}`).alignment = align('center')
       ws.getCell(`D${row}`).value = srv.descricao; ws.getCell(`D${row}`).alignment = align('left')
-      ws.getCell(`J${row}`).value = pTotal;       ws.getCell(`J${row}`).numFmt = '#,##0.00'; ws.getCell(`J${row}`).alignment = align('right')
+      ws.getCell(`J${row}`).value = grpTotal;     ws.getCell(`J${row}`).numFmt = '#,##0.00'; ws.getCell(`J${row}`).alignment = align('right')
     } else {
       const linhas = linhasPorServico.get(srv.id) || []
       const { qtdAnterior, qtdPeriodo, qtdAcumulada, qtdSaldo } = calcResumoServico(srv, linhas)
@@ -451,6 +460,13 @@ async function gerarAbaPREF(
   const itens  = servicos.filter(s => !s.is_grupo)
   let dataRow  = 13
 
+  // Pré-calcula total por grupo Prefeitura
+  const grpTotPref = new Map<string, number>()
+  for (const s of itens) {
+    const gi = s.grupo_item || s.item.split('.')[0]
+    grpTotPref.set(gi, (grpTotPref.get(gi) || 0) + getPrecoTotalServico(s, obra.bdi_percentual, obra.desconto_percentual))
+  }
+
   for (const grp of grupos) {
     ws.getRow(dataRow).height = 14
     const gFill = solidFill('D9D9D9')
@@ -458,10 +474,11 @@ async function gerarAbaPREF(
     ;['A','B','I','J'].forEach(c => {
       ws.getCell(`${c}${dataRow}`).fill = gFill; ws.getCell(`${c}${dataRow}`).border = thinBorder()
     })
+    const grpTotal = grpTotPref.get(grp.item) || 0
     setCell(ws,`A${dataRow}`, grp.item,     { font:pf6(true), align:pfAL, fill:gFill, border:thinBorder() })
     setCell(ws,`B${dataRow}`, grp.descricao,{ font:pf6(true), align:pfAL, fill:gFill, border:thinBorder() })
-    setCell(ws,`I${dataRow}`, null,          { fill:gFill, border:thinBorder() })
-    setCell(ws,`J${dataRow}`, null,          { fill:gFill, border:thinBorder() })
+    setCell(ws,`I${dataRow}`, grpTotal,     { font:pf6(true), fill:gFill, border:thinBorder(), numFmt:'#,##0.00' })
+    setCell(ws,`J${dataRow}`, grpTotal,     { font:pf6(true), fill:gFill, border:thinBorder(), numFmt:'#,##0.00' })
     const thin = { style: 'thin' as ExcelJS.BorderStyle }
     ws.getCell(`K${dataRow}`).border = { top:thin, left:thin }
     'LMNOPQR'.split('').forEach(c => { ws.getCell(`${c}${dataRow}`).border = { top:thin } })

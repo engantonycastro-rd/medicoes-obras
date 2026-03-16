@@ -230,14 +230,23 @@ function gerarHTMLMED(
 
   let rows = '', ri = 0
   const grpBg = `background:${p.trGrupo}`
+  // Pré-calcula total por grupo (soma dos filhos)
+  const grupoTotais = new Map<string, number>()
+  for (const srv of servicos) {
+    if (srv.is_grupo) continue
+    const grupoItem = srv.grupo_item || srv.item.split('.')[0]
+    grupoTotais.set(grupoItem, (grupoTotais.get(grupoItem) || 0) + getPrecoTotalServico(srv, obra.bdi_percentual, desc))
+  }
+
   for (const srv of [...servicos].sort((a,b)=>a.ordem-b.ordem)) {
     const pBDI  = getPUEfetivo(srv, obra.bdi_percentual)
     const pTotBDI = getPrecoTotalBDI(srv, obra.bdi_percentual)
     const pTot  = getPrecoTotalServico(srv, obra.bdi_percentual, desc)
     if (srv.is_grupo) {
+      const grpTotal = grupoTotais.get(srv.item) || 0
       rows += isPref
-        ? `<tr style="${grpBg};font-weight:bold"><td class="ctr">${srv.item}</td><td></td><td class="td-desc">${srv.descricao}</td><td></td><td></td><td></td><td></td><td></td><td class="num">${fC(pTotBDI)}</td><td class="num">${fC(pTot)}</td><td colspan="9"></td></tr>`
-        : `<tr style="${grpBg};font-weight:bold"><td class="ctr">${srv.item}</td><td colspan="3" class="td-desc">${srv.descricao}</td><td colspan="5"></td><td class="num">${fC(pTot)}</td><td colspan="13"></td></tr>`
+        ? `<tr style="${grpBg};font-weight:bold"><td class="ctr">${srv.item}</td><td></td><td class="td-desc">${srv.descricao}</td><td></td><td></td><td></td><td></td><td></td><td class="num">${fC(grpTotal)}</td><td class="num">${fC(grpTotal)}</td><td colspan="9"></td></tr>`
+        : `<tr style="${grpBg};font-weight:bold"><td class="ctr">${srv.item}</td><td colspan="3" class="td-desc">${srv.descricao}</td><td colspan="5"></td><td class="num">${fC(grpTotal)}</td><td colspan="13"></td></tr>`
       continue
     }
     const linhas = linhasPorServico.get(srv.id)||[]
