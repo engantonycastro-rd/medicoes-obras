@@ -8,7 +8,7 @@ import {
 import { useStore } from '../lib/store'
 import { usePerfilStore } from '../lib/perfilStore'
 import { Contrato, Obra, Servico, Medicao, LinhaMemoria } from '../types'
-import { formatCurrency, calcResumoServico, calcPrecoComBDI, calcTotalServico, calcTotalServicoBDI } from '../utils/calculations'
+import { formatCurrency, calcResumoServico, calcPrecoComBDI, calcTotalServico, calcTotalServicoBDI, getPrecoTotalServico, getPUEfetivo } from '../utils/calculations'
 import { supabase } from '../lib/supabase'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -63,13 +63,12 @@ export function DashboardPage() {
             .from('medicoes').select('*').eq('obra_id', obra.id).order('data_medicao', { ascending: false })
           const medicoes = (medData || []) as Medicao[]
 
-          // Calcula total orçamento (BDI por item, desconto no total)
-          let totalBDI = 0
+          // Calcula total orçamento (respeita preco_total_fixo)
+          let totalOrcamento = 0
           for (const srv of servicos) {
             if (srv.is_grupo) continue
-            totalBDI += calcTotalServicoBDI(srv.quantidade, srv.preco_unitario, obra.bdi_percentual)
+            totalOrcamento += getPrecoTotalServico(srv, obra.bdi_percentual, obra.desconto_percentual)
           }
-          const totalOrcamento = Math.round(totalBDI * (1 - obra.desconto_percentual) * 100 + 1e-10) / 100
 
           // Calcula valor medido (busca linhas de todas as medições)
           let valorMedido = 0
@@ -92,19 +91,20 @@ export function DashboardPage() {
             }
 
             // Calcula valor medido
-            const r2 = (n: number) => Math.round(n * 100) / 100
+            const r2 = (n: number) => Math.round(n * 100 + 1e-10) / 100
             for (const srv of servicos) {
               if (srv.is_grupo) continue
               const linhas = linhasPorServico.get(srv.id) || []
               if (linhas.length === 0) continue
               const { qtdAnterior, qtdPeriodo, qtdAcumulada } = calcResumoServico(srv, linhas)
-              const puBDI = calcPrecoComBDI(srv.preco_unitario, obra.bdi_percentual)
-              const fatorDesc = 1 - obra.desconto_percentual
-              const pt = calcTotalServico(srv.quantidade, srv.preco_unitario, obra.bdi_percentual, obra.desconto_percentual)
+              const puEfetivo = getPUEfetivo(srv, obra.bdi_percentual)
+              const temFixo = srv.preco_total_fixo != null && srv.preco_total_fixo > 0
+              const fatorDesc = temFixo ? 1 : (1 - obra.desconto_percentual)
+              const pt = getPrecoTotalServico(srv, obra.bdi_percentual, obra.desconto_percentual)
               if (qtdAcumulada >= srv.quantidade && srv.quantidade > 0) {
                 valorMedido += pt
               } else {
-                valorMedido += r2(r2((qtdAnterior + qtdPeriodo) * puBDI) * fatorDesc)
+                valorMedido += r2(r2((qtdAnterior + qtdPeriodo) * puEfetivo) * fatorDesc)
               }
             }
           }

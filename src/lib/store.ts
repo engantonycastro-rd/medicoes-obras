@@ -178,6 +178,7 @@ export const useStore = create<Store>((set, get) => ({
       unidade: s.unidade || 'UN',
       quantidade: s.quantidade ?? 0,
       preco_unitario: s.preco_unitario ?? 0,
+      preco_total_fixo: s.preco_total_fixo ?? null,
       is_grupo: s.is_grupo ?? false,
       grupo_item: s.grupo_item ?? null,
       ordem: s.ordem ?? 0,

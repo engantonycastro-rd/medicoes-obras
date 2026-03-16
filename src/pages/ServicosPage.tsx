@@ -5,7 +5,7 @@ import { useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { ServicoImportado } from '../types'
 import { importarOrcamento, ModoImportacao } from '../utils/importOrcamento'
-import { formatCurrency, formatNumber, calcPrecoComBDI, calcTotalServico, calcTotalServicoBDI } from '../utils/calculations'
+import { formatCurrency, formatNumber, calcPrecoComBDI, getPrecoTotalServico, calcTotalServicoBDI } from '../utils/calculations'
 
 export function ServicosPage() {
   const { contratoAtivo, obraAtiva, servicos, fetchServicos, salvarServicos, atualizarObra } = useStore()
@@ -102,10 +102,15 @@ export function ServicosPage() {
   }
 
   const lista = preview.length > 0 ? preview : servicos.map(s => s as unknown as ServicoImportado)
-  const totalBDI = lista.filter(s => !s.is_grupo).reduce((sum, s) => {
+  // Total do orçamento: se tem preco_total_fixo (COM BDI), soma direto; senão, calcula BDI + desconto
+  const totalFinal = lista.filter(s => !s.is_grupo).reduce((sum, s) => {
+    const ptFixo = (s as any).preco_total_fixo
+    if (ptFixo != null && ptFixo > 0) return sum + ptFixo
     return sum + calcTotalServicoBDI(s.quantidade, s.preco_unitario, obraAtiva.bdi_percentual)
   }, 0)
-  const totalOrc = Math.round(totalBDI * (1 - obraAtiva.desconto_percentual) * 100 + 1e-10) / 100
+  // Se nenhum item é fixo, aplica desconto no total; se todos são fixos, já está pronto
+  const temFixo = lista.some(s => (s as any).preco_total_fixo > 0)
+  const totalOrc = temFixo ? totalFinal : Math.round(totalFinal * (1 - obraAtiva.desconto_percentual) * 100 + 1e-10) / 100
 
   return (
     <div className="p-8">
@@ -183,9 +188,9 @@ export function ServicosPage() {
               </thead>
               <tbody>
                 {lista.map((s, i) => {
+                  const ptFixo = (s as any).preco_total_fixo
                   const pb = calcPrecoComBDI(s.preco_unitario, obraAtiva.bdi_percentual)
-                  const ptBDI = Math.round(s.quantidade * pb * 100) / 100
-                  const pt = calcTotalServico(s.quantidade, s.preco_unitario, obraAtiva.bdi_percentual, obraAtiva.desconto_percentual)
+                  const pt = (ptFixo != null && ptFixo > 0) ? ptFixo : calcTotalServicoBDI(s.quantidade, s.preco_unitario, obraAtiva.bdi_percentual)
                   return (
                     <tr key={i} className={s.is_grupo ? 'bg-slate-800 text-white font-semibold' : i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                       <td className="px-3 py-2 font-mono text-xs">{s.item}</td>
@@ -196,7 +201,7 @@ export function ServicosPage() {
                       <td className="px-3 py-2 text-right">{s.is_grupo ? '' : formatNumber(s.quantidade)}</td>
                       <td className="px-3 py-2 text-right">{s.is_grupo ? '' : formatCurrency(s.preco_unitario)}</td>
                       <td className="px-3 py-2 text-right">{s.is_grupo ? '' : formatCurrency(pb)}</td>
-                      <td className="px-3 py-2 text-right">{s.is_grupo ? '' : formatCurrency(ptBDI)}</td>
+                      <td className="px-3 py-2 text-right">{s.is_grupo ? '' : formatCurrency(pt)}</td>
                       <td className="px-3 py-2 text-right font-semibold">{s.is_grupo ? '' : formatCurrency(pt)}</td>
                     </tr>
                   )

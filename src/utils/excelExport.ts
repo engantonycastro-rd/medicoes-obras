@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs'
 import { saveAs } from 'file-saver'
 import { Contrato, Obra, Medicao, Servico, LinhaMemoria } from '../types'
 import {
-  calcPrecoComBDI, calcTotalServico, calcTotalServicoBDI,
+  calcPrecoComBDI, calcTotalServico, calcTotalServicoBDI, getPrecoTotalServico, getPrecoTotalBDI, getPUEfetivo,
   calcResumoServico, calcValoresMedicao, valorPorExtenso,
 } from './calculations'
 import type { ModeloPlanilha, BorderStyle } from '../lib/modeloStore'
@@ -180,9 +180,9 @@ async function gerarAbaESTADO(
 
   let row = 9
   for (const srv of [...servicos].sort((a,b) => a.ordem - b.ordem)) {
-    const pBDI     = calcPrecoComBDI(srv.preco_unitario, obra.bdi_percentual)
-    const pTotalBDI = calcTotalServicoBDI(srv.quantidade, srv.preco_unitario, obra.bdi_percentual)
-    const pTotal   = calcTotalServico(srv.quantidade, srv.preco_unitario, obra.bdi_percentual, obra.desconto_percentual)
+    const pBDI     = getPUEfetivo(srv, obra.bdi_percentual)
+    const pTotalBDI = getPrecoTotalBDI(srv, obra.bdi_percentual)
+    const pTotal   = getPrecoTotalServico(srv, obra.bdi_percentual, obra.desconto_percentual)
     ws.getRow(row).height = srv.descricao.length > 80 ? 42 : 26
 
     if (srv.is_grupo) {
@@ -201,7 +201,8 @@ async function gerarAbaESTADO(
       const pctAcum = srv.quantidade > 0 ? qtdAcumulada / srv.quantidade : 0
       const is100 = pctAcum >= 1 && srv.quantidade > 0
       const r2 = (n: number) => Math.round(n * 100 + 1e-10) / 100
-      const fD = 1 - obra.desconto_percentual
+      const temFixo = srv.preco_total_fixo != null && srv.preco_total_fixo > 0
+      const fD = temFixo ? 1 : (1 - obra.desconto_percentual)
       const eAntR = r2(r2(qtdAnterior * pBDI) * fD)
       const eAcumR = is100 ? pTotal : r2(r2(qtdAcumulada * pBDI) * fD)
       const ePerR = is100 && qtdAnterior === 0 ? pTotal : is100 ? pTotal - eAntR : r2(r2(qtdPeriodo * pBDI) * fD)
@@ -477,8 +478,8 @@ async function gerarAbaPREF(
       const r = dataRow
       const linhas = linhasPorServico.get(srv.id) || []
       const { qtdAnterior, qtdPeriodo } = calcResumoServico(srv, linhas)
-      const pBDI  = calcPrecoComBDI(srv.preco_unitario, obra.bdi_percentual)
-      const pTot  = calcTotalServico(srv.quantidade, srv.preco_unitario, obra.bdi_percentual, obra.desconto_percentual)
+      const pBDI  = getPUEfetivo(srv, obra.bdi_percentual)
+      const pTot  = getPrecoTotalServico(srv, obra.bdi_percentual, obra.desconto_percentual)
       const temPeriodo = qtdPeriodo > 0
       const rowFill = temPeriodo ? solidFill(PF_VERDE_DADOS) : solidFill(PF_BRANCO)
 

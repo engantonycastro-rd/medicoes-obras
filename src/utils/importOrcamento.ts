@@ -83,14 +83,27 @@ function parseServicos(ws: ExcelJS.Worksheet, modo: ModoImportacao): ServicoImpo
     const qtd      = getCellNum(row, colMap.quantidade) ?? 0
     const grupo    = isItemGrupo(item)
 
-    // COM_BDI com coluna PT: lê o Preço Total e calcula PU efetivo = PT / QTD
-    // Isso garante que QTD × PU = PT exato (sem erro de arredondamento)
+    // COM_BDI: lê PU da coluna unitário e PT direto da planilha (zero cálculo)
+    // SEM_BDI: lê apenas PU bruto (sistema calcula BDI/desconto depois)
     let precoUn = 0
-    if (!grupo && usarPT && qtd > 0) {
-      const pt = getCellNum(row, colMap.preco_total) ?? 0
-      precoUn = pt > 0 ? pt / qtd : (getCellNum(row, colPreco) ?? 0)
-    } else if (!grupo) {
-      precoUn = getCellNum(row, colPreco) ?? 0
+    let precoTotalFixo: number | null = null
+
+    if (!grupo) {
+      if (modo === 'COM_BDI') {
+        // PU: preferência coluna COM BDI, senão coluna unitário
+        precoUn = getCellNum(row, colPreco) ?? 0
+        // PT: lê direto da coluna PREÇO TOTAL (sem nenhum cálculo)
+        if (colMap.preco_total) {
+          precoTotalFixo = getCellNum(row, colMap.preco_total) ?? null
+        }
+        // Se não tem coluna PT separada, mas tem PU, marca PT como QTD*PU da planilha
+        if (precoTotalFixo === null && precoUn > 0 && qtd > 0) {
+          // Último recurso: usa o PU lido × QTD (ainda melhor que calcular BDI)
+          precoTotalFixo = getCellNum(row, colMap.preco_total || (colMap.preco_unitario + 1)) ?? null
+        }
+      } else {
+        precoUn = getCellNum(row, colMap.preco_unitario) ?? 0
+      }
     }
 
     servicos.push({
@@ -101,6 +114,7 @@ function parseServicos(ws: ExcelJS.Worksheet, modo: ModoImportacao): ServicoImpo
       unidade: unidade.trim(),
       quantidade: grupo ? 0 : qtd,
       preco_unitario: grupo ? 0 : precoUn,
+      preco_total_fixo: grupo ? null : precoTotalFixo,
       is_grupo: grupo,
       grupo_item: grupo ? null : getGrupoItem(item) || null,
       ordem: ordem++,

@@ -103,6 +103,34 @@ export function calcTotalServico(quantidade: number, precoUnitario: number, bdi:
   return r2(ptBDI * (1 - desconto))
 }
 
+/** 
+ * Preço total de um serviço respeitando preco_total_fixo (importação COM BDI).
+ * Se preco_total_fixo está preenchido, retorna ele direto — ZERO cálculo.
+ * Senão, calcula normalmente (BDI + desconto).
+ */
+export function getPrecoTotalServico(srv: Servico, bdi: number, desconto: number): number {
+  if (srv.preco_total_fixo != null && srv.preco_total_fixo > 0) {
+    return srv.preco_total_fixo
+  }
+  return calcTotalServico(srv.quantidade, srv.preco_unitario, bdi, desconto)
+}
+
+/** Preço total BDI de um serviço (sem desconto). Respeita preco_total_fixo. */
+export function getPrecoTotalBDI(srv: Servico, bdi: number): number {
+  if (srv.preco_total_fixo != null && srv.preco_total_fixo > 0) {
+    return srv.preco_total_fixo
+  }
+  return calcTotalServicoBDI(srv.quantidade, srv.preco_unitario, bdi)
+}
+
+/** PU efetivo de um serviço para medição. Se fixo, calcula PU = PT / QTD. */
+export function getPUEfetivo(srv: Servico, bdi: number): number {
+  if (srv.preco_total_fixo != null && srv.preco_total_fixo > 0 && srv.quantidade > 0) {
+    return srv.preco_total_fixo / srv.quantidade
+  }
+  return calcPrecoComBDI(srv.preco_unitario, bdi)
+}
+
 // ─── RESUMO DO SERVIÇO NA MEDIÇÃO ────────────────────────────────────────────
 
 export interface ResumoLinhasServico {
@@ -157,15 +185,18 @@ export function calcValoresMedicao(
   for (const srv of servicos) {
     if (srv.is_grupo) continue
 
-    const ptBDI = calcTotalServicoBDI(srv.quantidade, srv.preco_unitario, contrato.bdi_percentual)
+    // Se tem preco_total_fixo: valor exato da planilha, zero cálculo
+    const precoTotal = getPrecoTotalServico(srv, contrato.bdi_percentual, contrato.desconto_percentual)
+    const ptBDI = getPrecoTotalBDI(srv, contrato.bdi_percentual)
     totalOrcamentoBDI += ptBDI
 
     const linhas = linhasPorServico.get(srv.id) || []
     const { qtdAnterior, qtdPeriodo, qtdAcumulada } = calcResumoServico(srv, linhas)
 
-    const puBDI = calcPrecoComBDI(srv.preco_unitario, contrato.bdi_percentual)
-    const fatorDesc = 1 - contrato.desconto_percentual
-    const precoTotal = er2(ptBDI * fatorDesc)
+    // PU efetivo: se fixo, PU = PT / QTD; senão, PU com BDI arredondado
+    const puEfetivo = getPUEfetivo(srv, contrato.bdi_percentual)
+    const temFixo = srv.preco_total_fixo != null && srv.preco_total_fixo > 0
+    const fatorDesc = temFixo ? 1 : (1 - contrato.desconto_percentual)
 
     // Quando 100% medido, usa o valor do contrato (evita diferença de arredondamento)
     if (qtdAcumulada >= srv.quantidade && srv.quantidade > 0) {
@@ -173,18 +204,22 @@ export function calcValoresMedicao(
       if (qtdAnterior === 0) {
         valorPeriodo += precoTotal
       } else {
-        const valAnterior = er2(er2(qtdAnterior * puBDI) * fatorDesc)
+        const valAnterior = er2(er2(qtdAnterior * puEfetivo) * fatorDesc)
         valorPeriodo += precoTotal - valAnterior
       }
     } else {
       // Parcialmente medido
-      valorAcumulado += er2(er2((qtdAnterior + qtdPeriodo) * puBDI) * fatorDesc)
-      valorPeriodo += er2(er2(qtdPeriodo * puBDI) * fatorDesc)
+      valorAcumulado += er2(er2((qtdAnterior + qtdPeriodo) * puEfetivo) * fatorDesc)
+      valorPeriodo += er2(er2(qtdPeriodo * puEfetivo) * fatorDesc)
     }
   }
 
-  // Desconto aplicado no total (como a planilha faz)
-  const totalOrcamento = er2(totalOrcamentoBDI * (1 - contrato.desconto_percentual))
+  // Total: soma de getPrecoTotalServico (respeita fixo automaticamente)
+  let totalOrcamento = 0
+  for (const srv of servicos) {
+    if (srv.is_grupo) continue
+    totalOrcamento += getPrecoTotalServico(srv, contrato.bdi_percentual, contrato.desconto_percentual)
+  }
   const valorSaldo = totalOrcamento - valorAcumulado
 
   return {

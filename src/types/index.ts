@@ -65,7 +65,8 @@ export interface FotoMedicao {
 export interface Servico {
   id: string; contrato_id: string; obra_id: string | null; created_at: string
   item: string; fonte: string; codigo: string; descricao: string; unidade: string
-  quantidade: number; preco_unitario: number; is_grupo: boolean; grupo_item: string | null; ordem: number
+  quantidade: number; preco_unitario: number; preco_total_fixo: number | null
+  is_grupo: boolean; grupo_item: string | null; ordem: number
 }
 
 export interface Medicao {
@@ -85,7 +86,8 @@ export interface LinhaMemoria {
 
 export interface ServicoImportado {
   item: string; fonte: string; codigo: string; descricao: string; unidade: string
-  quantidade: number; preco_unitario: number; is_grupo: boolean; grupo_item: string | null; ordem: number
+  quantidade: number; preco_unitario: number; preco_total_fixo?: number | null
+  is_grupo: boolean; grupo_item: string | null; ordem: number
 }
 
 export interface ResumoLinhasServico {
