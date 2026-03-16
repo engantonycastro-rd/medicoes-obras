@@ -82,6 +82,13 @@ export interface LinhaMemoria {
   perimetro: number | null; area: number | null; volume: number | null
   kg: number | null; outros: number | null; desconto_dim: number | null; quantidade: number | null
   total: number; status: StatusLinha; observacao: string | null
+  memoria_item_id: string | null
+}
+
+export interface MemoriaCalcItemDB {
+  id: string; obra_id: string; servico_id: string | null; item_servico: string
+  descricao: string; formula: string | null; variaveis: Record<string, number>
+  quantidade_prevista: number; ordem: number; created_at: string
 }
 
 export interface ServicoImportado {

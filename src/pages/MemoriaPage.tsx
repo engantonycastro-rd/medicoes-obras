@@ -7,11 +7,12 @@ import {
 import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
 import { usePerfilStore } from '../lib/perfilStore'
-import { Servico, LinhaMemoria, StatusLinhaMemoria } from '../types'
+import { Servico, LinhaMemoria, StatusLinhaMemoria, MemoriaCalcItemDB } from '../types'
 import {
   calcularTotalLinha, calcResumoServico, formatCurrency, formatNumber,
   calcPrecoComBDI, calcValoresMedicao, getPUEfetivo,
 } from '../utils/calculations'
+import { supabase } from '../lib/supabase'
 import { gerarMedicaoExcel } from '../utils/excelExport'
 import { gerarMedicaoPDF } from '../utils/pdfExport'
 import { RelatorioFotografico } from '../components/RelatorioFotografico'
@@ -31,6 +32,8 @@ interface ServicoCardProps {
   onAtualizarLinha: (id: string, d: Partial<LinhaMemoria>) => Promise<void>
   onDeletarLinha: (id: string) => Promise<void>
   desconto: number; bdi: number
+  memoriaItens: MemoriaCalcItemDB[]
+  allLinhasObra: LinhaMemoria[]
 }
 
 export function MemoriaPage() {
@@ -49,6 +52,7 @@ export function MemoriaPage() {
   // null = todas; string = item do grupo (ex: "2")
   const [etapaFiltro, setEtapaFiltro] = useState<string | null>(null)
   const [mostrarAtalhos, setMostrarAtalhos] = useState(false)
+  const [memoriaItens, setMemoriaItens] = useState<MemoriaCalcItemDB[]>([])
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -57,6 +61,9 @@ export function MemoriaPage() {
     fetchLinhasMedicao(medicaoAtiva.id)
     fetchFotos(medicaoAtiva.id)
     fetchMedicoes(obraAtiva.id).then(setMedicoesDaObra).catch(() => {})
+    // Fetch memória de cálculo
+    supabase.from('memoria_calculo_itens').select('*').eq('obra_id', obraAtiva.id).order('ordem')
+      .then(({ data }) => { if (data) setMemoriaItens(data as MemoriaCalcItemDB[]) })
   }, [obraAtiva, medicaoAtiva])
 
   // ── ATALHOS GLOBAIS ──────────────────────────────────────────────────────
@@ -451,6 +458,8 @@ export function MemoriaPage() {
             onDeletarLinha={deletarLinha}
             desconto={obraAtiva.desconto_percentual}
             bdi={obraAtiva.bdi_percentual}
+            memoriaItens={memoriaItens.filter(m => m.servico_id === servico.id)}
+            allLinhasObra={Array.from(linhasPorServico.values()).flat()}
           />
         ))}
       </div>
@@ -502,7 +511,7 @@ export function MemoriaPage() {
 
 // ─── SERVICO CARD ─────────────────────────────────────────────────────────────
 
-function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvarLinha, onAtualizarLinha, onDeletarLinha, desconto, bdi }: ServicoCardProps) {
+function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvarLinha, onAtualizarLinha, onDeletarLinha, desconto, bdi, memoriaItens, allLinhasObra }: ServicoCardProps) {
   const { qtdAnterior, qtdPeriodo, qtdAcumulada, qtdSaldo } = calcResumoServico(servico, linhas)
   const puBDI  = getPUEfetivo(servico, bdi)
   const temFixo = servico.preco_total_fixo != null && servico.preco_total_fixo > 0
@@ -512,7 +521,47 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
   const [novaLinha, setNovaLinha] = useState<Partial<LinhaMemoria>>({})
   const [salvandoNova, setSalvandoNova] = useState(false)
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle'|'saving'|'saved'>('idle')
+  const [memItemSel, setMemItemSel] = useState<string>('')
   const descInputRef = useRef<HTMLInputElement>(null)
+
+  // Calcula consumido por subitem da memória (todas as medições)
+  function getConsumido(memItemId: string): number {
+    return allLinhasObra
+      .filter(l => l.memoria_item_id === memItemId)
+      .reduce((s, l) => s + (l.total || 0), 0)
+  }
+
+  function handleMemItemSelect(memId: string) {
+    setMemItemSel(memId)
+    if (!memId) return
+    const mi = memoriaItens.find(m => m.id === memId)
+    if (!mi) return
+    // Auto-preenche descrição e variáveis conhecidas
+    const vars = mi.variaveis || {}
+    const MAP: Record<string, keyof LinhaMemoria> = {
+      'LARG': 'largura', 'LARGURA': 'largura',
+      'COMP': 'comprimento', 'COMPRIMENTO': 'comprimento',
+      'ALT': 'altura', 'ALTURA': 'altura',
+      'AREA': 'area', 'ÁREA': 'area',
+      'PERIMETRO': 'perimetro',
+      'VOL': 'volume', 'VOLUME': 'volume',
+      'KG': 'kg',
+    }
+    const changes: Partial<LinhaMemoria> = {
+      descricao_calculo: mi.descricao,
+      memoria_item_id: memId,
+    }
+    for (const [varName, val] of Object.entries(vars)) {
+      const campo = MAP[varName.toUpperCase()]
+      if (campo) (changes as any)[campo] = val
+    }
+    // Se tem variáveis extras que não mapeiam, coloca em "outros" ou "quantidade"
+    const unmapped = Object.entries(vars).filter(([k]) => !MAP[k.toUpperCase()])
+    if (unmapped.length === 1) {
+      (changes as any).outros = unmapped[0][1]
+    }
+    setNovaLinha(prev => ({ ...prev, ...changes }))
+  }
 
   // ── Debounced update for existing lines ──────────────────────────────────
   // Updates UI immediately via store, debounces DB writes
@@ -618,8 +667,10 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
         total: calcTotal(data),
         status: (data.status as StatusLinhaMemoria) ?? 'A pagar',
         observacao: data.observacao ?? null,
+        memoria_item_id: data.memoria_item_id ?? null,
       })
       setNovaLinha({})
+      setMemItemSel('')
       setAutoSaveStatus('saved')
       setTimeout(() => setAutoSaveStatus(s => s === 'saved' ? 'idle' : s), 2000)
     } catch { toast.error('Erro ao criar linha') }
@@ -696,6 +747,36 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
             )}
           </div>
 
+          {/* Memória de cálculo — subitens com progresso */}
+          {memoriaItens.length > 0 && (
+            <div className="mb-4 bg-purple-50/50 border border-purple-100 rounded-xl p-3">
+              <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-2">Memória de cálculo — Subitens previstos</p>
+              <div className="space-y-1.5">
+                {memoriaItens.map(mi => {
+                  const consumido = getConsumido(mi.id)
+                  const previsto = mi.quantidade_prevista || 0
+                  const saldo = previsto - consumido
+                  const pct = previsto > 0 ? Math.min(100, (consumido / previsto) * 100) : 0
+                  return (
+                    <div key={mi.id} className="flex items-center gap-3 text-xs">
+                      <span className="text-purple-600 font-medium w-40 truncate" title={mi.descricao}>{mi.descricao}</span>
+                      {mi.formula && <span className="text-purple-400 font-mono text-[10px] w-28 truncate" title={mi.formula}>{mi.formula}</span>}
+                      <div className="flex-1 bg-purple-100 rounded-full h-1.5">
+                        <div className={`h-1.5 rounded-full transition-all ${pct >= 100 ? 'bg-emerald-500' : 'bg-purple-500'}`} style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-purple-500 w-16 text-right">{formatNumber(consumido)}</span>
+                      <span className="text-purple-300">/</span>
+                      <span className="text-purple-700 font-semibold w-16">{formatNumber(previsto)}</span>
+                      <span className={`text-[10px] w-14 text-right font-semibold ${saldo <= 0 ? 'text-emerald-600' : 'text-purple-500'}`}>
+                        {saldo <= 0 ? '✓ 100%' : `${pct.toFixed(0)}%`}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Tabela de linhas existentes */}
           {linhas.length > 0 && (
             <div className="mb-4 overflow-x-auto">
@@ -769,7 +850,25 @@ function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvar
               <span className="text-[10px] text-slate-400">Auto-salva • <span className="kbd-hint">Enter</span> salvar • <span className="kbd-hint">Tab</span> próximo campo</span>
             </div>
             <div className="grid grid-cols-12 gap-1.5 items-end">
-              <div className="col-span-3">
+              {memoriaItens.length > 0 && (
+                <div className="col-span-3">
+                  <label className="text-xs text-purple-600 mb-1 block font-semibold">Subitem da memória</label>
+                  <select value={memItemSel} onChange={e => handleMemItemSelect(e.target.value)}
+                    className={fieldCls + " border-purple-200 bg-purple-50/50 text-purple-700"}>
+                    <option value="">— Selecione (opcional) —</option>
+                    {memoriaItens.map(mi => {
+                      const consumido = getConsumido(mi.id)
+                      const saldo = (mi.quantidade_prevista || 0) - consumido
+                      return (
+                        <option key={mi.id} value={mi.id} disabled={saldo <= 0}>
+                          {mi.descricao} (saldo: {formatNumber(saldo)})
+                        </option>
+                      )
+                    })}
+                  </select>
+                </div>
+              )}
+              <div className={memoriaItens.length > 0 ? "col-span-2" : "col-span-3"}>
                 <label className="text-xs text-slate-500 mb-1 block">Descrição *</label>
                 <input ref={descInputRef} value={novaLinha.descricao_calculo || ''}
                   onChange={e => handleNovaLinhaChange({ descricao_calculo: e.target.value })}

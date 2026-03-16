@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from 'react'
-import { Upload, Table, AlertCircle, CheckCircle2, FileSpreadsheet, Trash2, Info } from 'lucide-react'
+import { Upload, Table, AlertCircle, CheckCircle2, FileSpreadsheet, Trash2, Info, BookOpen } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { ServicoImportado } from '../types'
 import { importarOrcamento, ModoImportacao } from '../utils/importOrcamento'
+import { importarMemoriaCalculo, MemoriaCalcItem } from '../utils/importMemoriaCalculo'
 import { formatCurrency, formatNumber, calcPrecoComBDI, getPrecoTotalServico, calcTotalServicoBDI } from '../utils/calculations'
 
 export function ServicosPage() {
@@ -17,10 +18,24 @@ export function ServicosPage() {
   const [modoImport, setModoImport] = useState<ModoImportacao>('SEM_BDI')
   const [showModoSelector, setShowModoSelector] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  // Memória de cálculo
+  const [importingMem, setImportingMem] = useState(false)
+  const [savingMem, setSavingMem] = useState(false)
+  const [memPreview, setMemPreview] = useState<MemoriaCalcItem[]>([])
+  const [memCount, setMemCount] = useState(0)
+  const memFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (obraAtiva) fetchServicos(obraAtiva.id)
+    if (obraAtiva) {
+      fetchServicos(obraAtiva.id)
+      fetchMemCount(obraAtiva.id)
+    }
   }, [obraAtiva])
+
+  async function fetchMemCount(obraId: string) {
+    const { count } = await supabase.from('memoria_calculo_itens').select('*', { count: 'exact', head: true }).eq('obra_id', obraId)
+    setMemCount(count || 0)
+  }
 
   function iniciarImportacao() {
     setShowModoSelector(true)
@@ -30,6 +45,55 @@ export function ServicosPage() {
     setModoImport(modo)
     setShowModoSelector(false)
     fileRef.current?.click()
+  }
+
+  async function handleMemFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportingMem(true); setErro(null)
+    try {
+      const items = await importarMemoriaCalculo(file)
+      if (items.length === 0) { toast.error('Nenhum subitem encontrado na planilha'); setImportingMem(false); return }
+      setMemPreview(items)
+      toast.success(`${items.length} subitens de memória carregados — revise e confirme.`)
+    } catch (err: any) {
+      setErro(err.message || 'Erro ao importar memória de cálculo')
+      toast.error('Falha na importação da memória')
+    } finally { setImportingMem(false) }
+    e.target.value = ''
+  }
+
+  async function handleSalvarMemoria() {
+    if (!obraAtiva || memPreview.length === 0) return
+    setSavingMem(true)
+    try {
+      // Deleta memória anterior desta obra
+      await supabase.from('memoria_calculo_itens').delete().eq('obra_id', obraAtiva.id)
+      // Monta rows vinculando ao servico_id pelo item
+      const servicoMap = new Map(servicos.filter(s => !s.is_grupo).map(s => [s.item, s.id]))
+      const rows = memPreview.map(m => ({
+        obra_id: obraAtiva.id,
+        servico_id: servicoMap.get(m.item_servico) || null,
+        item_servico: m.item_servico,
+        descricao: m.descricao,
+        formula: m.formula || null,
+        variaveis: m.variaveis || {},
+        quantidade_prevista: m.quantidade_prevista,
+        ordem: m.ordem,
+      }))
+      // Insere em chunks
+      const CHUNK = 50
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const { error } = await supabase.from('memoria_calculo_itens').insert(rows.slice(i, i + CHUNK))
+        if (error) throw error
+      }
+      const vinculados = rows.filter(r => r.servico_id).length
+      toast.success(`${rows.length} subitens salvos! ${vinculados} vinculados a serviços.`)
+      setMemPreview([])
+      fetchMemCount(obraAtiva.id)
+    } catch (err: any) {
+      toast.error(err?.message || 'Erro ao salvar memória')
+    } finally { setSavingMem(false) }
   }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -137,7 +201,14 @@ export function ServicosPage() {
             className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm shadow-sm disabled:opacity-50">
             <Upload size={16} /> Importar Orçamento (.xlsx)
           </button>
+          {servicos.length > 0 && (
+            <button onClick={() => memFileRef.current?.click()} disabled={importingMem}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white font-medium rounded-lg text-sm shadow-sm disabled:opacity-50">
+              <BookOpen size={16} /> {memCount > 0 ? `Memória (${memCount})` : 'Importar Memória'}
+            </button>
+          )}
           <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} className="hidden" />
+          <input ref={memFileRef} type="file" accept=".xlsx,.xls" onChange={handleMemFile} className="hidden" />
         </div>
       </div>
 
@@ -145,6 +216,27 @@ export function ServicosPage() {
         <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
           <AlertCircle size={18} className="text-red-500 shrink-0" />
           <p className="text-red-700 text-sm">{erro}</p>
+        </div>
+      )}
+
+      {memPreview.length > 0 && (
+        <div className="mb-6 bg-purple-50 border border-purple-200 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <BookOpen size={20} className="text-purple-600" />
+            <div>
+              <p className="font-semibold text-purple-800">{memPreview.length} subitens de memória importados</p>
+              <p className="text-xs text-purple-600 mt-0.5">
+                {memPreview.filter(m => servicos.some(s => s.item === m.item_servico)).length} vinculados a serviços existentes
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={() => setMemPreview([])} className="px-4 py-2 border border-purple-300 text-purple-700 rounded-lg text-sm hover:bg-purple-100">Cancelar</button>
+            <button onClick={handleSalvarMemoria} disabled={savingMem}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50">
+              <CheckCircle2 size={16} /> {savingMem ? 'Salvando...' : 'Confirmar Memória'}
+            </button>
+          </div>
         </div>
       )}
 
