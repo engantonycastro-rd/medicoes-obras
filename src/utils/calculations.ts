@@ -78,20 +78,29 @@ export function calcPrecoComDesconto(preco: number, desconto: number): number {
   return preco * (1 - desconto)
 }
 
+/** Arredondamento compatível com Excel ROUND (half-up, não banker's rounding) */
+function r2(value: number): number {
+  return Math.round(value * 100 + 1e-10) / 100
+}
+
 export function calcPrecoComBDI(preco: number, bdi: number): number {
-  // Arredonda para 2 casas (padrão planilhas orçamentárias)
-  return Math.round(preco * (1 + bdi) * 100) / 100
+  return r2(preco * (1 + bdi))
 }
 
 export function calcPrecoTotal(quantidade: number, precoUnitario: number): number {
-  return Math.round(quantidade * precoUnitario * 100) / 100
+  return r2(quantidade * precoUnitario)
 }
 
-/** Total do serviço: BDI no unitário (arredondado) → qtd × PU_BDI → desconto no total */
-export function calcTotalServico(quantidade: number, precoUnitario: number, bdi: number, desconto: number): number {
+/** Total do serviço: BDI no unitário (arredondado Excel) → qtd × PU_BDI (arredondado) */
+export function calcTotalServicoBDI(quantidade: number, precoUnitario: number, bdi: number): number {
   const puBDI = calcPrecoComBDI(precoUnitario, bdi)
-  const totalBDI = calcPrecoTotal(quantidade, puBDI)
-  return Math.round(totalBDI * (1 - desconto) * 100) / 100
+  return calcPrecoTotal(quantidade, puBDI)
+}
+
+/** Total com desconto: soma de PT_BDI × (1 - desconto) — desconto aplicado no total */
+export function calcTotalServico(quantidade: number, precoUnitario: number, bdi: number, desconto: number): number {
+  const ptBDI = calcTotalServicoBDI(quantidade, precoUnitario, bdi)
+  return r2(ptBDI * (1 - desconto))
 }
 
 // ─── RESUMO DO SERVIÇO NA MEDIÇÃO ────────────────────────────────────────────
@@ -138,26 +147,25 @@ export function calcValoresMedicao(
   linhasPorServico: Map<string, LinhaMemoria[]>,
   contrato: Contrato | Obra
 ): ValoresMedicao {
-  let totalOrcamento = 0
+  let totalOrcamentoBDI = 0
   let valorPeriodo = 0
   let valorAcumulado = 0
 
-  // Arredonda para 2 casas (padrão financeiro)
-  const r2 = (n: number) => Math.round(n * 100) / 100
+  // Arredonda compatível com Excel ROUND (half-up)
+  const er2 = (n: number) => Math.round(n * 100 + 1e-10) / 100
 
   for (const srv of servicos) {
     if (srv.is_grupo) continue
 
-    // Ordem correta: BDI no unitário (arredondado) → qtd → desconto no total
-    const precoTotal = calcTotalServico(srv.quantidade, srv.preco_unitario, contrato.bdi_percentual, contrato.desconto_percentual)
-    totalOrcamento += precoTotal
+    const ptBDI = calcTotalServicoBDI(srv.quantidade, srv.preco_unitario, contrato.bdi_percentual)
+    totalOrcamentoBDI += ptBDI
 
     const linhas = linhasPorServico.get(srv.id) || []
     const { qtdAnterior, qtdPeriodo, qtdAcumulada } = calcResumoServico(srv, linhas)
 
-    // PU com BDI (arredondado) × fator desconto = preço unitário efetivo para medição
     const puBDI = calcPrecoComBDI(srv.preco_unitario, contrato.bdi_percentual)
     const fatorDesc = 1 - contrato.desconto_percentual
+    const precoTotal = er2(ptBDI * fatorDesc)
 
     // Quando 100% medido, usa o valor do contrato (evita diferença de arredondamento)
     if (qtdAcumulada >= srv.quantidade && srv.quantidade > 0) {
@@ -165,16 +173,18 @@ export function calcValoresMedicao(
       if (qtdAnterior === 0) {
         valorPeriodo += precoTotal
       } else {
-        const valAnterior = r2(r2(qtdAnterior * puBDI) * fatorDesc)
+        const valAnterior = er2(er2(qtdAnterior * puBDI) * fatorDesc)
         valorPeriodo += precoTotal - valAnterior
       }
     } else {
       // Parcialmente medido
-      valorAcumulado += r2(r2((qtdAnterior + qtdPeriodo) * puBDI) * fatorDesc)
-      valorPeriodo += r2(r2(qtdPeriodo * puBDI) * fatorDesc)
+      valorAcumulado += er2(er2((qtdAnterior + qtdPeriodo) * puBDI) * fatorDesc)
+      valorPeriodo += er2(er2(qtdPeriodo * puBDI) * fatorDesc)
     }
   }
 
+  // Desconto aplicado no total (como a planilha faz)
+  const totalOrcamento = er2(totalOrcamentoBDI * (1 - contrato.desconto_percentual))
   const valorSaldo = totalOrcamento - valorAcumulado
 
   return {

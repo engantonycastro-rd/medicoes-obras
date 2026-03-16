@@ -8,7 +8,7 @@ import {
 import { useStore } from '../lib/store'
 import { usePerfilStore } from '../lib/perfilStore'
 import { Contrato, Obra, Servico, Medicao, LinhaMemoria } from '../types'
-import { formatCurrency, calcResumoServico, calcPrecoComBDI, calcTotalServico } from '../utils/calculations'
+import { formatCurrency, calcResumoServico, calcPrecoComBDI, calcTotalServico, calcTotalServicoBDI } from '../utils/calculations'
 import { supabase } from '../lib/supabase'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -63,12 +63,13 @@ export function DashboardPage() {
             .from('medicoes').select('*').eq('obra_id', obra.id).order('data_medicao', { ascending: false })
           const medicoes = (medData || []) as Medicao[]
 
-          // Calcula total orçamento
-          let totalOrcamento = 0
+          // Calcula total orçamento (BDI por item, desconto no total)
+          let totalBDI = 0
           for (const srv of servicos) {
             if (srv.is_grupo) continue
-            totalOrcamento += calcTotalServico(srv.quantidade, srv.preco_unitario, obra.bdi_percentual, obra.desconto_percentual)
+            totalBDI += calcTotalServicoBDI(srv.quantidade, srv.preco_unitario, obra.bdi_percentual)
           }
+          const totalOrcamento = Math.round(totalBDI * (1 - obra.desconto_percentual) * 100 + 1e-10) / 100
 
           // Calcula valor medido (busca linhas de todas as medições)
           let valorMedido = 0

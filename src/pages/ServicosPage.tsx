@@ -5,7 +5,7 @@ import { useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { ServicoImportado } from '../types'
 import { importarOrcamento } from '../utils/importOrcamento'
-import { formatCurrency, formatNumber, calcPrecoComBDI, calcTotalServico } from '../utils/calculations'
+import { formatCurrency, formatNumber, calcPrecoComBDI, calcTotalServico, calcTotalServicoBDI } from '../utils/calculations'
 
 export function ServicosPage() {
   const { contratoAtivo, obraAtiva, servicos, fetchServicos, salvarServicos } = useStore()
@@ -84,9 +84,10 @@ export function ServicosPage() {
   }
 
   const lista = preview.length > 0 ? preview : servicos.map(s => s as unknown as ServicoImportado)
-  const totalOrc = lista.filter(s => !s.is_grupo).reduce((sum, s) => {
-    return sum + calcTotalServico(s.quantidade, s.preco_unitario, obraAtiva.bdi_percentual, obraAtiva.desconto_percentual)
+  const totalBDI = lista.filter(s => !s.is_grupo).reduce((sum, s) => {
+    return sum + calcTotalServicoBDI(s.quantidade, s.preco_unitario, obraAtiva.bdi_percentual)
   }, 0)
+  const totalOrc = Math.round(totalBDI * (1 - obraAtiva.desconto_percentual) * 100 + 1e-10) / 100
 
   return (
     <div className="p-8">

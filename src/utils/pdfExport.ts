@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf'
 import { Contrato, Obra, Medicao, Servico, LinhaMemoria, FotoMedicao } from '../types'
 import {
-  calcPrecoComBDI, calcTotalServico,
+  calcPrecoComBDI, calcTotalServico, calcTotalServicoBDI,
   calcResumoServico, calcValoresMedicao, valorPorExtenso,
 } from './calculations'
 import type { ModeloPlanilha } from '../lib/modeloStore'
