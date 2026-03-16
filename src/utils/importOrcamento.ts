@@ -2,14 +2,16 @@ import ExcelJS from 'exceljs'
 import { ServicoImportado } from '../types'
 import { isItemGrupo, getGrupoItem } from './calculations'
 
+export type ModoImportacao = 'SEM_BDI' | 'COM_BDI'
+
 /**
  * Importa um arquivo de orçamento (.xlsx) e extrai os serviços.
  *
- * Suporta dois formatos detectados automaticamente:
- *  Formato A (SEEC):   ITEM | FONTE | CÓDIGO | DESCRIÇÃO | UNID | QTD | PU
- *  Formato B (FUNDASE/RD): ITEM | CÓDIGO | DESCRIÇÃO | FONTE | UND | QTD | PU | PT
+ * Modos:
+ *  SEM_BDI (padrão): Lê preço unitário bruto — sistema aplica BDI e desconto
+ *  COM_BDI:          Lê preço unitário já com BDI — sistema NÃO aplica BDI (desconto no total)
  */
-export async function importarOrcamento(file: File): Promise<ServicoImportado[]> {
+export async function importarOrcamento(file: File, modo: ModoImportacao = 'SEM_BDI'): Promise<ServicoImportado[]> {
   const buffer = await file.arrayBuffer()
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(buffer)
@@ -25,7 +27,7 @@ export async function importarOrcamento(file: File): Promise<ServicoImportado[]>
   })
 
   if (!ws) throw new Error('Planilha sem abas válidas')
-  return parseServicos(ws as ExcelJS.Worksheet)
+  return parseServicos(ws as ExcelJS.Worksheet, modo)
 }
 
 interface ColMap {
@@ -36,12 +38,13 @@ interface ColMap {
   unidade: number
   quantidade: number
   preco_unitario: number
+  preco_com_bdi: number
   _headerRow: number
 }
 
 // ─── PARSER PRINCIPAL ─────────────────────────────────────────────────────────
 
-function parseServicos(ws: ExcelJS.Worksheet): ServicoImportado[] {
+function parseServicos(ws: ExcelJS.Worksheet, modo: ModoImportacao): ServicoImportado[] {
   const colMap = detectarColunas(ws)
   if (!colMap) {
     throw new Error(
@@ -49,6 +52,11 @@ function parseServicos(ws: ExcelJS.Worksheet): ServicoImportado[] {
       'Verifique se o arquivo segue o modelo esperado.'
     )
   }
+
+  // Se modo COM_BDI mas não encontrou coluna "COM BDI", tenta usar preco_unitario mesmo
+  const colPreco = modo === 'COM_BDI' && colMap.preco_com_bdi
+    ? colMap.preco_com_bdi
+    : colMap.preco_unitario
 
   const servicos: ServicoImportado[] = []
   let ordem = 0
@@ -71,7 +79,7 @@ function parseServicos(ws: ExcelJS.Worksheet): ServicoImportado[] {
     const codigo   = getCellStr(row, colMap.codigo)
     const unidade  = getCellStr(row, colMap.unidade) || 'UN'
     const qtd      = getCellNum(row, colMap.quantidade) ?? 0
-    const precoUn  = getCellNum(row, colMap.preco_unitario) ?? 0
+    const precoUn  = getCellNum(row, colPreco) ?? 0
     const grupo    = isItemGrupo(item)
 
     servicos.push({
@@ -127,8 +135,12 @@ const KEYWORDS: Record<keyof Omit<ColMap, '_headerRow'>, { exact: string[]; part
   },
   preco_unitario: {
     exact:   ['preço unitário', 'preco unitario', 'valor unitário', 'valor unitario',
-              'pu', 'p.u.', 'preço unit.', 'preço unitário r$', 'preco unitario r$'],
-    partial: ['unitário', 'unitario', 'preço unit'],
+              'pu', 'p.u.', 'preço unit.', 'preço unitário r$', 'preco unitario r$', 'sem bdi'],
+    partial: ['unitário', 'unitario', 'preço unit', 'sem bdi'],
+  },
+  preco_com_bdi: {
+    exact:   ['com bdi', 'c/ bdi', 'preço com bdi', 'pu com bdi', 'preço c/ bdi'],
+    partial: ['com bdi', 'c/ bdi'],
   },
 }
 
@@ -215,7 +227,31 @@ function detectarColunas(ws: ExcelJS.Worksheet): ColMap | null {
     unidade:        melhorMapa.unidade  || 0,
     quantidade:     melhorMapa.quantidade!,
     preco_unitario: melhorMapa.preco_unitario!,
+    preco_com_bdi:  melhorMapa.preco_com_bdi || detectarColComBDI(ws, headerRow),
   }
+}
+
+// ─── DETECTAR COLUNA "COM BDI" ─────────────────────────────────────────────
+// Procura nas linhas próximas ao header por uma célula com texto "COM BDI"
+
+function detectarColComBDI(ws: ExcelJS.Worksheet, headerRow: number): number {
+  for (let r = Math.max(1, headerRow - 3); r <= headerRow + 3; r++) {
+    const row = ws.getRow(r)
+    if (!row) continue
+    row.eachCell({ includeEmpty: false }, (cell, colIndex) => {
+      const val = String(cell.value ?? '').toLowerCase().replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()
+      if (val === 'com bdi' || val === 'c/ bdi') {
+        // Encontrou! Retorna via side effect (closure)
+        ;(detectarColComBDI as any)._found = colIndex
+      }
+    })
+    if ((detectarColComBDI as any)._found) {
+      const col = (detectarColComBDI as any)._found
+      ;(detectarColComBDI as any)._found = 0
+      return col
+    }
+  }
+  return 0
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────

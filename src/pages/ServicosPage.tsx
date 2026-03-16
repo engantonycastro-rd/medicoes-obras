@@ -1,33 +1,45 @@
 import { useEffect, useState, useRef } from 'react'
-import { Upload, Table, AlertCircle, CheckCircle2, FileSpreadsheet, Trash2 } from 'lucide-react'
+import { Upload, Table, AlertCircle, CheckCircle2, FileSpreadsheet, Trash2, Info } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { ServicoImportado } from '../types'
-import { importarOrcamento } from '../utils/importOrcamento'
+import { importarOrcamento, ModoImportacao } from '../utils/importOrcamento'
 import { formatCurrency, formatNumber, calcPrecoComBDI, calcTotalServico, calcTotalServicoBDI } from '../utils/calculations'
 
 export function ServicosPage() {
-  const { contratoAtivo, obraAtiva, servicos, fetchServicos, salvarServicos } = useStore()
+  const { contratoAtivo, obraAtiva, servicos, fetchServicos, salvarServicos, atualizarObra } = useStore()
   const [preview, setPreview] = useState<ServicoImportado[]>([])
   const [importing, setImporting] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const [modoImport, setModoImport] = useState<ModoImportacao>('SEM_BDI')
+  const [showModoSelector, setShowModoSelector] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (obraAtiva) fetchServicos(obraAtiva.id)
   }, [obraAtiva])
 
+  function iniciarImportacao() {
+    setShowModoSelector(true)
+  }
+
+  function confirmarModo(modo: ModoImportacao) {
+    setModoImport(modo)
+    setShowModoSelector(false)
+    fileRef.current?.click()
+  }
+
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setImporting(true); setErro(null)
     try {
-      const items = await importarOrcamento(file)
+      const items = await importarOrcamento(file, modoImport)
       setPreview(items)
-      toast.success(`${items.length} itens carregados — revise e confirme.`)
+      toast.success(`${items.length} itens carregados (${modoImport === 'COM_BDI' ? 'COM BDI' : 'SEM BDI'}) — revise e confirme.`)
     } catch (err: any) {
       setErro(err.message || 'Erro ao importar planilha')
       toast.error('Falha na importação')
@@ -40,8 +52,14 @@ export function ServicosPage() {
     setSaving(true)
     try {
       await salvarServicos(obraAtiva.id, contratoAtivo.id, preview)
+      // Se importou COM BDI, zera o BDI da obra (preço já inclui BDI)
+      if (modoImport === 'COM_BDI') {
+        await atualizarObra(obraAtiva.id, { bdi_percentual: 0 })
+        toast.success('Orçamento salvo! BDI da obra zerado (já incluso no preço).')
+      } else {
+        toast.success('Orçamento salvo com sucesso!')
+      }
       setPreview([])
-      toast.success('Orçamento salvo com sucesso!')
     } catch (err: any) {
       const msg = err?.message || 'Erro desconhecido ao salvar'
       toast.error(msg, { duration: 5000 })
@@ -110,7 +128,7 @@ export function ServicosPage() {
               <Trash2 size={14} /> {deleting ? 'Excluindo...' : 'Excluir serviços'}
             </button>
           )}
-          <button onClick={() => fileRef.current?.click()} disabled={importing}
+          <button onClick={iniciarImportacao} disabled={importing}
             className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm shadow-sm disabled:opacity-50">
             <Upload size={16} /> Importar Orçamento (.xlsx)
           </button>
@@ -194,11 +212,44 @@ export function ServicosPage() {
         <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
           <p className="text-sm font-semibold text-blue-800 mb-2 flex items-center gap-1.5">📋 Como importar:</p>
           <ul className="text-xs text-blue-700 space-y-1 ml-4 list-disc">
-            <li>O arquivo deve ser a planilha de orçamento (.xlsx)</li>
-            <li>O sistema detecta automaticamente as colunas: ITEM, FONTE, CÓDIGO, DESCRIÇÃO, UNID, QUANTIDADE, PREÇO UNITÁRIO</li>
-            <li>Colunas calculadas (desconto, BDI, total) são geradas automaticamente a partir dos dados da obra</li>
-            <li>Ao confirmar, os serviços anteriores serão substituídos</li>
+            <li>Clique em "Importar Orçamento" e escolha o tipo de planilha</li>
+            <li><strong>SEM BDI:</strong> preço unitário bruto — sistema calcula BDI e desconto</li>
+            <li><strong>COM BDI e Desconto:</strong> preço unitário já com BDI — sistema só aplica desconto no total</li>
+            <li>O sistema detecta automaticamente as colunas da planilha</li>
           </ul>
+        </div>
+      )}
+
+      {/* ═══ MODAL SELETOR DE MODO ═══ */}
+      {showModoSelector && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 space-y-4">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-white">Tipo de planilha</h2>
+            <p className="text-xs text-slate-500">Selecione como os preços estão na sua planilha:</p>
+            <div className="space-y-3">
+              <button onClick={() => confirmarModo('SEM_BDI')}
+                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-primary-400 text-left transition-all">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
+                  <Upload size={18} className="text-blue-600"/>
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800 dark:text-white text-sm">Planilha SEM BDI</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Preço unitário bruto (sem BDI e sem desconto). O sistema aplica BDI e desconto automaticamente.</p>
+                </div>
+              </button>
+              <button onClick={() => confirmarModo('COM_BDI')}
+                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-emerald-400 text-left transition-all">
+                <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center shrink-0">
+                  <CheckCircle2 size={18} className="text-emerald-600"/>
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800 dark:text-white text-sm">Planilha COM BDI e Desconto</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Preço unitário já inclui BDI. O sistema lê a coluna "COM BDI" e aplica apenas o desconto no total. Valor 100% fiel à planilha.</p>
+                </div>
+              </button>
+            </div>
+            <button onClick={() => setShowModoSelector(false)} className="w-full text-center text-xs text-slate-400 hover:text-slate-600 py-2">Cancelar</button>
+          </div>
         </div>
       )}
     </div>
