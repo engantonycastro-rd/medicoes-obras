@@ -225,10 +225,9 @@ async function gerarAbaESTADO(
         const c = ws.getCell(`${col}${row}`)
         c.value = val; c.numFmt = fmt; c.font = fN(8); c.fill = rowFill; c.border = bD; c.alignment = align(al)
       })
-      if (qtdPeriodo > 0)   { ws.getCell(`N${row}`).fill = solidFill(C.linha_periodo); ws.getCell(`N${row}`).font = fB(8) }
-      if (qtdAcumulada >= srv.quantidade && srv.quantidade > 0) {
-        ws.getCell(`W${row}`).fill = solidFill(C.linha_100pct); ws.getCell(`W${row}`).font = fW(8)
-      }
+      // SEEC: período SEMPRE destacado (cinza), sem verde no 100%
+      ws.getCell(`N${row}`).fill = solidFill(C.linha_periodo); ws.getCell(`N${row}`).font = fB(8)
+      ws.getCell(`U${row}`).fill = solidFill(C.linha_periodo); ws.getCell(`U${row}`).font = fB(8)
     }
     row++
   }
