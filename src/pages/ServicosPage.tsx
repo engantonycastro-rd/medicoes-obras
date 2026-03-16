@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { Upload, Table, AlertCircle, CheckCircle2, FileSpreadsheet, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
+import { supabase } from '../lib/supabase'
 import { ServicoImportado } from '../types'
 import { importarOrcamento } from '../utils/importOrcamento'
 import { formatCurrency, formatNumber, calcPrecoComDesconto, calcPrecoComBDI, calcPrecoTotal } from '../utils/calculations'
@@ -11,6 +12,7 @@ export function ServicosPage() {
   const [preview, setPreview] = useState<ServicoImportado[]>([])
   const [importing, setImporting] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -48,6 +50,25 @@ export function ServicosPage() {
     finally { setSaving(false) }
   }
 
+  async function handleDeletarServicos() {
+    if (!obraAtiva) return
+    const confirmou = window.confirm(
+      'Tem certeza que deseja excluir TODOS os serviços desta obra?\n\n' +
+      'Isso NÃO afeta medições já realizadas (elas ficam vinculadas ao serviço por ID).\n' +
+      'Após excluir, importe a planilha novamente.'
+    )
+    if (!confirmou) return
+    setDeleting(true)
+    try {
+      const { error } = await supabase.from('servicos').delete().eq('obra_id', obraAtiva.id)
+      if (error) throw error
+      await fetchServicos(obraAtiva.id)
+      toast.success('Serviços excluídos! Importe a planilha novamente.')
+    } catch (err: any) {
+      toast.error(err?.message || 'Erro ao excluir serviços')
+    } finally { setDeleting(false) }
+  }
+
   if (!obraAtiva || !contratoAtivo) {
     return (
       <div className="p-8">
@@ -82,6 +103,12 @@ export function ServicosPage() {
               <p className="text-xs text-slate-400">Total do Orçamento</p>
               <p className="text-2xl font-bold text-primary-600">{formatCurrency(totalOrc)}</p>
             </div>
+          )}
+          {servicos.length > 0 && preview.length === 0 && (
+            <button onClick={handleDeletarServicos} disabled={deleting}
+              className="flex items-center gap-2 px-3 py-2 border border-red-200 text-red-600 hover:bg-red-50 font-medium rounded-lg text-sm disabled:opacity-50">
+              <Trash2 size={14} /> {deleting ? 'Excluindo...' : 'Excluir serviços'}
+            </button>
           )}
           <button onClick={() => fileRef.current?.click()} disabled={importing}
             className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg text-sm shadow-sm disabled:opacity-50">
