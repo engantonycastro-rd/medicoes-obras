@@ -29,6 +29,7 @@ export interface Contrato {
   estado: string | null
   cidade: string | null
   user_id: string
+  empresa_id: string | null
   valor_contrato: number
   data_validade: string | null
 }
