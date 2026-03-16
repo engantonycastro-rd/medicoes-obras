@@ -39,6 +39,7 @@ interface ColMap {
   quantidade: number
   preco_unitario: number
   preco_com_bdi: number
+  preco_total: number
   _headerRow: number
 }
 
@@ -53,7 +54,8 @@ function parseServicos(ws: ExcelJS.Worksheet, modo: ModoImportacao): ServicoImpo
     )
   }
 
-  // Se modo COM_BDI mas não encontrou coluna "COM BDI", tenta usar preco_unitario mesmo
+  // COM_BDI: prioridade → preco_total (mais preciso), depois preco_com_bdi, depois preco_unitario
+  const usarPT = modo === 'COM_BDI' && colMap.preco_total
   const colPreco = modo === 'COM_BDI' && colMap.preco_com_bdi
     ? colMap.preco_com_bdi
     : colMap.preco_unitario
@@ -79,8 +81,17 @@ function parseServicos(ws: ExcelJS.Worksheet, modo: ModoImportacao): ServicoImpo
     const codigo   = getCellStr(row, colMap.codigo)
     const unidade  = getCellStr(row, colMap.unidade) || 'UN'
     const qtd      = getCellNum(row, colMap.quantidade) ?? 0
-    const precoUn  = getCellNum(row, colPreco) ?? 0
     const grupo    = isItemGrupo(item)
+
+    // COM_BDI com coluna PT: lê o Preço Total e calcula PU efetivo = PT / QTD
+    // Isso garante que QTD × PU = PT exato (sem erro de arredondamento)
+    let precoUn = 0
+    if (!grupo && usarPT && qtd > 0) {
+      const pt = getCellNum(row, colMap.preco_total) ?? 0
+      precoUn = pt > 0 ? pt / qtd : (getCellNum(row, colPreco) ?? 0)
+    } else if (!grupo) {
+      precoUn = getCellNum(row, colPreco) ?? 0
+    }
 
     servicos.push({
       item: item.trim(),
@@ -141,6 +152,10 @@ const KEYWORDS: Record<keyof Omit<ColMap, '_headerRow'>, { exact: string[]; part
   preco_com_bdi: {
     exact:   ['com bdi', 'c/ bdi', 'preço com bdi', 'pu com bdi', 'preço c/ bdi'],
     partial: ['com bdi', 'c/ bdi'],
+  },
+  preco_total: {
+    exact:   ['preço total', 'preco total', 'valor total', 'preço total r$', 'preco total r$', 'total r$'],
+    partial: ['preço total', 'preco total', 'total r$'],
   },
 }
 
@@ -228,6 +243,7 @@ function detectarColunas(ws: ExcelJS.Worksheet): ColMap | null {
     quantidade:     melhorMapa.quantidade!,
     preco_unitario: melhorMapa.preco_unitario!,
     preco_com_bdi:  melhorMapa.preco_com_bdi || detectarColComBDI(ws, headerRow),
+    preco_total:    melhorMapa.preco_total || 0,
   }
 }
 
