@@ -8,7 +8,7 @@ import {
 import { useStore } from '../lib/store'
 import { usePerfilStore } from '../lib/perfilStore'
 import { Contrato, Obra, Servico, Medicao, LinhaMemoria } from '../types'
-import { formatCurrency, calcResumoServico, calcPrecoComDesconto, calcPrecoComBDI, calcPrecoTotal } from '../utils/calculations'
+import { formatCurrency, calcResumoServico, calcPrecoComBDI, calcTotalServico } from '../utils/calculations'
 import { supabase } from '../lib/supabase'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -67,9 +67,7 @@ export function DashboardPage() {
           let totalOrcamento = 0
           for (const srv of servicos) {
             if (srv.is_grupo) continue
-            const pd = calcPrecoComDesconto(srv.preco_unitario, obra.desconto_percentual)
-            const pb = calcPrecoComBDI(pd, obra.bdi_percentual)
-            totalOrcamento += calcPrecoTotal(srv.quantidade, pb)
+            totalOrcamento += calcTotalServico(srv.quantidade, srv.preco_unitario, obra.bdi_percentual, obra.desconto_percentual)
           }
 
           // Calcula valor medido (busca linhas de todas as medições)
@@ -99,13 +97,13 @@ export function DashboardPage() {
               const linhas = linhasPorServico.get(srv.id) || []
               if (linhas.length === 0) continue
               const { qtdAnterior, qtdPeriodo, qtdAcumulada } = calcResumoServico(srv, linhas)
-              const pd = calcPrecoComDesconto(srv.preco_unitario, obra.desconto_percentual)
-              const pb = calcPrecoComBDI(pd, obra.bdi_percentual)
-              const pt = calcPrecoTotal(srv.quantidade, pb)
+              const puBDI = calcPrecoComBDI(srv.preco_unitario, obra.bdi_percentual)
+              const fatorDesc = 1 - obra.desconto_percentual
+              const pt = calcTotalServico(srv.quantidade, srv.preco_unitario, obra.bdi_percentual, obra.desconto_percentual)
               if (qtdAcumulada >= srv.quantidade && srv.quantidade > 0) {
                 valorMedido += pt
               } else {
-                valorMedido += r2((qtdAnterior + qtdPeriodo) * pb)
+                valorMedido += r2(r2((qtdAnterior + qtdPeriodo) * puBDI) * fatorDesc)
               }
             }
           }

@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs'
 import { saveAs } from 'file-saver'
 import { Contrato, Obra, Medicao, Servico, LinhaMemoria } from '../types'
 import {
-  calcPrecoComDesconto, calcPrecoComBDI, calcPrecoTotal,
+  calcPrecoComBDI, calcTotalServico,
   calcResumoServico, calcValoresMedicao, valorPorExtenso,
 } from './calculations'
 import type { ModeloPlanilha, BorderStyle } from '../lib/modeloStore'
@@ -180,9 +180,9 @@ async function gerarAbaESTADO(
 
   let row = 9
   for (const srv of [...servicos].sort((a,b) => a.ordem - b.ordem)) {
-    const pDesc    = calcPrecoComDesconto(srv.preco_unitario, obra.desconto_percentual)
-    const pBDI     = calcPrecoComBDI(pDesc, obra.bdi_percentual)
-    const pTotal   = calcPrecoTotal(srv.quantidade, pBDI)
+    const pBDI     = calcPrecoComBDI(srv.preco_unitario, obra.bdi_percentual)
+    const pTotalBDI = Math.round(srv.quantidade * pBDI * 100) / 100
+    const pTotal   = calcTotalServico(srv.quantidade, srv.preco_unitario, obra.bdi_percentual, obra.desconto_percentual)
     ws.getRow(row).height = srv.descricao.length > 80 ? 42 : 26
 
     if (srv.is_grupo) {
@@ -201,19 +201,20 @@ async function gerarAbaESTADO(
       const pctAcum = srv.quantidade > 0 ? qtdAcumulada / srv.quantidade : 0
       const is100 = pctAcum >= 1 && srv.quantidade > 0
       const r2 = (n: number) => Math.round(n * 100) / 100
-      const eAntR = r2(qtdAnterior * pBDI)
-      const eAcumR = is100 ? pTotal : r2(qtdAcumulada * pBDI)
-      const ePerR = is100 && qtdAnterior === 0 ? pTotal : is100 ? pTotal - eAntR : r2(qtdPeriodo * pBDI)
+      const fD = 1 - obra.desconto_percentual
+      const eAntR = r2(r2(qtdAnterior * pBDI) * fD)
+      const eAcumR = is100 ? pTotal : r2(r2(qtdAcumulada * pBDI) * fD)
+      const ePerR = is100 && qtdAnterior === 0 ? pTotal : is100 ? pTotal - eAntR : r2(r2(qtdPeriodo * pBDI) * fD)
       const eSaldR = is100 ? 0 : pTotal - eAcumR
       type CD = [string, ExcelJS.CellValue, string, ExcelJS.Alignment['horizontal']]
       const cols: CD[] = [
         ['A',srv.item,'@','center'],['B',srv.fonte,'@','center'],['C',srv.codigo||'','@','center'],
         ['D',srv.descricao,'@','left'],['E',srv.unidade,'@','center'],['F',srv.quantidade,'#,##0.00','right'],
-        ['G',srv.preco_unitario,'R$ #,##0.00','right'],['H',pDesc,'R$ #,##0.00','right'],['I',pBDI,'R$ #,##0.00','right'],
+        ['G',srv.preco_unitario,'R$ #,##0.00','right'],['H',pBDI,'R$ #,##0.00','right'],['I',pTotalBDI,'R$ #,##0.00','right'],
         ['J',pTotal,'R$ #,##0.00','right'],['K',0,'0.00%','right'],
         ['L',srv.quantidade,'#,##0.00','right'],['M',qtdAnterior,'#,##0.00','right'],
         ['N',qtdPeriodo,'#,##0.00','right'],['O',qtdAcumulada,'#,##0.00','right'],['P',qtdSaldo,'#,##0.00','right'],
-        ['Q',pDesc,'R$ #,##0.00','right'],['R',pBDI,'R$ #,##0.00','right'],
+        ['Q',pBDI,'R$ #,##0.00','right'],['R',pTotal,'R$ #,##0.00','right'],
         ['S',eAntR,'R$ #,##0.00','right'],['T',eAcumR,'R$ #,##0.00','right'],
         ['U',ePerR,'R$ #,##0.00','right'],
         ['V',eSaldR,'R$ #,##0.00','right'],
@@ -476,9 +477,8 @@ async function gerarAbaPREF(
       const r = dataRow
       const linhas = linhasPorServico.get(srv.id) || []
       const { qtdAnterior, qtdPeriodo } = calcResumoServico(srv, linhas)
-      const pDesc = calcPrecoComDesconto(srv.preco_unitario, obra.desconto_percentual)
-      const pBDI  = calcPrecoComBDI(pDesc, obra.bdi_percentual)
-      const pTot  = pBDI * srv.quantidade
+      const pBDI  = calcPrecoComBDI(srv.preco_unitario, obra.bdi_percentual)
+      const pTot  = calcTotalServico(srv.quantidade, srv.preco_unitario, obra.bdi_percentual, obra.desconto_percentual)
       const temPeriodo = qtdPeriodo > 0
       const rowFill = temPeriodo ? solidFill(PF_VERDE_DADOS) : solidFill(PF_BRANCO)
 
@@ -488,7 +488,7 @@ async function gerarAbaPREF(
       setCell(ws,`D${r}`, srv.fonte,      { font:pf6(), align:pfAC, border:thinBorder(), fill:rowFill })
       setCell(ws,`E${r}`, srv.unidade,    { font:pf6(), align:pfAC, border:thinBorder(), fill:rowFill })
       setCell(ws,`F${r}`, srv.quantidade, { font:pf6(), align:pfAR, border:thinBorder(), fill:rowFill, numFmt:N2 })
-      setCell(ws,`G${r}`, pDesc,          { font:pf6(), align:pfAR, border:thinBorder(), fill:rowFill, numFmt:R2 })
+      setCell(ws,`G${r}`, pBDI,           { font:pf6(), align:pfAR, border:thinBorder(), fill:rowFill, numFmt:R2 })
       setCell(ws,`H${r}`, pBDI,           { font:pf6(), align:pfAR, border:thinBorder(), fill:rowFill, numFmt:R2 })
       setCell(ws,`I${r}`, pTot,           { font:pf6(), align:pfAR, border:thinBorder(), fill:rowFill, numFmt:R2 })
 

@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf'
 import { Contrato, Obra, Medicao, Servico, LinhaMemoria, FotoMedicao } from '../types'
 import {
-  calcPrecoComDesconto, calcPrecoComBDI, calcPrecoTotal,
+  calcPrecoComBDI, calcTotalServico,
   calcResumoServico, calcValoresMedicao, valorPorExtenso,
 } from './calculations'
 import type { ModeloPlanilha } from '../lib/modeloStore'
@@ -231,13 +231,12 @@ function gerarHTMLMED(
   let rows = '', ri = 0
   const grpBg = `background:${p.trGrupo}`
   for (const srv of [...servicos].sort((a,b)=>a.ordem-b.ordem)) {
-    const pDesc = calcPrecoComDesconto(srv.preco_unitario, desc)
-    const pBDI  = calcPrecoComBDI(pDesc, obra.bdi_percentual)
-    const pTot  = calcPrecoTotal(srv.quantidade, pBDI)
-    const pTotD = pTot*(1-desc)
+    const pBDI  = calcPrecoComBDI(srv.preco_unitario, obra.bdi_percentual)
+    const pTotBDI = Math.round(srv.quantidade * pBDI * 100) / 100
+    const pTot  = calcTotalServico(srv.quantidade, srv.preco_unitario, obra.bdi_percentual, desc)
     if (srv.is_grupo) {
       rows += isPref
-        ? `<tr style="${grpBg};font-weight:bold"><td class="ctr">${srv.item}</td><td></td><td class="td-desc">${srv.descricao}</td><td></td><td></td><td></td><td></td><td></td><td class="num">${fC(pTot)}</td><td class="num">${fC(pTotD)}</td><td colspan="9"></td></tr>`
+        ? `<tr style="${grpBg};font-weight:bold"><td class="ctr">${srv.item}</td><td></td><td class="td-desc">${srv.descricao}</td><td></td><td></td><td></td><td></td><td></td><td class="num">${fC(pTotBDI)}</td><td class="num">${fC(pTot)}</td><td colspan="9"></td></tr>`
         : `<tr style="${grpBg};font-weight:bold"><td class="ctr">${srv.item}</td><td colspan="3" class="td-desc">${srv.descricao}</td><td colspan="5"></td><td class="num">${fC(pTot)}</td><td colspan="13"></td></tr>`
       continue
     }
@@ -247,17 +246,18 @@ function gerarHTMLMED(
     const pctAcum = srv.quantidade>0?qtdAcumulada/srv.quantidade:0
     const pCls = qtdPeriodo>0?' td-per':'', c100 = pctAcum>=1?' td-100':''
     const is100 = pctAcum >= 1 && srv.quantidade > 0
+    const fD = 1 - desc
     if (isPref) {
-      const medR  = is100 && qtdAnterior===0 ? pTotD : is100 ? pTotD - Math.round(qtdAnterior*pBDI*(1-desc)*100)/100 : Math.round(qtdPeriodo*pBDI*(1-desc)*100)/100
-      const acumR = is100 ? pTotD : Math.round(qtdAcumulada*pBDI*(1-desc)*100)/100
-      const saldR = is100 ? 0 : Math.round(qtdSaldo*pBDI*(1-desc)*100)/100
-      rows += `<tr class="${cls}"><td class="ctr">${srv.item}</td><td class="ctr">${srv.codigo}</td><td class="td-desc">${srv.descricao}</td><td class="ctr">${srv.fonte}</td><td class="ctr">${srv.unidade}</td><td class="num">${fN(srv.quantidade)}</td><td class="num">${fC(pDesc)}</td><td class="num">${fC(pBDI)}</td><td class="num">${fC(pTot)}</td><td class="num">${fC(pTotD)}</td><td class="num${qtdAnterior>0?' td-per':''}">${fN(qtdAnterior)}</td><td class="num${pCls}">${fN(qtdPeriodo)}</td><td class="num${pCls}">${fN(pctAcum*100,2)}%</td><td class="num">${fN(qtdAcumulada)}</td><td class="num">${fN(qtdSaldo)}</td><td class="num${pCls}">${fC(medR)}</td><td class="num">${fC(acumR)}</td><td class="num">${fC(saldR)}</td><td class="num${c100}">${fN(pctAcum*100,2)}%</td></tr>`
+      const medR  = is100 && qtdAnterior===0 ? pTot : is100 ? pTot - Math.round(Math.round(qtdAnterior*pBDI*100)/100*fD*100)/100 : Math.round(Math.round(qtdPeriodo*pBDI*100)/100*fD*100)/100
+      const acumR = is100 ? pTot : Math.round(Math.round(qtdAcumulada*pBDI*100)/100*fD*100)/100
+      const saldR = is100 ? 0 : Math.round(Math.round(qtdSaldo*pBDI*100)/100*fD*100)/100
+      rows += `<tr class="${cls}"><td class="ctr">${srv.item}</td><td class="ctr">${srv.codigo}</td><td class="td-desc">${srv.descricao}</td><td class="ctr">${srv.fonte}</td><td class="ctr">${srv.unidade}</td><td class="num">${fN(srv.quantidade)}</td><td class="num">${fC(pBDI)}</td><td class="num">${fC(pBDI)}</td><td class="num">${fC(pTotBDI)}</td><td class="num">${fC(pTot)}</td><td class="num${qtdAnterior>0?' td-per':''}">${fN(qtdAnterior)}</td><td class="num${pCls}">${fN(qtdPeriodo)}</td><td class="num${pCls}">${fN(pctAcum*100,2)}%</td><td class="num">${fN(qtdAcumulada)}</td><td class="num">${fN(qtdSaldo)}</td><td class="num${pCls}">${fC(medR)}</td><td class="num">${fC(acumR)}</td><td class="num">${fC(saldR)}</td><td class="num${c100}">${fN(pctAcum*100,2)}%</td></tr>`
     } else {
-      const eAntR = Math.round(qtdAnterior*pBDI*100)/100
-      const eAcumR = is100 ? pTot : Math.round(qtdAcumulada*pBDI*100)/100
-      const ePerR = is100 && qtdAnterior===0 ? pTot : is100 ? pTot - eAntR : Math.round(qtdPeriodo*pBDI*100)/100
+      const eAntR = Math.round(Math.round(qtdAnterior*pBDI*100)/100*fD*100)/100
+      const eAcumR = is100 ? pTot : Math.round(Math.round(qtdAcumulada*pBDI*100)/100*fD*100)/100
+      const ePerR = is100 && qtdAnterior===0 ? pTot : is100 ? pTot - eAntR : Math.round(Math.round(qtdPeriodo*pBDI*100)/100*fD*100)/100
       const eSaldR = is100 ? 0 : pTot - eAcumR
-      rows += `<tr class="${cls}"><td class="ctr">${srv.item}</td><td class="ctr">${srv.fonte}</td><td class="ctr">${srv.codigo}</td><td class="td-desc">${srv.descricao}</td><td class="ctr">${srv.unidade}</td><td class="num">${fN(srv.quantidade)}</td><td class="num">${fC(srv.preco_unitario)}</td><td class="num">${fC(pDesc)}</td><td class="num">${fC(pBDI)}</td><td class="num">${fC(pTot)}</td><td class="ctr">—</td><td class="num">${fN(srv.quantidade)}</td><td class="num">${fN(qtdAnterior)}</td><td class="num${pCls}">${fN(qtdPeriodo)}</td><td class="num">${fN(qtdAcumulada)}</td><td class="num">${fN(qtdSaldo)}</td><td class="num">${fC(pDesc)}</td><td class="num">${fC(pBDI)}</td><td class="num">${fC(eAntR)}</td><td class="num">${fC(eAcumR)}</td><td class="num${pCls}">${fC(ePerR)}</td><td class="num${c100}">${fC(eSaldR)}</td><td class="num${c100}">${fN((1-pctAcum)*100,2)}%</td></tr>`
+      rows += `<tr class="${cls}"><td class="ctr">${srv.item}</td><td class="ctr">${srv.fonte}</td><td class="ctr">${srv.codigo}</td><td class="td-desc">${srv.descricao}</td><td class="ctr">${srv.unidade}</td><td class="num">${fN(srv.quantidade)}</td><td class="num">${fC(srv.preco_unitario)}</td><td class="num">${fC(pBDI)}</td><td class="num">${fC(pTotBDI)}</td><td class="num">${fC(pTot)}</td><td class="ctr">—</td><td class="num">${fN(srv.quantidade)}</td><td class="num">${fN(qtdAnterior)}</td><td class="num${pCls}">${fN(qtdPeriodo)}</td><td class="num">${fN(qtdAcumulada)}</td><td class="num">${fN(qtdSaldo)}</td><td class="num">${fC(pBDI)}</td><td class="num">${fC(pTot)}</td><td class="num">${fC(eAntR)}</td><td class="num">${fC(eAcumR)}</td><td class="num${pCls}">${fC(ePerR)}</td><td class="num${c100}">${fC(eSaldR)}</td><td class="num${c100}">${fN((1-pctAcum)*100,2)}%</td></tr>`
     }
     ri++
   }

@@ -10,7 +10,7 @@ import { usePerfilStore } from '../lib/perfilStore'
 import { Servico, LinhaMemoria, StatusLinhaMemoria } from '../types'
 import {
   calcularTotalLinha, calcResumoServico, formatCurrency, formatNumber,
-  calcPrecoComDesconto, calcPrecoComBDI, calcValoresMedicao,
+  calcPrecoComBDI, calcValoresMedicao,
 } from '../utils/calculations'
 import { gerarMedicaoExcel } from '../utils/excelExport'
 import { gerarMedicaoPDF } from '../utils/pdfExport'
@@ -118,9 +118,9 @@ export function MemoriaPage() {
   const totalPeriodo = servicosOrdenados.reduce((sum, srv) => {
     const linhas = linhasPorServico.get(srv.id) || []
     const { qtdPeriodo } = calcResumoServico(srv, linhas)
-    const precoDesc = calcPrecoComDesconto(srv.preco_unitario, obraAtiva?.desconto_percentual ?? 0)
-    const precoBDI  = calcPrecoComBDI(precoDesc, obraAtiva?.bdi_percentual ?? 0)
-    return sum + qtdPeriodo * precoBDI
+    const puBDI  = calcPrecoComBDI(srv.preco_unitario, obraAtiva?.bdi_percentual ?? 0)
+    const fatorDesc = 1 - (obraAtiva?.desconto_percentual ?? 0)
+    return sum + Math.round(qtdPeriodo * puBDI * fatorDesc * 100) / 100
   }, 0)
 
   async function handleExportXlsx() {
@@ -503,9 +503,9 @@ export function MemoriaPage() {
 
 function ServicoCard({ servico, medicaoId, linhas, expandido, onToggle, onSalvarLinha, onAtualizarLinha, onDeletarLinha, desconto, bdi }: ServicoCardProps) {
   const { qtdAnterior, qtdPeriodo, qtdAcumulada, qtdSaldo } = calcResumoServico(servico, linhas)
-  const precoDesc = calcPrecoComDesconto(servico.preco_unitario, desconto)
-  const precoBDI  = calcPrecoComBDI(precoDesc, bdi)
-  const valorPeriodo = qtdPeriodo * precoBDI
+  const puBDI  = calcPrecoComBDI(servico.preco_unitario, bdi)
+  const fatorDesc = 1 - desconto
+  const valorPeriodo = Math.round(qtdPeriodo * puBDI * fatorDesc * 100) / 100
   const progresso = servico.quantidade > 0 ? Math.min(100, (qtdAcumulada / servico.quantidade) * 100) : 0
   const [novaLinha, setNovaLinha] = useState<Partial<LinhaMemoria>>({})
   const [salvandoNova, setSalvandoNova] = useState(false)

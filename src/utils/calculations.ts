@@ -78,12 +78,20 @@ export function calcPrecoComDesconto(preco: number, desconto: number): number {
   return preco * (1 - desconto)
 }
 
-export function calcPrecoComBDI(precoComDesconto: number, bdi: number): number {
-  return precoComDesconto * (1 + bdi)
+export function calcPrecoComBDI(preco: number, bdi: number): number {
+  // Arredonda para 2 casas (padrão planilhas orçamentárias)
+  return Math.round(preco * (1 + bdi) * 100) / 100
 }
 
-export function calcPrecoTotal(quantidade: number, precoComBDI: number): number {
-  return Math.round(quantidade * precoComBDI * 100) / 100
+export function calcPrecoTotal(quantidade: number, precoUnitario: number): number {
+  return Math.round(quantidade * precoUnitario * 100) / 100
+}
+
+/** Total do serviço: BDI no unitário (arredondado) → qtd × PU_BDI → desconto no total */
+export function calcTotalServico(quantidade: number, precoUnitario: number, bdi: number, desconto: number): number {
+  const puBDI = calcPrecoComBDI(precoUnitario, bdi)
+  const totalBDI = calcPrecoTotal(quantidade, puBDI)
+  return Math.round(totalBDI * (1 - desconto) * 100) / 100
 }
 
 // ─── RESUMO DO SERVIÇO NA MEDIÇÃO ────────────────────────────────────────────
@@ -140,32 +148,30 @@ export function calcValoresMedicao(
   for (const srv of servicos) {
     if (srv.is_grupo) continue
 
-    const precoComDesconto = calcPrecoComDesconto(srv.preco_unitario, contrato.desconto_percentual)
-    const precoComBDI = calcPrecoComBDI(precoComDesconto, contrato.bdi_percentual)
-    const precoTotal = calcPrecoTotal(srv.quantidade, precoComBDI)
+    // Ordem correta: BDI no unitário (arredondado) → qtd → desconto no total
+    const precoTotal = calcTotalServico(srv.quantidade, srv.preco_unitario, contrato.bdi_percentual, contrato.desconto_percentual)
     totalOrcamento += precoTotal
 
     const linhas = linhasPorServico.get(srv.id) || []
     const { qtdAnterior, qtdPeriodo, qtdAcumulada } = calcResumoServico(srv, linhas)
 
-    // Preço BDI usando o BDI real do contrato
-    const precoBDI = calcPrecoComBDI(precoComDesconto, contrato.bdi_percentual)
+    // PU com BDI (arredondado) × fator desconto = preço unitário efetivo para medição
+    const puBDI = calcPrecoComBDI(srv.preco_unitario, contrato.bdi_percentual)
+    const fatorDesc = 1 - contrato.desconto_percentual
 
     // Quando 100% medido, usa o valor do contrato (evita diferença de arredondamento)
     if (qtdAcumulada >= srv.quantidade && srv.quantidade > 0) {
       valorAcumulado += precoTotal
-      // Período = total apenas se tudo foi medido neste período (qtdAnterior == 0)
       if (qtdAnterior === 0) {
         valorPeriodo += precoTotal
       } else {
-        // Parte do período: total - valor já acumulado anterior (arredondado)
-        const valAnterior = r2(qtdAnterior * precoBDI)
+        const valAnterior = r2(r2(qtdAnterior * puBDI) * fatorDesc)
         valorPeriodo += precoTotal - valAnterior
       }
     } else {
-      // Parcialmente medido: arredonda cada multiplicação individualmente
-      valorAcumulado += r2((qtdAnterior + qtdPeriodo) * precoBDI)
-      valorPeriodo += r2(qtdPeriodo * precoBDI)
+      // Parcialmente medido
+      valorAcumulado += r2(r2((qtdAnterior + qtdPeriodo) * puBDI) * fatorDesc)
+      valorPeriodo += r2(r2(qtdPeriodo * puBDI) * fatorDesc)
     }
   }
 

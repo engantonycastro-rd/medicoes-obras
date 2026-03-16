@@ -5,7 +5,7 @@ import { useStore } from '../lib/store'
 import { supabase } from '../lib/supabase'
 import { ServicoImportado } from '../types'
 import { importarOrcamento } from '../utils/importOrcamento'
-import { formatCurrency, formatNumber, calcPrecoComDesconto, calcPrecoComBDI, calcPrecoTotal } from '../utils/calculations'
+import { formatCurrency, formatNumber, calcPrecoComBDI, calcTotalServico } from '../utils/calculations'
 
 export function ServicosPage() {
   const { contratoAtivo, obraAtiva, servicos, fetchServicos, salvarServicos } = useStore()
@@ -85,8 +85,7 @@ export function ServicosPage() {
 
   const lista = preview.length > 0 ? preview : servicos.map(s => s as unknown as ServicoImportado)
   const totalOrc = lista.filter(s => !s.is_grupo).reduce((sum, s) => {
-    const pd = calcPrecoComDesconto(s.preco_unitario, obraAtiva.desconto_percentual)
-    return sum + calcPrecoTotal(s.quantidade, calcPrecoComBDI(pd, obraAtiva.bdi_percentual))
+    return sum + calcTotalServico(s.quantidade, s.preco_unitario, obraAtiva.bdi_percentual, obraAtiva.desconto_percentual)
   }, 0)
 
   return (
@@ -158,16 +157,16 @@ export function ServicosPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-800 text-white">
-                  {['Item','Fonte','Código','Descrição','Unid.','Quantidade','Preço Unit. (R$)','c/ Desconto','c/ BDI','Total (R$)'].map(h => (
+                  {['Item','Fonte','Código','Descrição','Unid.','Quantidade','Preço Unit. (R$)','c/ BDI','Total c/ BDI','Total c/ Desc.'].map(h => (
                     <th key={h} className="px-3 py-3 text-xs font-semibold text-left whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {lista.map((s, i) => {
-                  const pd = calcPrecoComDesconto(s.preco_unitario, obraAtiva.desconto_percentual)
-                  const pb = calcPrecoComBDI(pd, obraAtiva.bdi_percentual)
-                  const pt = calcPrecoTotal(s.quantidade, pb)
+                  const pb = calcPrecoComBDI(s.preco_unitario, obraAtiva.bdi_percentual)
+                  const ptBDI = Math.round(s.quantidade * pb * 100) / 100
+                  const pt = calcTotalServico(s.quantidade, s.preco_unitario, obraAtiva.bdi_percentual, obraAtiva.desconto_percentual)
                   return (
                     <tr key={i} className={s.is_grupo ? 'bg-slate-800 text-white font-semibold' : i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                       <td className="px-3 py-2 font-mono text-xs">{s.item}</td>
@@ -177,8 +176,8 @@ export function ServicosPage() {
                       <td className="px-3 py-2 text-center text-xs">{s.is_grupo ? '' : s.unidade}</td>
                       <td className="px-3 py-2 text-right">{s.is_grupo ? '' : formatNumber(s.quantidade)}</td>
                       <td className="px-3 py-2 text-right">{s.is_grupo ? '' : formatCurrency(s.preco_unitario)}</td>
-                      <td className="px-3 py-2 text-right">{s.is_grupo ? '' : formatCurrency(pd)}</td>
                       <td className="px-3 py-2 text-right">{s.is_grupo ? '' : formatCurrency(pb)}</td>
+                      <td className="px-3 py-2 text-right">{s.is_grupo ? '' : formatCurrency(ptBDI)}</td>
                       <td className="px-3 py-2 text-right font-semibold">{s.is_grupo ? '' : formatCurrency(pt)}</td>
                     </tr>
                   )
