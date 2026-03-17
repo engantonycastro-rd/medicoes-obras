@@ -19,7 +19,7 @@ interface Apontamento {
   ocorrencias: any[]; observacoes: string | null
 }
 interface AptMaoObra { funcao_nome: string; quantidade: number }
-interface AptFoto { id: string; url: string; path: string; nome: string | null; legenda: string | null }
+interface AptFoto { id: string; url: string; path: string; nome: string | null; legenda: string | null; signedUrl?: string }
 interface AptPQE { kanban_item_desc: string; status: string; observacao: string | null }
 interface Perfil { id: string; nome: string | null; email: string }
 interface ObraRef { id: string; nome_obra: string }
@@ -78,7 +78,14 @@ export function ApontamentosAdminPage() {
     }
     if (!detalhesFoto[apt.id]) {
       const { data } = await supabase.from('apontamento_fotos').select('*').eq('apontamento_id', apt.id)
-      if (data) setDetalhesFoto(p => ({ ...p, [apt.id]: data as AptFoto[] }))
+      if (data) {
+        // Gera signed URLs para cada foto (funciona mesmo com bucket privado)
+        const fotosComUrl = await Promise.all((data as AptFoto[]).map(async (f) => {
+          const { data: signedData } = await supabase.storage.from('apontamentos').createSignedUrl(f.path, 3600)
+          return { ...f, signedUrl: signedData?.signedUrl || '' }
+        }))
+        setDetalhesFoto(p => ({ ...p, [apt.id]: fotosComUrl }))
+      }
     }
     if (!detalhesPQE[apt.id]) {
       const { data } = await supabase.from('apontamento_pqe').select('status, observacao, kanban_itens(descricao)').eq('apontamento_id', apt.id)
@@ -290,10 +297,10 @@ export function ApontamentosAdminPage() {
                         <p className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1"><Camera size={12}/> Fotos ({fotos.length})</p>
                         <div className="grid grid-cols-4 gap-2">
                           {fotos.map(f => {
-                            const publicUrl = supabase.storage.from('apontamentos').getPublicUrl(f.path).data.publicUrl
+                            const imgUrl = f.signedUrl || supabase.storage.from('apontamentos').getPublicUrl(f.path).data.publicUrl
                             return (
-                              <div key={f.id} className="relative rounded-lg overflow-hidden border border-slate-200 cursor-pointer group" onClick={() => setLightbox(publicUrl)}>
-                                <img src={publicUrl} alt={f.legenda || f.nome || ''} className="w-full h-24 object-cover"/>
+                              <div key={f.id} className="relative rounded-lg overflow-hidden border border-slate-200 cursor-pointer group" onClick={() => setLightbox(imgUrl)}>
+                                <img src={imgUrl} alt={f.legenda || f.nome || ''} className="w-full h-24 object-cover"/>
                                 {f.legenda && <p className="text-[9px] text-slate-500 px-2 py-1 bg-white truncate">{f.legenda}</p>}
                               </div>
                             )

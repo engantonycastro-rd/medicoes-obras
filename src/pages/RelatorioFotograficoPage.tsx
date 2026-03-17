@@ -36,8 +36,13 @@ export function RelatorioFotograficoPage() {
       }))
       if (filtroDataIni) fotosProcessadas = fotosProcessadas.filter(f => (f.data || '') >= filtroDataIni)
       if (filtroDataFim) fotosProcessadas = fotosProcessadas.filter(f => (f.data || '') <= filtroDataFim)
-      setFotos(fotosProcessadas)
-      setSelecionadas(new Set(fotosProcessadas.map(f => f.id)))
+      // Gera signed URLs para cada foto
+      const comUrls = await Promise.all(fotosProcessadas.map(async (f: any) => {
+        const { data: sd } = await supabase.storage.from('apontamentos').createSignedUrl(f.path, 3600)
+        return { ...f, signedUrl: sd?.signedUrl || '' }
+      }))
+      setFotos(comUrls)
+      setSelecionadas(new Set(comUrls.map(f => f.id)))
     }
     setLoading(false)
   }
@@ -52,8 +57,8 @@ export function RelatorioFotograficoPage() {
     else setSelecionadas(new Set(fotos.map(f => f.id)))
   }
 
-  function getPublicUrl(path: string) {
-    return supabase.storage.from('apontamentos').getPublicUrl(path).data.publicUrl
+  function getFotoUrl(foto: any) {
+    return foto.signedUrl || supabase.storage.from('apontamentos').getPublicUrl(foto.path).data.publicUrl
   }
 
   async function gerarPDF() {
@@ -81,7 +86,7 @@ export function RelatorioFotograficoPage() {
           const foto = fotosSel[i + j]
           const yBase = j === 0 ? 15 : 155
           try {
-            const resp = await fetch(getPublicUrl(foto.path))
+            const resp = await fetch(getFotoUrl(foto))
             const blob = await resp.blob()
             const base64 = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(r.result as string); r.readAsDataURL(blob) })
             doc.addImage(base64, 'JPEG', 15, yBase, 180, 120)
@@ -140,7 +145,7 @@ export function RelatorioFotograficoPage() {
           <div className="grid grid-cols-3 lg:grid-cols-4 gap-3">
             {fotos.map(f => {
               const selected = selecionadas.has(f.id)
-              const url = getPublicUrl(f.path)
+              const url = getFotoUrl(f)
               return (
                 <div key={f.id} className={`relative border-2 rounded-xl overflow-hidden cursor-pointer transition-all ${selected ? 'border-primary-500 shadow-md' : 'border-slate-200 dark:border-slate-700'}`}
                   onClick={() => toggleFoto(f.id)}>
