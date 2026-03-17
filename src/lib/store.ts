@@ -213,7 +213,8 @@ export const useStore = create<Store>((set, get) => ({
   criarMedicao: async (obraId, contratoId) => {
     set({ error: null })
     const medicoes = await get().fetchMedicoes(obraId)
-    const num = (medicoes.length || 0) + 1
+    const maxNum = medicoes.length > 0 ? Math.max(...medicoes.map(m => m.numero)) : 0
+    const num = maxNum + 1
     const ord = ['1ª','2ª','3ª','4ª','5ª','6ª','7ª','8ª','9ª','10ª','11ª','12ª','13ª','14ª','15ª']
     const { data, error } = await supabase.from('medicoes').insert({
       contrato_id: contratoId, obra_id: obraId, numero: num,
@@ -312,7 +313,8 @@ export const useStore = create<Store>((set, get) => ({
     await get().efetuarMedicao(medicaoAtualId)
     const { data: todasLinhas } = await supabase.from('linhas_memoria').select('*').eq('medicao_id', medicaoAtualId)
     const medicoes = await get().fetchMedicoes(obraId)
-    const num = (medicoes.length || 0) + 1
+    const maxNum = medicoes.length > 0 ? Math.max(...medicoes.map(m => m.numero)) : 0
+    const num = maxNum + 1
     const ord = ['1ª','2ª','3ª','4ª','5ª','6ª','7ª','8ª','9ª','10ª','11ª','12ª','13ª','14ª','15ª']
     const { data: novaMed, error } = await supabase.from('medicoes').insert({
       contrato_id: contratoId, obra_id: obraId, numero: num,

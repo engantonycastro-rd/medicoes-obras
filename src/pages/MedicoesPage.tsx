@@ -367,11 +367,11 @@ export function MedicoesPage() {
                     {isAprovada && isUltima && (
                       <button onClick={() => setConfirmModal({ tipo: 'proxima', medicao: m })} disabled={loading}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-xs font-medium transition-all">
-                        <ArrowRight size={13}/> Criar {ordEN[medicoes.length + 1] || `${medicoes.length+1}ª`} Med.
+                        <ArrowRight size={13}/> Criar {ordEN[Math.max(...medicoes.map(x => x.numero)) + 1] || `${Math.max(...medicoes.map(x => x.numero))+1}ª`} Med.
                       </button>
                     )}
-                    {/* Deletar — admin pode deletar qualquer medição */}
-                    {isAdmin && (
+                    {/* Deletar — admin e gestor podem deletar medição */}
+                    {(isAdmin || isGestor) && (
                       <button onClick={() => setConfirmModal({ tipo: 'deletar', medicao: m })}
                         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-red-200
                           text-red-600 text-xs hover:bg-red-50 transition-all">
