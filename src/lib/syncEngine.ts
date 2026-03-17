@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 import {
-  getApontamentosPendentes, atualizarStatusApt,
+  getApontamentosPendentes, atualizarStatusApt, getApontamentosComErro,
   getFotosBySyncId, atualizarStatusFoto, countPendentes,
   cacheObras, cacheFuncoes, cacheKanbanItens,
 } from './offlineStore'
@@ -52,33 +52,43 @@ export async function syncAll(): Promise<void> {
   syncing = true; notify()
 
   try {
+    // Busca PENDENTES + ERRO (retenta automaticamente)
     const pendentes = await getApontamentosPendentes()
-    for (const apt of pendentes) {
+    const erros = await getApontamentosComErro()
+    const todos = [...pendentes, ...erros]
+    for (const apt of todos) {
       try {
         await atualizarStatusApt(apt.sync_id, 'SINCRONIZANDO')
         notify()
 
-        // 1. Cria apontamento no Supabase
-        const { data: created, error } = await supabase.from('apontamentos').insert({
-          obra_id: apt.obra_id, apontador_id: (await supabase.auth.getUser()).data.user?.id,
-          data: apt.data, hora: apt.hora, turno: apt.turno, clima: apt.clima,
-          latitude: apt.latitude, longitude: apt.longitude,
-          atividades: apt.atividades || null, equipamentos: apt.equipamentos || null,
-          ocorrencias: apt.ocorrencias, observacoes: apt.observacoes || null,
-          sync_id: apt.sync_id,
-        }).select().single()
-
-        if (error) throw error
+        // 1. Verifica se já existe no Supabase (retry de erro parcial)
+        let aptId: string
+        const { data: existing } = await supabase.from('apontamentos').select('id').eq('sync_id', apt.sync_id).maybeSingle()
+        
+        if (existing) {
+          aptId = existing.id
+        } else {
+          const { data: created, error } = await supabase.from('apontamentos').insert({
+            obra_id: apt.obra_id, apontador_id: (await supabase.auth.getUser()).data.user?.id,
+            data: apt.data, hora: apt.hora, turno: apt.turno, clima: apt.clima,
+            latitude: apt.latitude, longitude: apt.longitude,
+            atividades: apt.atividades || null, equipamentos: apt.equipamentos || null,
+            ocorrencias: apt.ocorrencias, observacoes: apt.observacoes || null,
+            sync_id: apt.sync_id,
+          }).select().single()
+          if (error) throw error
+          aptId = created.id
+        }
 
         // 2. Mão de obra
         const moRows = apt.mao_obra.filter(m => m.quantidade > 0).map(m => ({
-          apontamento_id: created.id, funcao_id: m.funcao_id, quantidade: m.quantidade,
+          apontamento_id: aptId, funcao_id: m.funcao_id, quantidade: m.quantidade,
         }))
         if (moRows.length > 0) await supabase.from('apontamento_mao_obra').insert(moRows)
 
         // 3. PQE
         const pqeRows = apt.pqe.filter(p => p.status).map(p => ({
-          apontamento_id: created.id, kanban_item_id: p.kanban_item_id,
+          apontamento_id: aptId, kanban_item_id: p.kanban_item_id,
           status: p.status, observacao: p.observacao || null,
         }))
         if (pqeRows.length > 0) await supabase.from('apontamento_pqe').insert(pqeRows)
@@ -98,7 +108,7 @@ export async function syncAll(): Promise<void> {
             if (upErr) throw upErr
 
             await supabase.from('apontamento_fotos').insert({
-              apontamento_id: created.id, url: path, path, nome: foto.nome, legenda: foto.legenda,
+              apontamento_id: aptId, url: path, path, nome: foto.nome, legenda: foto.legenda,
             })
             await atualizarStatusFoto(foto.id, 'SINCRONIZADO')
           } catch (fErr: any) {

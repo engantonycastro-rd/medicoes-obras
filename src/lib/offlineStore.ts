@@ -107,6 +107,11 @@ export async function getApontamentosPendentes() {
   return db.getAllFromIndex('apontamentos-offline', 'by-status', 'PENDENTE')
 }
 
+export async function getApontamentosComErro() {
+  const db = await getDB()
+  return db.getAllFromIndex('apontamentos-offline', 'by-status', 'ERRO')
+}
+
 export async function getApontamentosOffline(obraId?: string) {
   const db = await getDB()
   if (obraId) return db.getAllFromIndex('apontamentos-offline', 'by-obra', obraId)
@@ -121,7 +126,9 @@ export async function atualizarStatusApt(syncId: string, status: string, erro?: 
 
 export async function countPendentes(): Promise<number> {
   const db = await getDB()
-  return db.countFromIndex('apontamentos-offline', 'by-status', 'PENDENTE')
+  const pend = await db.countFromIndex('apontamentos-offline', 'by-status', 'PENDENTE')
+  const erro = await db.countFromIndex('apontamentos-offline', 'by-status', 'ERRO')
+  return pend + erro
 }
 
 // ─── Fotos offline ─────────────────────────────────────────────────────────

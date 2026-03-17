@@ -551,6 +551,12 @@ export function AppMobilePage() {
                     {apt.ocorrencias?.length > 0 && <span className="text-red-500">{apt.ocorrencias.length} ocorrência(s)</span>}
                   </div>
                   {apt.erro && <p className="text-[10px] text-red-500 mt-1">Erro: {apt.erro}</p>}
+                  {apt.status === 'ERRO' && (
+                    <button onClick={() => { if (navigator.onLine) syncAll(); else toast.error('Sem conexão') }}
+                      className="mt-2 flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded-lg w-full justify-center">
+                      <RefreshCw size={12}/> Retentar sincronização
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
