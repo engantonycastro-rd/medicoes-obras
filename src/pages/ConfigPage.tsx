@@ -437,13 +437,10 @@ function FixFotosButton() {
       }
 
       s.total = fotos.length
-      setLog(prev => [...prev, `${fotos.length} fotos encontradas. Processando...`])
+      setLog(prev => [...prev, `${fotos.length} fotos encontradas. Forçando re-upload de todas...`])
 
       for (const foto of fotos) {
         try {
-          // Verifica se path já tem extensão de imagem
-          const hasExt = /\.(jpg|jpeg|png|webp)$/i.test(foto.path)
-
           // Download do blob
           const { data: blob, error: dlErr } = await supabase.storage.from('apontamentos').download(foto.path)
           if (dlErr || !blob) {
@@ -452,46 +449,40 @@ function FixFotosButton() {
             continue
           }
 
-          // Verifica se o blob é uma imagem válida
-          const isImage = blob.type.startsWith('image/')
-          if (isImage && hasExt) {
-            s.skipped++
-            continue // Já está OK
+          // Garante extensão .jpg no path
+          const hasExt = /\.(jpg|jpeg|png|webp)$/i.test(foto.path)
+          const newPath = hasExt ? foto.path : foto.path.replace(/\/?$/, '') + '.jpg'
+
+          // Estratégia: REMOVE o antigo → UPLOAD novo com contentType explícito
+          // (update nem sempre atualiza o metadata no Supabase Storage)
+          await supabase.storage.from('apontamentos').remove([foto.path])
+
+          const { error: upErr } = await supabase.storage.from('apontamentos').upload(newPath, blob, {
+            contentType: 'image/jpeg',
+            upsert: false,
+          })
+
+          if (upErr) {
+            // Se falhou upload, tenta com upsert
+            const { error: upErr2 } = await supabase.storage.from('apontamentos').upload(newPath, blob, {
+              contentType: 'image/jpeg',
+              upsert: true,
+            })
+            if (upErr2) {
+              s.errors++
+              setLog(prev => [...prev, `✗ ${foto.nome}: erro re-upload — ${upErr2.message}`])
+              continue
+            }
           }
 
-          // Re-upload com contentType correto
-          const mimeType = blob.type.startsWith('image/') ? blob.type : 'image/jpeg'
-          const ext = mimeType.includes('png') ? '.png' : '.jpg'
-          let newPath = foto.path
-
-          // Se não tem extensão, cria novo path
-          if (!hasExt) {
-            newPath = foto.path.replace(/\/?$/, '') + ext
-          }
-
+          // Atualiza path no banco se mudou
           if (newPath !== foto.path) {
-            // Upload no novo path
-            const { error: upErr } = await supabase.storage.from('apontamentos').upload(newPath, blob, {
-              contentType: mimeType, upsert: true,
-            })
-            if (upErr) { s.errors++; continue }
-
-            // Atualiza path no banco
             await supabase.from('apontamento_fotos').update({ path: newPath, url: newPath }).eq('id', foto.id)
-
-            // Remove arquivo antigo
-            await supabase.storage.from('apontamentos').remove([foto.path])
-          } else {
-            // Mesmo path, só re-upload com contentType
-            const { error: upErr } = await supabase.storage.from('apontamentos').update(newPath, blob, {
-              contentType: mimeType, upsert: true,
-            })
-            if (upErr) { s.errors++; continue }
           }
 
           s.fixed++
-          if (s.fixed % 5 === 0) {
-            setLog(prev => [...prev, `Corrigidas ${s.fixed} de ${s.total}...`])
+          if (s.fixed % 3 === 0 || s.fixed === s.total) {
+            setLog(prev => [...prev, `✓ ${s.fixed}/${s.total} corrigidas...`])
             setStats({ ...s })
           }
         } catch (fErr: any) {
@@ -501,7 +492,7 @@ function FixFotosButton() {
       }
 
       setStats(s)
-      setLog(prev => [...prev, `✓ Concluído! ${s.fixed} corrigidas, ${s.skipped} já OK, ${s.errors} erros.`])
+      setLog(prev => [...prev, `✓ Concluído! ${s.fixed} corrigidas, ${s.errors} erros de ${s.total} total.`])
     } catch (err: any) {
       setLog(prev => [...prev, `Erro geral: ${err.message}`])
     }
@@ -516,7 +507,7 @@ function FixFotosButton() {
             <Image size={15} className="text-blue-500"/> Corrigir fotos de apontamentos
           </p>
           <p className="text-[10px] text-slate-400 mt-0.5">
-            Corrige fotos que foram enviadas sem contentType (aparecem corrompidas). Re-upload com formato JPEG.
+            Força re-upload de TODAS as fotos com contentType correto (image/jpeg). Remove e recria cada arquivo no storage.
           </p>
         </div>
         <button onClick={fixFotos} disabled={fixing}
@@ -529,7 +520,6 @@ function FixFotosButton() {
         <div className="flex gap-4 text-xs mb-2">
           <span className="text-slate-500">Total: {stats.total}</span>
           <span className="text-emerald-600 font-semibold">Corrigidas: {stats.fixed}</span>
-          <span className="text-slate-400">Já OK: {stats.skipped}</span>
           <span className="text-red-500">Erros: {stats.errors}</span>
         </div>
       )}
