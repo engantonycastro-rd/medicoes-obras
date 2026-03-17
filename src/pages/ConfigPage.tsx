@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef } from 'react'
-import { Settings, Image, Plus, Trash2, CheckCircle2, Upload, Crown, Lock, TableProperties, FileSpreadsheet, ToggleLeft, ToggleRight, Zap, Palette } from 'lucide-react'
+import { Settings, Image, Plus, Trash2, CheckCircle2, Upload, Crown, Lock, TableProperties, FileSpreadsheet, ToggleLeft, ToggleRight, Zap, Palette, Wrench, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
 import { usePerfilStore } from '../lib/perfilStore'
 import { useModeloStore } from '../lib/modeloStore'
 import { ModeloEditor } from '../components/ModeloEditor'
+import { supabase } from '../lib/supabase'
 
-type Aba = 'logos' | 'modelos' | 'exportacao' | 'aparencia'
+type Aba = 'logos' | 'modelos' | 'exportacao' | 'aparencia' | 'manutencao'
 
 export function ConfigPage() {
   const { logos, fetchLogos, adicionarLogo, deletarLogo, logoSelecionada, setLogoSelecionada } = useStore()
@@ -105,6 +106,17 @@ export function ConfigPage() {
             }`}>
             <Palette size={15}/> Aparência
             <span className="px-1.5 py-0.5 bg-primary-100 text-primary-700 rounded-md text-[10px] font-bold">ADMIN</span>
+          </button>
+        )}
+        {isAdmin && (
+          <button onClick={() => setAbaAtiva('manutencao')}
+            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium -mb-px border-b-2 transition-colors ${
+              abaAtiva === 'manutencao'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}>
+            <Wrench size={15}/> Manutenção
+            <span className="px-1.5 py-0.5 bg-red-100 text-red-600 rounded-md text-[10px] font-bold">ADMIN</span>
           </button>
         )}
       </div>
@@ -383,6 +395,147 @@ export function ConfigPage() {
               Tema atual: <strong>{corTema === 'orange' ? 'Laranja RD' : 'Amber Clássico'}</strong> — a mudança é aplicada instantaneamente para todos os usuários.
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── ABA MANUTENÇÃO ──────────────────────────────────────────────── */}
+      {abaAtiva === 'manutencao' && isAdmin && (
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
+          <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2"><Wrench size={18}/> Manutenção do Sistema</h2>
+            <p className="text-xs text-slate-400 mt-1">Ferramentas de correção e manutenção</p>
+          </div>
+          <div className="p-6 space-y-4">
+            <FixFotosButton />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Componente: Correção de fotos corrompidas ──────────────────────────────
+
+function FixFotosButton() {
+  const [fixing, setFixing] = useState(false)
+  const [log, setLog] = useState<string[]>([])
+  const [stats, setStats] = useState({ total: 0, fixed: 0, errors: 0, skipped: 0 })
+
+  async function fixFotos() {
+    setFixing(true)
+    setLog(['Iniciando correção de fotos...'])
+    const s = { total: 0, fixed: 0, errors: 0, skipped: 0 }
+
+    try {
+      // 1. Busca todas as fotos de apontamentos
+      const { data: fotos, error } = await supabase.from('apontamento_fotos').select('id, path, nome')
+      if (error) throw error
+      if (!fotos || fotos.length === 0) {
+        setLog(prev => [...prev, 'Nenhuma foto encontrada.'])
+        setFixing(false)
+        return
+      }
+
+      s.total = fotos.length
+      setLog(prev => [...prev, `${fotos.length} fotos encontradas. Processando...`])
+
+      for (const foto of fotos) {
+        try {
+          // Verifica se path já tem extensão de imagem
+          const hasExt = /\.(jpg|jpeg|png|webp)$/i.test(foto.path)
+
+          // Download do blob
+          const { data: blob, error: dlErr } = await supabase.storage.from('apontamentos').download(foto.path)
+          if (dlErr || !blob) {
+            s.errors++
+            setLog(prev => [...prev, `✗ ${foto.nome}: erro ao baixar`])
+            continue
+          }
+
+          // Verifica se o blob é uma imagem válida
+          const isImage = blob.type.startsWith('image/')
+          if (isImage && hasExt) {
+            s.skipped++
+            continue // Já está OK
+          }
+
+          // Re-upload com contentType correto
+          const mimeType = blob.type.startsWith('image/') ? blob.type : 'image/jpeg'
+          const ext = mimeType.includes('png') ? '.png' : '.jpg'
+          let newPath = foto.path
+
+          // Se não tem extensão, cria novo path
+          if (!hasExt) {
+            newPath = foto.path.replace(/\/?$/, '') + ext
+          }
+
+          if (newPath !== foto.path) {
+            // Upload no novo path
+            const { error: upErr } = await supabase.storage.from('apontamentos').upload(newPath, blob, {
+              contentType: mimeType, upsert: true,
+            })
+            if (upErr) { s.errors++; continue }
+
+            // Atualiza path no banco
+            await supabase.from('apontamento_fotos').update({ path: newPath, url: newPath }).eq('id', foto.id)
+
+            // Remove arquivo antigo
+            await supabase.storage.from('apontamentos').remove([foto.path])
+          } else {
+            // Mesmo path, só re-upload com contentType
+            const { error: upErr } = await supabase.storage.from('apontamentos').update(newPath, blob, {
+              contentType: mimeType, upsert: true,
+            })
+            if (upErr) { s.errors++; continue }
+          }
+
+          s.fixed++
+          if (s.fixed % 5 === 0) {
+            setLog(prev => [...prev, `Corrigidas ${s.fixed} de ${s.total}...`])
+            setStats({ ...s })
+          }
+        } catch (fErr: any) {
+          s.errors++
+          setLog(prev => [...prev, `✗ ${foto.nome}: ${fErr.message}`])
+        }
+      }
+
+      setStats(s)
+      setLog(prev => [...prev, `✓ Concluído! ${s.fixed} corrigidas, ${s.skipped} já OK, ${s.errors} erros.`])
+    } catch (err: any) {
+      setLog(prev => [...prev, `Erro geral: ${err.message}`])
+    }
+    setFixing(false)
+  }
+
+  return (
+    <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <p className="font-bold text-slate-800 dark:text-white text-sm flex items-center gap-2">
+            <Image size={15} className="text-blue-500"/> Corrigir fotos de apontamentos
+          </p>
+          <p className="text-[10px] text-slate-400 mt-0.5">
+            Corrige fotos que foram enviadas sem contentType (aparecem corrompidas). Re-upload com formato JPEG.
+          </p>
+        </div>
+        <button onClick={fixFotos} disabled={fixing}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg text-sm disabled:opacity-50">
+          {fixing ? <Loader2 size={14} className="animate-spin"/> : <Wrench size={14}/>}
+          {fixing ? 'Corrigindo...' : 'Executar correção'}
+        </button>
+      </div>
+      {stats.total > 0 && (
+        <div className="flex gap-4 text-xs mb-2">
+          <span className="text-slate-500">Total: {stats.total}</span>
+          <span className="text-emerald-600 font-semibold">Corrigidas: {stats.fixed}</span>
+          <span className="text-slate-400">Já OK: {stats.skipped}</span>
+          <span className="text-red-500">Erros: {stats.errors}</span>
+        </div>
+      )}
+      {log.length > 0 && (
+        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-3 max-h-40 overflow-y-auto font-mono text-[10px] text-slate-600 dark:text-slate-400 space-y-0.5">
+          {log.map((l, i) => <div key={i}>{l}</div>)}
         </div>
       )}
     </div>
