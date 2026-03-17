@@ -23,6 +23,7 @@ interface AppDB extends DBSchema {
     key: string
     value: {
       id: string; sync_id: string; blob: Blob; nome: string; legenda: string
+      mimeType?: string
       status: 'PENDENTE' | 'SINCRONIZADO' | 'ERRO'
     }
     indexes: { 'by-sync': string; 'by-status': string }

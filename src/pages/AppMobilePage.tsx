@@ -143,10 +143,44 @@ export function AppMobilePage() {
     setTela('historico')
   }
 
-  function addFoto(file: File) {
+  async function addFoto(file: File) {
     const id = crypto.randomUUID()
-    const preview = URL.createObjectURL(file)
-    setWFotos(prev => [...prev, { id, blob: file, preview, nome: file.name, legenda: '' }])
+    try {
+      // Comprime e converte para JPEG (resolve HEIC, fotos grandes, etc.)
+      const blob = await compressImage(file, 1200, 0.82)
+      const preview = URL.createObjectURL(blob)
+      setWFotos(prev => [...prev, { id, blob, preview, nome: file.name, legenda: '' }])
+    } catch {
+      // Fallback: usa o arquivo original
+      const preview = URL.createObjectURL(file)
+      setWFotos(prev => [...prev, { id, blob: file, preview, nome: file.name, legenda: '' }])
+    }
+  }
+
+  /** Comprime imagem para JPEG com max dimension e qualidade */
+  function compressImage(file: File, maxDim: number, quality: number): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        let { width, height } = img
+        if (width > maxDim || height > maxDim) {
+          const ratio = Math.min(maxDim / width, maxDim / height)
+          width = Math.round(width * ratio)
+          height = Math.round(height * ratio)
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width; canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(
+          blob => blob ? resolve(blob) : reject(new Error('toBlob falhou')),
+          'image/jpeg', quality
+        )
+        URL.revokeObjectURL(img.src)
+      }
+      img.onerror = () => reject(new Error('Erro ao carregar imagem'))
+      img.src = URL.createObjectURL(file)
+    })
   }
 
   function removeFoto(id: string) {
@@ -171,7 +205,7 @@ export function AppMobilePage() {
       })
       // Salva fotos
       for (const foto of wFotos) {
-        await salvarFotoOffline({ id: foto.id, sync_id: syncId, blob: foto.blob, nome: foto.nome, legenda: foto.legenda, status: 'PENDENTE' })
+        await salvarFotoOffline({ id: foto.id, sync_id: syncId, blob: foto.blob, nome: foto.nome, legenda: foto.legenda, mimeType: foto.blob.type || 'image/jpeg', status: 'PENDENTE' })
       }
       toast.success('Apontamento salvo! Será sincronizado automaticamente.')
       // Tenta sincronizar imediatamente

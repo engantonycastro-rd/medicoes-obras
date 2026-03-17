@@ -87,8 +87,14 @@ export async function syncAll(): Promise<void> {
         const fotos = await getFotosBySyncId(apt.sync_id)
         for (const foto of fotos) {
           try {
-            const path = `fotos/${Date.now()}_${sanitize(foto.nome)}`
-            const { error: upErr } = await supabase.storage.from('apontamentos').upload(path, foto.blob)
+            // Determina extensão e content-type
+            const mimeType = foto.blob.type || foto.mimeType || 'image/jpeg'
+            const ext = mimeType.includes('png') ? '.png' : mimeType.includes('webp') ? '.webp' : '.jpg'
+            const path = `fotos/${Date.now()}_${sanitize(foto.nome.replace(/\.[^.]+$/, ''))}${ext}`
+            const { error: upErr } = await supabase.storage.from('apontamentos').upload(path, foto.blob, {
+              contentType: mimeType,
+              upsert: false,
+            })
             if (upErr) throw upErr
 
             await supabase.from('apontamento_fotos').insert({
