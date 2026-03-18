@@ -63,7 +63,7 @@ export function ProducaoPage() {
         for (const o of obrasAtivas) finMap[o.id] = { obra_id: o.id, custo: 0, faturamento: 0 }
 
         const { data: custosData } = await supabase.from('custos_erp')
-          .select('obra_id, tipo_documento, valor_liquido')
+          .select('obra_id, tipo_lancamento, valor_liquido')
           .in('obra_id', obraIds)
           .gte('data_emissao', periodoIni)
           .lte('data_emissao', periodoFim)
@@ -71,9 +71,10 @@ export function ProducaoPage() {
         if (custosData) {
           for (const row of custosData as any[]) {
             if (!finMap[row.obra_id]) continue
-            if (row.tipo_documento === 'NF_SAIDA') {
+            if (row.tipo_lancamento === 'A_RECEBER') {
               finMap[row.obra_id].faturamento += Number(row.valor_liquido) || 0
             } else {
+              // A_PAGAR = custo
               finMap[row.obra_id].custo += Number(row.valor_liquido) || 0
             }
           }
