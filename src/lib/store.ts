@@ -100,12 +100,15 @@ export const useStore = create<Store>((set, get) => ({
   criarContrato: async (data) => {
     set({ loading: true })
     const user = (await supabase.auth.getUser()).data.user
-    // Busca empresa_id do perfil do usuário (obrigatório para RLS)
-    const { data: perfil } = await supabase.from('perfis').select('empresa_id').eq('id', user?.id).single()
+    const { data: perfil } = await supabase.from('perfis').select('empresa_id, role').eq('id', user?.id).single()
     const empresa_id = perfil?.empresa_id || null
     const { data: d, error } = await supabase.from('contratos').insert({ ...data, user_id: user?.id, empresa_id }).select().single()
     if (error) { set({ error: error.message, loading: false }); throw error }
     const c = d as Contrato
+    // Auto-vincula gestor que criou o contrato
+    if (perfil?.role === 'GESTOR' && user?.id) {
+      await supabase.from('contrato_gestores').upsert({ contrato_id: c.id, gestor_id: user.id }, { onConflict: 'contrato_id,gestor_id' })
+    }
     set(s => ({ contratos: [c, ...s.contratos], loading: false }))
     return c
   },
