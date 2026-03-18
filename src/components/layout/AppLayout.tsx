@@ -146,12 +146,18 @@ export function AppLayout() {
         {/* Logo */}
         <div className="px-4 py-4 border-b border-slate-700 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-primary-500 rounded-xl flex items-center justify-center shrink-0 font-black text-white text-sm shadow">
-              {empresa?.nome ? empresa.nome.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'MO'}
-            </div>
+            {empresa?.id === '00000000-0000-0000-0000-000000000001' ? (
+              <img src="/logo-rd.png" alt="RD Construtora" className="w-9 h-9 rounded-xl shrink-0 object-contain"/>
+            ) : (
+              <div className="w-9 h-9 bg-primary-500 rounded-xl flex items-center justify-center shrink-0 font-black text-white text-sm shadow">
+                {empresa?.nome ? empresa.nome.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : 'MO'}
+              </div>
+            )}
             {sidebarOpen && (
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-white text-sm leading-tight">MedObras</p>
+                <p className="font-bold text-white text-sm leading-tight">
+                  {empresa?.id === '00000000-0000-0000-0000-000000000001' ? 'Central de Obras' : 'MedObras'}
+                </p>
                 <p className="text-[11px] text-slate-400">{empresa?.nome || 'Central de Obras'}</p>
               </div>
             )}
