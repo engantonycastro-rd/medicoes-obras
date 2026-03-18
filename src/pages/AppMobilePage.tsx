@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   ClipboardList, Camera, MapPin, Sun, Cloud, CloudRain, CloudDrizzle,
   ChevronRight, ChevronLeft, Check, AlertTriangle, Loader2, Wifi, WifiOff,
   RefreshCw, Clock, CheckCircle2, XCircle, Building2, Users, Plus, X,
-  History, Send, Eye,
+  History, Send, Eye, Edit2, ImagePlus, ArrowRightLeft,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
@@ -57,6 +57,13 @@ export function AppMobilePage() {
 
   // Histórico
   const [historico, setHistorico] = useState<any[]>([])
+  const [editando, setEditando] = useState<any>(null) // apontamento em edição
+  const [editForm, setEditForm] = useState<any>({})
+  const [trocandoObra, setTrocandoObra] = useState<any>(null)
+  const [novaObraId, setNovaObraId] = useState('')
+  const [anexandoFoto, setAnexandoFoto] = useState<any>(null)
+  const [salvandoEdit, setSalvandoEdit] = useState(false)
+  const fotoAnexRef = useRef<HTMLInputElement>(null)
 
   // Filtro por gestor
   const [gestores, setGestores] = useState<{ id: string; nome: string; contrato_ids: string[] }[]>([])
@@ -138,9 +145,71 @@ export function AppMobilePage() {
 
   async function verHistorico(obra: ObraCache) {
     setObraSelecionada(obra)
-    const apts = await getApontamentosOffline(obra.id)
-    setHistorico(apts.sort((a: any, b: any) => b.created_at.localeCompare(a.created_at)))
+    if (navigator.onLine) {
+      // Online: busca do Supabase (tem ID real para editar)
+      const { data } = await supabase.from('apontamentos').select('*').eq('obra_id', obra.id)
+        .order('data', { ascending: false }).order('hora', { ascending: false }).limit(50)
+      if (data) {
+        setHistorico(data.map((a: any) => ({ ...a, status: 'SINCRONIZADO', _fromDB: true })))
+      }
+    } else {
+      // Offline: IndexedDB
+      const apts = await getApontamentosOffline(obra.id)
+      setHistorico(apts.sort((a: any, b: any) => b.created_at.localeCompare(a.created_at)))
+    }
     setTela('historico')
+  }
+
+  function dentroDE24h(createdAt: string): boolean {
+    const criado = new Date(createdAt).getTime()
+    return Date.now() - criado < 24 * 60 * 60 * 1000
+  }
+
+  async function salvarEdicao() {
+    if (!editando) return
+    setSalvandoEdit(true)
+    try {
+      const { error } = await supabase.from('apontamentos').update({
+        atividades: editForm.atividades, equipamentos: editForm.equipamentos,
+        turno: editForm.turno, clima: editForm.clima, observacoes: editForm.observacoes,
+        ocorrencias: editForm.ocorrencias || [],
+      }).eq('id', editando.id)
+      if (error) throw error
+      toast.success('Apontamento atualizado!')
+      setEditando(null)
+      if (obraSelecionada) verHistorico(obraSelecionada)
+    } catch (err: any) { toast.error(err.message || 'Erro ao salvar') }
+    finally { setSalvandoEdit(false) }
+  }
+
+  async function salvarTrocaObra() {
+    if (!trocandoObra || !novaObraId) return
+    setSalvandoEdit(true)
+    try {
+      const { error } = await supabase.from('apontamentos').update({ obra_id: novaObraId }).eq('id', trocandoObra.id)
+      if (error) throw error
+      toast.success('Obra alterada!')
+      setTrocandoObra(null); setNovaObraId('')
+      if (obraSelecionada) verHistorico(obraSelecionada)
+    } catch (err: any) { toast.error(err.message || 'Erro ao trocar') }
+    finally { setSalvandoEdit(false) }
+  }
+
+  async function anexarFotoApontamento(file: File) {
+    if (!anexandoFoto) return
+    setSalvandoEdit(true)
+    try {
+      const blob = await compressImage(file, 1200, 0.82)
+      const path = `fotos/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.[^.]+$/, '')}.jpg`
+      const { error: upErr } = await supabase.storage.from('apontamentos').upload(path, blob, { contentType: 'image/jpeg' })
+      if (upErr) throw upErr
+      await supabase.from('apontamento_fotos').insert({
+        apontamento_id: anexandoFoto.id, url: path, path, nome: file.name, legenda: '',
+      })
+      toast.success('Foto anexada!')
+      setAnexandoFoto(null)
+    } catch (err: any) { toast.error(err.message || 'Erro ao anexar foto') }
+    finally { setSalvandoEdit(false) }
   }
 
   async function addFoto(file: File) {
@@ -528,19 +597,25 @@ export function AppMobilePage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {historico.map((apt: any) => (
-                <div key={apt.sync_id} className={`bg-white border rounded-xl p-4 ${apt.status === 'SINCRONIZADO' ? 'border-emerald-200' : apt.status === 'ERRO' ? 'border-red-200' : 'border-primary-200'}`}>
+              {historico.map((apt: any) => {
+                const isSynced = apt.status === 'SINCRONIZADO' || apt._fromDB
+                const pode24h = dentroDE24h(apt.created_at)
+                const prazoStr = pode24h
+                  ? `Editável até ${new Date(new Date(apt.created_at).getTime() + 24*60*60*1000).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}`
+                  : 'Prazo de edição expirado'
+                return (
+                <div key={apt.sync_id || apt.id} className={`bg-white border rounded-xl p-4 ${isSynced ? 'border-emerald-200' : apt.status === 'ERRO' ? 'border-red-200' : 'border-primary-200'}`}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-bold text-slate-800">{apt.data}</span>
-                      <span className="text-xs text-slate-400">{apt.hora}</span>
+                      <span className="text-xs text-slate-400">{typeof apt.hora === 'string' ? apt.hora.substring(0,5) : apt.hora}</span>
                     </div>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                      apt.status === 'SINCRONIZADO' ? 'bg-emerald-100 text-emerald-700' :
+                      isSynced ? 'bg-emerald-100 text-emerald-700' :
                       apt.status === 'ERRO' ? 'bg-red-100 text-red-700' :
                       apt.status === 'SINCRONIZANDO' ? 'bg-blue-100 text-blue-700' :
                       'bg-primary-100 text-primary-700'
-                    }`}>{apt.status === 'SINCRONIZADO' ? 'Sincronizado' : apt.status === 'ERRO' ? 'Erro' : apt.status === 'SINCRONIZANDO' ? 'Enviando...' : 'Pendente'}</span>
+                    }`}>{isSynced ? 'Sincronizado' : apt.status === 'ERRO' ? 'Erro' : apt.status === 'SINCRONIZANDO' ? 'Enviando...' : 'Pendente'}</span>
                   </div>
                   {apt.atividades && <p className="text-xs text-slate-600 mb-1">{apt.atividades}</p>}
                   <div className="flex gap-3 text-[10px] text-slate-400 flex-wrap">
@@ -548,7 +623,7 @@ export function AppMobilePage() {
                     <span>{apt.clima}</span>
                     {apt.mao_obra?.length > 0 && <span>MO: {apt.mao_obra.reduce((s: number, m: any) => s + m.quantidade, 0)}</span>}
                     {apt.pqe?.length > 0 && <span>PQE: {apt.pqe.filter((p: any) => p.status).length} conferido(s)</span>}
-                    {apt.ocorrencias?.length > 0 && <span className="text-red-500">{apt.ocorrencias.length} ocorrência(s)</span>}
+                    {apt.ocorrencias?.length > 0 && <span className="text-red-500">{(Array.isArray(apt.ocorrencias) ? apt.ocorrencias : []).length} ocorrência(s)</span>}
                   </div>
                   {apt.erro && <p className="text-[10px] text-red-500 mt-1">Erro: {apt.erro}</p>}
                   {apt.status === 'ERRO' && (
@@ -557,8 +632,127 @@ export function AppMobilePage() {
                       <RefreshCw size={12}/> Retentar sincronização
                     </button>
                   )}
+                  {/* Botões de ação — só para sincronizados online */}
+                  {isSynced && apt._fromDB && (
+                    <div className="mt-3 space-y-2">
+                      <div className="flex gap-2">
+                        {pode24h && (
+                          <button onClick={() => { setTrocandoObra(apt); setNovaObraId(apt.obra_id) }}
+                            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-50 text-blue-700 text-[10px] font-semibold rounded-lg border border-blue-200">
+                            <ArrowRightLeft size={11}/> Trocar obra
+                          </button>
+                        )}
+                        {pode24h && (
+                          <button onClick={() => { setEditando(apt); setEditForm({ atividades: apt.atividades || '', equipamentos: apt.equipamentos || '', turno: apt.turno, clima: apt.clima, observacoes: apt.observacoes || '', ocorrencias: apt.ocorrencias || [] }) }}
+                            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-amber-50 text-amber-700 text-[10px] font-semibold rounded-lg border border-amber-200">
+                            <Edit2 size={11}/> Editar
+                          </button>
+                        )}
+                        <button onClick={() => { setAnexandoFoto(apt) }}
+                          className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-purple-50 text-purple-700 text-[10px] font-semibold rounded-lg border border-purple-200">
+                          <ImagePlus size={11}/> Fotos
+                        </button>
+                      </div>
+                      <p className="text-[8px] text-slate-400 text-right">{prazoStr}</p>
+                    </div>
+                  )}
                 </div>
-              ))}
+                )
+              })}
+            </div>
+          )}
+
+          {/* ═══ MODAL EDITAR ═══ */}
+          {editando && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
+              <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2"><Edit2 size={15}/> Editar apontamento</h3>
+                  <button onClick={() => setEditando(null)}><X size={18} className="text-slate-400"/></button>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Atividades realizadas</label>
+                  <textarea value={editForm.atividades} onChange={e => setEditForm({...editForm, atividades: e.target.value})}
+                    rows={3} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs"/>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 block mb-1">Turno</label>
+                    <select value={editForm.turno} onChange={e => setEditForm({...editForm, turno: e.target.value})}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs">
+                      <option value="MANHA">Manhã</option><option value="TARDE">Tarde</option><option value="INTEGRAL">Integral</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 block mb-1">Clima</label>
+                    <select value={editForm.clima} onChange={e => setEditForm({...editForm, clima: e.target.value})}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs">
+                      <option value="SOL">Sol</option><option value="NUBLADO">Nublado</option><option value="CHUVA">Chuva</option><option value="CHUVOSO">Chuvoso</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Equipamentos</label>
+                  <textarea value={editForm.equipamentos} onChange={e => setEditForm({...editForm, equipamentos: e.target.value})}
+                    rows={2} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs"/>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Observações</label>
+                  <textarea value={editForm.observacoes} onChange={e => setEditForm({...editForm, observacoes: e.target.value})}
+                    rows={2} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs"/>
+                </div>
+                <button onClick={salvarEdicao} disabled={salvandoEdit}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-sm disabled:opacity-50">
+                  {salvandoEdit ? <Loader2 size={14} className="animate-spin"/> : <Check size={14}/>} Salvar alterações
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ═══ MODAL TROCAR OBRA ═══ */}
+          {trocandoObra && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
+              <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2"><ArrowRightLeft size={15}/> Trocar obra</h3>
+                  <button onClick={() => setTrocandoObra(null)}><X size={18} className="text-slate-400"/></button>
+                </div>
+                <p className="text-[10px] text-slate-400">Selecione a obra correta para este apontamento:</p>
+                <select value={novaObraId} onChange={e => setNovaObraId(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm">
+                  {obras.map(o => (
+                    <option key={o.id} value={o.id}>{o.nome_obra}</option>
+                  ))}
+                </select>
+                <button onClick={salvarTrocaObra} disabled={salvandoEdit || novaObraId === trocandoObra.obra_id}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl text-sm disabled:opacity-50">
+                  {salvandoEdit ? <Loader2 size={14} className="animate-spin"/> : <Check size={14}/>} Confirmar troca
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ═══ MODAL ANEXAR FOTOS ═══ */}
+          {anexandoFoto && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
+              <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2"><ImagePlus size={15}/> Anexar foto</h3>
+                  <button onClick={() => setAnexandoFoto(null)}><X size={18} className="text-slate-400"/></button>
+                </div>
+                <p className="text-[10px] text-slate-400">Apontamento de {anexandoFoto.data} às {typeof anexandoFoto.hora === 'string' ? anexandoFoto.hora.substring(0,5) : anexandoFoto.hora}</p>
+                <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-purple-300 rounded-xl cursor-pointer bg-purple-50 hover:bg-purple-100 transition-all">
+                  <Camera size={28} className="text-purple-400 mb-1"/>
+                  <span className="text-xs font-semibold text-purple-600">Tirar foto ou escolher da galeria</span>
+                  <input ref={fotoAnexRef} type="file" accept="image/*" capture="environment" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) anexarFotoApontamento(f); e.target.value = '' }}/>
+                </label>
+                {salvandoEdit && (
+                  <div className="flex items-center justify-center gap-2 text-xs text-purple-600">
+                    <Loader2 size={14} className="animate-spin"/> Enviando foto...
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
