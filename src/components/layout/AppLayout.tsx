@@ -28,6 +28,14 @@ export function AppLayout() {
     document.documentElement.classList.add(`theme-${corTema}`)
   }, [corTema])
 
+  useEffect(() => {
+    if (empresa?.id === '00000000-0000-0000-0000-000000000001') {
+      document.title = 'Central de Obras — Gestão inteligente de obras públicas'
+    } else {
+      document.title = 'MedObras — Gestão inteligente de obras públicas'
+    }
+  }, [empresa])
+
   async function handleLogout() {
     await supabase.auth.signOut()
     toast.success('Saiu com sucesso')
