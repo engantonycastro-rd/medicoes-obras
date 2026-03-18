@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import {
   FileSpreadsheet, Clock, Eye, CheckCircle2, Download, RefreshCw, Play, X,
   Loader2, User, Calendar, Send, Plus, Minus, Edit3, Trash2, TrendingDown,
-  TrendingUp, BarChart3, FileDown, Filter, Scissors,
+  TrendingUp, BarChart3, FileDown, Filter, Scissors, RotateCcw,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ExcelJS from 'exceljs'
@@ -129,6 +129,33 @@ export function OrcamentosSetorPage() {
       fetchAll()
     } catch (err: any) { toast.error(err.message) }
     setEnviando(false)
+  }
+
+  async function reabrirRevisao(orc: OrcRevisao) {
+    if (!confirm(`Reabrir "${orc.titulo}" para atualização?\n\nO orçamento voltará para "Em revisão" e você poderá reenviar com novos dados.`)) return
+    try {
+      // Remove arquivo revisado antigo do storage
+      if (orc.arquivo_revisado_url) {
+        await supabase.storage.from('orcamentos').remove([orc.arquivo_revisado_url])
+      }
+      const { error } = await supabase.from('orcamentos_revisao').update({
+        status: 'EM_REVISAO',
+        data_conclusao: null,
+        arquivo_revisado_url: null, arquivo_revisado_nome: null, arquivo_revisado_size: null,
+        observacoes_revisor: null, comparativo_resumo: [],
+        valor_original: 0, valor_revisado: 0, diferenca_valor: 0, diferenca_percentual: 0, qtd_alteracoes: 0,
+      }).eq('id', orc.id)
+      if (error) throw error
+      // Notifica solicitante
+      try { await supabase.rpc('criar_notificacao', {
+        p_user_id: orc.solicitante_id, p_tipo: 'info',
+        p_titulo: `Revisão reaberta: ${orc.titulo}`,
+        p_mensagem: 'O orçamento foi reaberto para atualização. Você receberá a nova versão em breve.',
+        p_link: '/orcamentos',
+      }) } catch {}
+      toast.success('Revisão reaberta! Agora pode concluir com os dados atualizados.')
+      fetchAll()
+    } catch (err: any) { toast.error(err.message) }
   }
 
   async function deletarOrcamento(orc: OrcRevisao) {
@@ -559,6 +586,10 @@ export function OrcamentosSetorPage() {
                         {orc.status === 'EM_REVISAO' && meuRevisor && (
                           <button onClick={() => { setConcluindoId(orc.id); setCObs(''); setCArquivo(null); setCComparativo(['']); setAutoComp(null); setCValorOrig(''); setCValorRev('') }}
                             className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg"><CheckCircle2 size={12}/> Concluir</button>
+                        )}
+                        {orc.status === 'CONCLUIDO' && (
+                          <button onClick={() => reabrirRevisao(orc)}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-lg"><RotateCcw size={12}/> Reabrir</button>
                         )}
                         {perfilAtual?.role !== 'ORCAMENTISTA' && (
                           <button onClick={() => deletarOrcamento(orc)} className="p-2 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50" title="Excluir"><Trash2 size={15}/></button>
