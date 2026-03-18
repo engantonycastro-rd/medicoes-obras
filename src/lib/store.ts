@@ -76,7 +76,25 @@ export const useStore = create<Store>((set, get) => ({
     set({ loading: true })
     const { data, error } = await supabase.from('contratos').select('*').order('created_at', { ascending: false })
     if (error) { set({ error: error.message, loading: false }); return }
-    set({ contratos: (data || []) as Contrato[], loading: false })
+
+    let contratos = (data || []) as Contrato[]
+
+    // Filtra por role: GESTOR e ENGENHEIRO só veem contratos vinculados
+    const perfil = (await import('./perfilStore')).usePerfilStore.getState().perfilAtual
+    if (perfil && (perfil.role === 'GESTOR' || perfil.role === 'ENGENHEIRO')) {
+      // Busca contratos vinculados ao gestor
+      const gestorId = perfil.role === 'GESTOR' ? perfil.id : perfil.gestor_id
+      if (gestorId) {
+        const { data: vinculos } = await supabase.from('contrato_gestores').select('contrato_id').eq('gestor_id', gestorId)
+        if (vinculos) {
+          const ids = new Set(vinculos.map((v: any) => v.contrato_id))
+          contratos = contratos.filter(c => ids.has(c.id))
+        }
+      }
+    }
+    // ADMIN, SUPERADMIN, DIRETOR: veem todos da empresa (RLS já filtra por empresa_id)
+
+    set({ contratos, loading: false })
   },
   setContratoAtivo: (c) => set({ contratoAtivo: c, obraAtiva: null, obras: [] }),
   criarContrato: async (data) => {
