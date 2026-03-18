@@ -18,6 +18,7 @@ import { UsuariosPage } from './pages/UsuariosPage'
 import { ConfigPage } from './pages/ConfigPage'
 import { OrcamentosSolicitarPage } from './pages/OrcamentosSolicitarPage'
 import { OrcamentosSetorPage } from './pages/OrcamentosSetorPage'
+import { ProducaoPage } from './pages/ProducaoPage'
 import { KanbanObraPage } from './pages/KanbanObraPage'
 import { FAQPage } from './pages/FAQPage'
 import { ApontamentosAdminPage } from './pages/ApontamentosAdminPage'
@@ -101,7 +102,7 @@ const ROTAS_POR_ROLE: Record<string, string[]> = {
   APONTADOR: ['/dashboard', '/apontamentos'],
   ORCAMENTISTA: ['/dashboard', '/', '/servicos', '/medicoes', '/memoria', '/setor-orcamentos', '/configuracoes', '/ajuda'],
   DIRETOR: ['/dashboard-executivo'],
-  ENGENHEIRO: ['/dashboard', '/', '/servicos', '/medicoes', '/memoria', '/kanban', '/diario-obra', '/rdo', '/checklist-nr18', '/custos-obra', '/orcamentos', '/relatorio-fotos', '/configuracoes', '/ajuda'],
+  ENGENHEIRO: ['/dashboard', '/', '/servicos', '/medicoes', '/memoria', '/kanban', '/diario-obra', '/rdo', '/checklist-nr18', '/custos-obra', '/orcamentos', '/producao', '/relatorio-fotos', '/configuracoes', '/ajuda'],
   GESTOR: ['/dashboard', '/', '/servicos', '/medicoes', '/memoria', '/kanban', '/diario-obra', '/rdo', '/cronograma', '/aditivos', '/checklist-nr18', '/custos-obra', '/orcamentos', '/relatorio-fotos', '/subempreiteiros', '/configuracoes', '/ajuda'],
   ADMIN: ['*'],
   SUPERADMIN: ['*'],
@@ -161,6 +162,7 @@ export default function App() {
           <Route path="usuarios"           element={<RoleGuard path="/usuarios"><UsuariosPage /></RoleGuard>} />
           <Route path="configuracoes"      element={<RoleGuard path="/configuracoes"><ConfigPage /></RoleGuard>} />
           <Route path="orcamentos"         element={<RoleGuard path="/orcamentos"><OrcamentosSolicitarPage /></RoleGuard>} />
+          <Route path="producao"           element={<RoleGuard path="/producao"><ProducaoPage /></RoleGuard>} />
           <Route path="setor-orcamentos"   element={<RoleGuard path="/setor-orcamentos"><OrcamentosSetorPage /></RoleGuard>} />
           <Route path="kanban"             element={<RoleGuard path="/kanban"><KanbanObraPage /></RoleGuard>} />
           <Route path="ajuda"              element={<FAQPage />} />

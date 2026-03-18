@@ -18,13 +18,14 @@ function sanitizeFileName(name: string): string {
 
 interface OrcRevisao {
   id: string; created_at: string; titulo: string; descricao: string | null
-  prazo_retorno: string; urgencia: string; status: string
+  prazo_retorno: string; urgencia: string; status: string; tipo: string
   arquivo_original_nome: string | null; arquivo_original_url: string | null
   arquivo_revisado_nome: string | null; arquivo_revisado_url: string | null
   observacoes_revisor: string | null; comparativo_resumo: any[]
   revisor_id: string | null; data_inicio_revisao: string | null; data_conclusao: string | null
   obra_id: string | null; contrato_id: string | null; ordem_atendimento: number
   arquivos_complementares: { nome: string; path: string; size: number }[]
+  arquivos_projeto: { nome: string; path: string; size: number }[] | null
   valor_original: number; valor_revisado: number; diferenca_valor: number; diferenca_percentual: number
   qtd_alteracoes: number
   arquivo_fiscal_url: string | null; arquivo_fiscal_nome: string | null
@@ -53,6 +54,8 @@ export function OrcamentosSolicitarPage() {
   const [fPrazo, setFPrazo] = useState(''); const [fUrgencia, setFUrgencia] = useState('NORMAL')
   const [fObraId, setFObraId] = useState(''); const [fArquivo, setFArquivo] = useState<File | null>(null)
   const [fComplementares, setFComplementares] = useState<File[]>([])
+  const [fTipo, setFTipo] = useState<'ORCAMENTO' | 'PROJETO'>('ORCAMENTO')
+  const [fArquivosProjeto, setFArquivosProjeto] = useState<File[]>([])
   const [enviando, setEnviando] = useState(false)
 
   // Retorno fiscal
@@ -97,16 +100,27 @@ export function OrcamentosSolicitarPage() {
         const { error: cErr } = await supabase.storage.from('orcamentos').upload(cPath, fc)
         if (!cErr) complementares.push({ nome: fc.name, path: cPath, size: fc.size })
       }
+      // Upload arquivos de projeto (se PROJETO)
+      const arquivosProjeto: { nome: string; path: string; size: number }[] = []
+      if (fTipo === 'PROJETO') {
+        for (const fp of fArquivosProjeto) {
+          const pPath = `projetos/${Date.now()}_${sanitizeFileName(fp.name)}`
+          const { error: pErr } = await supabase.storage.from('orcamentos').upload(pPath, fp)
+          if (!pErr) arquivosProjeto.push({ nome: fp.name, path: pPath, size: fp.size })
+        }
+      }
       const { error } = await supabase.from('orcamentos_revisao').insert({
         solicitante_id: perfilAtual!.id, obra_id: fObraId || null, contrato_id: obra?.contrato_id || null,
         titulo: fTitulo, descricao: fDesc || null, prazo_retorno: fPrazo, urgencia: fUrgencia,
         arquivo_original_url: path, arquivo_original_nome: fArquivo.name, arquivo_original_size: fArquivo.size,
         arquivos_complementares: complementares,
+        tipo: fTipo,
+        arquivos_projeto: arquivosProjeto.length > 0 ? arquivosProjeto : null,
       })
       if (error) throw error
-      try { await supabase.rpc('notificar_admins', { p_tipo: 'info', p_titulo: `Novo orçamento: ${fTitulo}`, p_mensagem: `${perfilAtual!.nome || perfilAtual!.email} enviou. Prazo: ${formatDate(fPrazo)}`, p_link: '/setor-orcamentos' }) } catch {}
-      toast.success('Orçamento enviado para revisão!')
-      setShowForm(false); setFTitulo(''); setFDesc(''); setFPrazo(''); setFUrgencia('NORMAL'); setFObraId(''); setFArquivo(null); setFComplementares([])
+      try { await supabase.rpc('notificar_admins', { p_tipo: 'info', p_titulo: `Novo ${fTipo === 'PROJETO' ? 'projeto' : 'orçamento'}: ${fTitulo}`, p_mensagem: `${perfilAtual!.nome || perfilAtual!.email} enviou. Prazo: ${formatDate(fPrazo)}`, p_link: '/setor-orcamentos' }) } catch {}
+      toast.success(`${fTipo === 'PROJETO' ? 'Projeto' : 'Orçamento'} enviado para revisão!`)
+      setShowForm(false); setFTitulo(''); setFDesc(''); setFPrazo(''); setFUrgencia('NORMAL'); setFObraId(''); setFArquivo(null); setFComplementares([]); setFTipo('ORCAMENTO'); setFArquivosProjeto([])
       fetchOrcamentos()
     } catch (err: any) { toast.error(err.message || 'Erro ao enviar') }
     setEnviando(false)
@@ -206,6 +220,26 @@ export function OrcamentosSolicitarPage() {
           <p className="font-bold text-primary-800 mb-4">Nova Solicitação de Revisão</p>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="col-span-2">
+              <label className="text-xs font-semibold text-slate-600 block mb-1">Tipo de solicitação *</label>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setFTipo('ORCAMENTO')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border-2 transition-all ${
+                    fTipo === 'ORCAMENTO' ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                  }`}>
+                  <FileSpreadsheet size={16}/> Orçamento
+                  <span className="text-[9px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full font-bold">R$ 50</span>
+                </button>
+                <button type="button" onClick={() => setFTipo('PROJETO')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold border-2 transition-all ${
+                    fTipo === 'PROJETO' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                  }`}>
+                  <Upload size={16}/> Projeto
+                  <span className="text-[9px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full font-bold">R$ 100</span>
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">{fTipo === 'ORCAMENTO' ? 'Revisão de planilha orçamentária' : 'Projeto técnico (PDF, DWG, RVT)'}</p>
+            </div>
+            <div className="col-span-2">
               <label className="text-xs font-semibold text-slate-600 block mb-1">Título *</label>
               <input value={fTitulo} onChange={e => setFTitulo(e.target.value)} placeholder="Ex: Orçamento reforma E.M. José de Carvalho" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"/>
             </div>
@@ -231,10 +265,18 @@ export function OrcamentosSolicitarPage() {
               <input type="file" accept=".xlsx,.xls,.pdf,.ods" onChange={e => setFArquivo(e.target.files?.[0] || null)} className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-white"/>
               {fArquivo && <p className="text-[10px] text-slate-500 mt-1">{fArquivo.name} ({(fArquivo.size/1024).toFixed(0)} KB)</p>}
             </div>
-            <div className="col-span-2"><label className="text-xs font-semibold text-slate-600 block mb-1">Arquivos complementares (projetos, memoriais, plantas)</label>
+            <div className="col-span-2"><label className="text-xs font-semibold text-slate-600 block mb-1">Arquivos complementares (memoriais, plantas)</label>
               <input type="file" multiple accept=".xlsx,.xls,.pdf,.ods,.dwg,.dxf,.doc,.docx,.png,.jpg,.jpeg,.zip" onChange={e => setFComplementares(e.target.files ? [...e.target.files] : [])} className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-white"/>
               {fComplementares.length > 0 && <div className="mt-1">{fComplementares.map((f, i) => <p key={i} className="text-[10px] text-slate-500">📎 {f.name}</p>)}</div>}
             </div>
+            {fTipo === 'PROJETO' && (
+              <div className="col-span-2 border-2 border-dashed border-blue-300 rounded-xl p-4 bg-blue-50/50">
+                <label className="text-xs font-semibold text-blue-700 block mb-1">Arquivos do projeto (PDF, DWG, RVT) *</label>
+                <input type="file" multiple accept=".pdf,.dwg,.rvt" onChange={e => setFArquivosProjeto(e.target.files ? [...e.target.files] : [])} className="w-full border border-blue-200 rounded-lg px-3 py-1.5 text-sm bg-white"/>
+                {fArquivosProjeto.length > 0 && <div className="mt-1">{fArquivosProjeto.map((f, i) => <p key={i} className="text-[10px] text-blue-600 font-medium">📐 {f.name} ({(f.size/1024).toFixed(0)} KB)</p>)}</div>}
+                <p className="text-[9px] text-blue-500 mt-1">Formatos aceitos: .pdf, .dwg, .rvt</p>
+              </div>
+            )}
           </div>
           <div className="flex gap-3">
             <button onClick={() => setShowForm(false)} className="px-4 py-2 border border-slate-200 rounded-lg text-sm bg-white">Cancelar</button>
@@ -270,6 +312,9 @@ export function OrcamentosSolicitarPage() {
                       <h3 className="font-bold text-slate-800 text-sm">{orc.titulo}</h3>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${st.color}`}>{st.label}</span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${(URG as any)[orc.urgencia] || URG.NORMAL}`}>{orc.urgencia}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${orc.tipo === 'PROJETO' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
+                        {orc.tipo === 'PROJETO' ? 'Projeto' : 'Orçamento'}
+                      </span>
                       {orc.status !== 'CONCLUIDO' && orc.status !== 'CANCELADO' && (
                         <span className={`text-[10px] font-medium ${dias < 0 ? 'text-red-600' : dias <= 1 ? 'text-red-500' : dias <= 3 ? 'text-primary-600' : 'text-slate-400'}`}>
                           {dias < 0 ? `${Math.abs(dias)}d atrasado` : dias === 0 ? 'Vence hoje' : `${dias}d restantes`}
@@ -294,6 +339,21 @@ export function OrcamentosSolicitarPage() {
                       className="p-2 rounded-lg text-slate-300 hover:text-blue-600 hover:bg-blue-50 shrink-0" title="Baixar original"><Download size={16}/></button>
                   )}
                 </div>
+
+                {/* Arquivos do projeto (visível para qualquer status quando aberto) */}
+                {aberto && orc.arquivos_projeto && orc.arquivos_projeto.length > 0 && (
+                  <div className="border-t border-slate-100 bg-blue-50/30 p-4">
+                    <p className="text-xs font-bold text-blue-700 mb-2">📐 Arquivos do Projeto</p>
+                    <div className="flex flex-wrap gap-2">
+                      {orc.arquivos_projeto.map((f: any, i: number) => (
+                        <button key={i} onClick={() => downloadArquivo(f.path, f.nome)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-200 rounded-lg text-xs text-blue-700 hover:bg-blue-50 transition-colors">
+                          <Download size={11}/> {f.nome} <span className="text-blue-400">({(f.size/1024).toFixed(0)} KB)</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Detalhe expandido — CONCLUÍDO */}
                 {aberto && orc.status === 'CONCLUIDO' && (
