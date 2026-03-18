@@ -1,8 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { X, HardHat } from 'lucide-react'
+import { X, HardHat, User } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useStore } from '../../lib/store'
+import { usePerfilStore } from '../../lib/perfilStore'
+import { supabase } from '../../lib/supabase'
 import { Obra } from '../../types'
 
 interface Props { contratoId: string; obra?: Obra | null; onClose: () => void; onSaved: (o: Obra) => void }
@@ -13,8 +15,11 @@ interface FormData {
   prazo_execucao_dias: number; status: Obra['status']; centro_custo: string
 }
 
+interface PerfilResumo { id: string; nome: string; role: string }
+
 export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
   const { criarObra, atualizarObra } = useStore()
+  const { perfilAtual } = usePerfilStore()
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     defaultValues: {
       nome_obra: '', local_obra: '', numero_contrato: '', orgao_subdivisao: '',
@@ -23,18 +28,29 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
     }
   })
 
+  const [engenheiros, setEngenheiros] = useState<PerfilResumo[]>([])
+  const [engenheiroSel, setEngenheiroSel] = useState<string>('')
+  const isGestorOrAdmin = perfilAtual?.role === 'ADMIN' || perfilAtual?.role === 'GESTOR' || perfilAtual?.role === 'SUPERADMIN'
+
   useEffect(() => {
-    if (obra) reset({
-      nome_obra: obra.nome_obra, local_obra: obra.local_obra,
-      numero_contrato: obra.numero_contrato || '',
-      orgao_subdivisao: obra.orgao_subdivisao || '',
-      desconto_percentual: obra.desconto_percentual * 100,
-      bdi_percentual: obra.bdi_percentual * 100,
-      data_base_planilha: obra.data_base_planilha || '',
-      prazo_execucao_dias: obra.prazo_execucao_dias || 120,
-      status: obra.status,
-      centro_custo: obra.centro_custo || '',
-    })
+    if (obra) {
+      reset({
+        nome_obra: obra.nome_obra, local_obra: obra.local_obra,
+        numero_contrato: obra.numero_contrato || '',
+        orgao_subdivisao: obra.orgao_subdivisao || '',
+        desconto_percentual: obra.desconto_percentual * 100,
+        bdi_percentual: obra.bdi_percentual * 100,
+        data_base_planilha: obra.data_base_planilha || '',
+        prazo_execucao_dias: obra.prazo_execucao_dias || 120,
+        status: obra.status,
+        centro_custo: obra.centro_custo || '',
+      })
+      setEngenheiroSel(obra.engenheiro_responsavel_id || '')
+    }
+    // Busca engenheiros da empresa
+    supabase.from('perfis').select('id, nome, role').eq('ativo', true)
+      .in('role', ['ENGENHEIRO', 'ADMIN'])
+      .then(({ data }) => { if (data) setEngenheiros(data as PerfilResumo[]) })
   }, [obra])
 
   async function onSubmit(data: FormData) {
@@ -50,6 +66,7 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
         prazo_execucao_dias: Number(data.prazo_execucao_dias),
         status: data.status,
         centro_custo: data.centro_custo?.trim() || null,
+        engenheiro_responsavel_id: engenheiroSel || null,
       }
       let salva: Obra
       if (obra) {
@@ -64,7 +81,7 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
     } catch { toast.error('Erro ao salvar obra') }
   }
 
-  const field = "border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 w-full"
+  const field = "border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 w-full"
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -121,6 +138,20 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
               <input {...register('centro_custo')} placeholder="Ex: 4.15.004" className={field} />
               <p className="text-[10px] text-slate-400 mt-0.5">Código do centro de custo no TOTVS RM — usado para importação automática de custos</p>
             </div>
+            {isGestorOrAdmin && (
+              <div className="col-span-2">
+                <label className="text-xs font-semibold text-slate-600 mb-1 block flex items-center gap-1.5">
+                  <User size={12} className="text-primary-500"/> Engenheiro Responsável
+                </label>
+                <select value={engenheiroSel} onChange={e => setEngenheiroSel(e.target.value)} className={field}>
+                  <option value="">— Nenhum (definir depois) —</option>
+                  {engenheiros.map(e => (
+                    <option key={e.id} value={e.id}>{e.nome} ({e.role})</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-400 mt-0.5">Define quem é responsável por esta obra. O engenheiro terá acesso direto à obra.</p>
+              </div>
+            )}
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">

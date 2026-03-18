@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Plus, Building2, ChevronRight, ChevronDown, Search,
   Trash2, Pencil, HardHat, FolderOpen, AlertCircle, CheckCircle2, PauseCircle,
-  ArrowUp, ArrowDown, ArrowRightLeft, MapPin, Users, Filter,
+  ArrowUp, ArrowDown, ArrowRightLeft, MapPin, Users, Filter, User,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
@@ -29,6 +29,7 @@ export function ContratosPage() {
   const [moverModal, setMoverModal] = useState<{ obra: Obra; contratoAtual: string } | null>(null)
   const [gestoresPorContrato, setGestoresPorContrato] = useState<Record<string, string[]>>({})
   const [valorPorObra, setValorPorObra] = useState<Record<string, number>>({})
+  const [engNomes, setEngNomes] = useState<Record<string, string>>({})
   const navigate = useNavigate()
 
   useEffect(() => { fetchContratos() }, [])
@@ -73,6 +74,17 @@ export function ContratosPage() {
           }
         }
         if (!cancelled) setValorPorObra(vMap)
+      }
+
+      // Carrega nomes dos engenheiros responsáveis
+      const engIds = [...new Set(Object.values(result).flat().map(o => o.engenheiro_responsavel_id).filter(Boolean))] as string[]
+      if (engIds.length > 0 && !cancelled) {
+        const { data: engData } = await supabase.from('perfis').select('id, nome').in('id', engIds)
+        if (engData) {
+          const m: Record<string, string> = {}
+          engData.forEach((e: any) => { m[e.id] = e.nome })
+          setEngNomes(m)
+        }
       }
     }
     loadAll()
@@ -345,6 +357,11 @@ export function ContratosPage() {
                                   obra.status === 'SUSPENSA' ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-600'
                                 }`}>{statusObraIcon(obra.status)} {obra.status}</span>
                                 {obra.centro_custo && <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded font-mono">CC: {obra.centro_custo}</span>}
+                                {obra.engenheiro_responsavel_id && engNomes[obra.engenheiro_responsavel_id] && (
+                                  <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded flex items-center gap-0.5">
+                                    <User size={9}/> {engNomes[obra.engenheiro_responsavel_id]}
+                                  </span>
+                                )}
                               </div>
                               <div className="flex gap-3 text-xs text-slate-400 mt-0.5">
                                 <span>{obra.local_obra}</span>
