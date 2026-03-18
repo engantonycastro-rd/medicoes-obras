@@ -138,12 +138,13 @@ export function OrcamentosSetorPage() {
       if (orc.arquivo_revisado_url) {
         await supabase.storage.from('orcamentos').remove([orc.arquivo_revisado_url])
       }
+      // Mantém valor_original (não muda), zera apenas revisado/comparativo
       const { error } = await supabase.from('orcamentos_revisao').update({
         status: 'EM_REVISAO',
         data_conclusao: null,
         arquivo_revisado_url: null, arquivo_revisado_nome: null, arquivo_revisado_size: null,
         observacoes_revisor: null, comparativo_resumo: [],
-        valor_original: 0, valor_revisado: 0, diferenca_valor: 0, diferenca_percentual: 0, qtd_alteracoes: 0,
+        valor_revisado: 0, diferenca_valor: 0, diferenca_percentual: 0, qtd_alteracoes: 0,
       }).eq('id', orc.id)
       if (error) throw error
       // Notifica solicitante
@@ -584,7 +585,7 @@ export function OrcamentosSetorPage() {
                           <button onClick={() => pegarParaRevisao(orc)} className="flex items-center gap-1.5 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg"><Play size={12}/> Pegar</button>
                         )}
                         {orc.status === 'EM_REVISAO' && meuRevisor && (
-                          <button onClick={() => { setConcluindoId(orc.id); setCObs(''); setCArquivo(null); setCComparativo(['']); setAutoComp(null); setCValorOrig(''); setCValorRev('') }}
+                          <button onClick={() => { setConcluindoId(orc.id); setCObs(''); setCArquivo(null); setCComparativo(['']); setAutoComp(null); setCValorOrig(orc.valor_original > 0 ? String(orc.valor_original) : ''); setCValorRev(orc.valor_revisado > 0 ? String(orc.valor_revisado) : '') }}
                             className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg"><CheckCircle2 size={12}/> Concluir</button>
                         )}
                         {orc.status === 'CONCLUIDO' && (
