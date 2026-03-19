@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, LayoutDashboard, DollarSign, History, Moon, Sun, Wallet, FileSpreadsheet, KanbanSquare, HelpCircle, BookOpen, GitBranch, Shield, Briefcase, BarChart3, Camera, ScrollText, TrendingUp } from 'lucide-react'
+import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, LayoutDashboard, DollarSign, History, Moon, Sun, Wallet, FileSpreadsheet, KanbanSquare, HelpCircle, BookOpen, GitBranch, Shield, Briefcase, BarChart3, Camera, ScrollText, TrendingUp, Trophy } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { usePerfilStore } from '../../lib/perfilStore'
 import { useStore } from '../../lib/store'
@@ -75,6 +75,7 @@ export function AppLayout() {
       { to: '/custos-obra', icon: Wallet,         label: 'Custos Obras' },
       { to: '/orcamentos', icon: FileSpreadsheet, label: 'Orçamentos' },
       { to: '/producao',   icon: TrendingUp,      label: 'Produção' },
+      { to: '/mario-papis', icon: Trophy,          label: 'MARIO PAPIS' },
       { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
       { to: '/configuracoes', icon: Settings,     label: 'Config.' },
     ],
@@ -109,6 +110,7 @@ export function AppLayout() {
       { to: '/custos-erp', icon: DollarSign,      label: 'Custos ERP' },
       { to: '/setor-orcamentos', icon: FileSpreadsheet, label: 'Setor Orçamentos' },
       { to: '/producao',   icon: TrendingUp,      label: 'Produção' },
+      { to: '/mario-papis', icon: Trophy,          label: 'MARIO PAPIS' },
       { to: '/apontamentos', icon: ClipboardList, label: 'Apontamentos' },
       { to: '/subempreiteiros', icon: Briefcase,  label: 'Subempreiteiros' },
       { to: '/setor-licitacao', icon: Briefcase, label: 'Licitações' },
