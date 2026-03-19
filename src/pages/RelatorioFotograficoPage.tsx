@@ -8,7 +8,8 @@ interface Foto { id: string; apontamento_id: string; url: string; path: string; 
 
 export function RelatorioFotograficoPage() {
   const [fotos, setFotos] = useState<Foto[]>([])
-  const [obras, setObras] = useState<{ id: string; nome_obra: string }[]>([])
+  const [obras, setObras] = useState<{ id: string; nome_obra: string; local_obra: string; contrato_id: string }[]>([])
+  const [contratos, setContratos] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [gerando, setGerando] = useState(false)
   const [filtroObra, setFiltroObra] = useState('')
@@ -20,8 +21,19 @@ export function RelatorioFotograficoPage() {
   useEffect(() => { fetchObras() }, [])
 
   async function fetchObras() {
-    const { data } = await supabase.from('obras').select('id, nome_obra').eq('status', 'ATIVA').order('nome_obra')
-    if (data) setObras(data)
+    const { data } = await supabase.from('obras').select('id, nome_obra, local_obra, contrato_id').eq('status', 'ATIVA').order('nome_obra')
+    if (data) {
+      setObras(data)
+      const cIds = [...new Set(data.map(o => o.contrato_id).filter(Boolean))]
+      if (cIds.length > 0) {
+        const { data: cData } = await supabase.from('contratos').select('id, empresa_executora').in('id', cIds)
+        if (cData) {
+          const m: Record<string, string> = {}
+          cData.forEach((c: any) => { m[c.id] = c.empresa_executora })
+          setContratos(m)
+        }
+      }
+    }
     setLoading(false)
   }
 
@@ -67,34 +79,135 @@ export function RelatorioFotograficoPage() {
     setGerando(true)
 
     try {
-      const obraNome = obras.find(o => o.id === filtroObra)?.nome_obra || 'Obra'
-      const doc = new jsPDF()
+      const obra = obras.find(o => o.id === filtroObra)
+      const obraNome = obra?.nome_obra || 'Obra'
+      const obraLocal = obra?.local_obra || ''
+      const empresa = obra ? (contratos[obra.contrato_id] || 'RD SOLUÇÕES LTDA') : 'RD SOLUÇÕES LTDA'
+      const dataHoje = new Date().toLocaleDateString('pt-BR')
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const pw = 210, marginX = 10
+      const contentW = pw - marginX * 2
 
-      // Capa
-      doc.setFontSize(20); doc.text('RELATÓRIO FOTOGRÁFICO', 105, 60, { align: 'center' })
-      doc.setFontSize(14); doc.text(obraNome, 105, 75, { align: 'center' })
-      doc.setFontSize(10)
-      const periodo = filtroDataIni && filtroDataFim ? `Período: ${new Date(filtroDataIni + 'T12:00:00').toLocaleDateString('pt-BR')} a ${new Date(filtroDataFim + 'T12:00:00').toLocaleDateString('pt-BR')}` : `Gerado em: ${new Date().toLocaleDateString('pt-BR')}`
-      doc.text(periodo, 105, 90, { align: 'center' })
-      doc.text(`Total de fotos: ${fotosSel.length}`, 105, 100, { align: 'center' })
-      doc.setFontSize(9); doc.text('RD Construtora — Central de Obras', 105, 280, { align: 'center' })
+      // Load logo
+      let logoData: string | null = null
+      try {
+        const resp = await fetch('/logo-rd.png')
+        const blob = await resp.blob()
+        logoData = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(r.result as string); r.readAsDataURL(blob) })
+      } catch {}
 
-      // Fotos - 2 por página
-      for (let i = 0; i < fotosSel.length; i += 2) {
-        doc.addPage()
-        for (let j = 0; j < 2 && i + j < fotosSel.length; j++) {
+      function drawHeader(pageNum: number) {
+        const hY = 8
+        // Logo area
+        const logoW = 28
+        doc.setDrawColor(60, 60, 60)
+        doc.setLineWidth(0.5)
+        doc.rect(marginX, hY, contentW, 46)
+
+        // Logo
+        if (logoData) {
+          doc.addImage(logoData, 'PNG', marginX + 2, hY + 4, 24, 24)
+        } else {
+          doc.setFillColor(232, 80, 10)
+          doc.rect(marginX, hY, logoW, 24, 'F')
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255)
+          doc.text('RD', marginX + logoW / 2, hY + 15, { align: 'center' })
+        }
+        doc.setDrawColor(60, 60, 60)
+        doc.line(marginX + logoW, hY, marginX + logoW, hY + 24)
+
+        // Company info
+        doc.setTextColor(30, 30, 30)
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(11)
+        doc.text(empresa, marginX + logoW + (contentW - logoW) / 2, hY + 7, { align: 'center' })
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7)
+        doc.text('CNPJ: 43.357.757/0001-40', marginX + logoW + (contentW - logoW) / 2, hY + 12, { align: 'center' })
+        doc.text('RUA BELA VISTA, 874, JARDINS, SÃO GONÇALO DO AMARANTE/RN – CEP: 59293-576', marginX + logoW + (contentW - logoW) / 2, hY + 16.5, { align: 'center' })
+        doc.text('email: rd_solucoes@outlook.com / tel.: (84) 99641-6124', marginX + logoW + (contentW - logoW) / 2, hY + 21, { align: 'center' })
+
+        // Info table row 1: OBRA / LOCAL
+        const tY = hY + 25
+        const tH = 10
+        doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.3)
+        doc.rect(marginX, tY, contentW, tH)
+        doc.line(marginX, tY + tH / 2, marginX + contentW, tY + tH / 2)
+
+        // Row 1
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5)
+        doc.text('OBRA:', marginX + 2, tY + 3.5)
+        doc.setFont('helvetica', 'normal')
+        const obraT = doc.splitTextToSize(obraNome, contentW - 55)
+        doc.text(obraT[0] || '', marginX + 16, tY + 3.5)
+        doc.line(marginX + contentW - 38, tY, marginX + contentW - 38, tY + tH / 2)
+        doc.setFont('helvetica', 'bold')
+        doc.text('LOCAL:', marginX + contentW - 37, tY + 3.5)
+        doc.setFont('helvetica', 'normal')
+        doc.text(obraLocal, marginX + contentW - 24, tY + 3.5)
+
+        // Row 2: EMPRESA EXECUTORA / DATA
+        doc.setFont('helvetica', 'bold')
+        doc.text('EMPRESA EXECUTORA', marginX + 2, tY + tH / 2 + 3.5)
+        doc.line(marginX + 32, tY + tH / 2, marginX + 32, tY + tH)
+        doc.setFont('helvetica', 'normal')
+        doc.text(empresa, marginX + 34, tY + tH / 2 + 3.5)
+        doc.line(marginX + contentW - 38, tY + tH / 2, marginX + contentW - 38, tY + tH)
+        doc.setFont('helvetica', 'bold')
+        doc.text('DATA:', marginX + contentW - 37, tY + tH / 2 + 3.5)
+        doc.setFont('helvetica', 'normal')
+        doc.text(dataHoje, marginX + contentW - 24, tY + tH / 2 + 3.5)
+
+        // Section title banner
+        const bY = tY + tH + 2
+        doc.setFillColor(232, 80, 10)
+        doc.rect(marginX, bY, contentW, 7, 'F')
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255)
+        doc.text('REGISTRO FOTOGRÁFICO DOS SERVIÇOS EXECUTADOS:', pw / 2, bY + 5, { align: 'center' })
+        doc.setTextColor(0, 0, 0)
+
+        return bY + 9 // yStart for photos
+      }
+
+      // Generate pages with 4 photos each (2x2 grid)
+      let figNum = 1
+      for (let i = 0; i < fotosSel.length; i += 4) {
+        if (i > 0) doc.addPage()
+        const yStart = drawHeader(Math.floor(i / 4) + 1)
+        const photoW = (contentW - 6) / 2  // gap 6mm between
+        const photoH = 80
+        const positions = [
+          { x: marginX, y: yStart },
+          { x: marginX + photoW + 6, y: yStart },
+          { x: marginX, y: yStart + photoH + 18 },
+          { x: marginX + photoW + 6, y: yStart + photoH + 18 },
+        ]
+
+        for (let j = 0; j < 4 && i + j < fotosSel.length; j++) {
           const foto = fotosSel[i + j]
-          const yBase = j === 0 ? 15 : 155
+          const pos = positions[j]
           try {
             const resp = await fetch(getFotoUrl(foto))
             const blob = await resp.blob()
             const base64 = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(r.result as string); r.readAsDataURL(blob) })
-            doc.addImage(base64, 'JPEG', 15, yBase, 180, 120)
-          } catch { doc.setFillColor(240, 240, 240); doc.rect(15, yBase, 180, 120, 'F'); doc.setFontSize(9); doc.text('Foto indisponível', 105, yBase + 60, { align: 'center' }) }
-          doc.setFontSize(8); doc.setTextColor(100)
-          doc.text(`Data: ${foto.data ? new Date(foto.data + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}`, 15, yBase + 125)
-          if (foto.legenda) doc.text(`${foto.legenda}`, 15, yBase + 131)
+            doc.addImage(base64, 'JPEG', pos.x, pos.y, photoW, photoH)
+          } catch {
+            doc.setFillColor(240, 240, 240); doc.rect(pos.x, pos.y, photoW, photoH, 'F')
+            doc.setFontSize(8); doc.setTextColor(150); doc.text('Foto indisponível', pos.x + photoW / 2, pos.y + photoH / 2, { align: 'center' })
+            doc.setTextColor(0)
+          }
+          // Border around photo
+          doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3)
+          doc.rect(pos.x, pos.y, photoW, photoH)
+
+          // Caption
+          doc.setFontSize(7); doc.setTextColor(80, 80, 80)
+          const caption = foto.legenda ? `Figura ${figNum}: ${foto.legenda}` : `Figura ${figNum}`
+          doc.text(caption, pos.x + photoW / 2, pos.y + photoH + 4, { align: 'center' })
+          if (foto.data) {
+            doc.setFontSize(6); doc.setTextColor(150)
+            doc.text(new Date(foto.data + 'T12:00:00').toLocaleDateString('pt-BR'), pos.x + photoW / 2, pos.y + photoH + 8, { align: 'center' })
+          }
           doc.setTextColor(0)
+          figNum++
         }
       }
 

@@ -32,25 +32,31 @@ async function toDataURL(src: string): Promise<string> {
   })
 }
 
-function drawHeader(doc: jsPDF, info: ReportInfo, pageWidth: number, marginX: number, headerY: number) {
+function drawHeader(doc: jsPDF, info: ReportInfo, pageWidth: number, marginX: number, headerY: number, logoData?: string | null) {
   const headerH = 46
   const logoW = 28
+  const contentW = pageWidth - marginX * 2
 
   doc.setDrawColor(60, 60, 60)
   doc.setLineWidth(0.5)
-  doc.rect(marginX, headerY, pageWidth - marginX * 2, headerH)
+  doc.rect(marginX, headerY, contentW, headerH)
 
-  doc.setFillColor(232, 80, 10)
-  doc.rect(marginX, headerY, logoW, headerH, 'F')
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(14)
-  doc.setTextColor(255, 255, 255)
-  doc.text('RD', marginX + logoW / 2, headerY + 16, { align: 'center' })
-  doc.setFontSize(6)
-  doc.text('CONSTRUTORA', marginX + logoW / 2, headerY + 22, { align: 'center' })
+  // Logo
+  if (logoData) {
+    doc.addImage(logoData, 'PNG', marginX + 2, headerY + 2, 24, 20)
+  } else {
+    doc.setFillColor(232, 80, 10)
+    doc.rect(marginX, headerY, logoW, 24, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(14)
+    doc.setTextColor(255, 255, 255)
+    doc.text('RD', marginX + logoW / 2, headerY + 16, { align: 'center' })
+    doc.setFontSize(6)
+    doc.text('CONSTRUTORA', marginX + logoW / 2, headerY + 22, { align: 'center' })
+  }
 
   doc.setDrawColor(60, 60, 60)
-  doc.line(marginX + logoW, headerY, marginX + logoW, headerY + headerH)
+  doc.line(marginX + logoW, headerY, marginX + logoW, headerY + 24)
 
   doc.setTextColor(30, 30, 30)
   doc.setFont('helvetica', 'bold')
@@ -59,13 +65,13 @@ function drawHeader(doc: jsPDF, info: ReportInfo, pageWidth: number, marginX: nu
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7)
   doc.text('CNPJ: 43.357.757/0001-40', pageWidth / 2, headerY + 12, { align: 'center' })
-  doc.text('RUA BELA VISTA, 874, JARDINS, SÃO GONÇALO DO AMARANTE/RN - CEP: 59293-576', pageWidth / 2, headerY + 16.5, { align: 'center' })
-  doc.text('email: rd_solucoes@outlook.com / tel.: (84) 99641-8124', pageWidth / 2, headerY + 21, { align: 'center' })
+  doc.text('RUA BELA VISTA, 874, JARDINS, SÃO GONÇALO DO AMARANTE/RN – CEP: 59293-576', pageWidth / 2, headerY + 16.5, { align: 'center' })
+  doc.text('email: rd_solucoes@outlook.com / tel.: (84) 99641-6124', pageWidth / 2, headerY + 21, { align: 'center' })
 
   const tableY = headerY + 25
   const tableH = 9
   const rowH = tableH / 2
-  const colW = pageWidth - marginX * 2 - logoW
+  const colW = contentW - logoW
   const tx = marginX + logoW
 
   doc.setDrawColor(150, 150, 150)
@@ -116,7 +122,7 @@ function drawHeader(doc: jsPDF, info: ReportInfo, pageWidth: number, marginX: nu
 }
 
 function drawSectionTitle(doc: jsPDF, marginX: number, pageWidth: number, y: number) {
-  doc.setFillColor(44, 62, 107)
+  doc.setFillColor(232, 80, 10)
   doc.rect(marginX, y, pageWidth - marginX * 2, 8, 'F')
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8)
@@ -136,16 +142,24 @@ async function generateRelatorioFotograficoPDF(info: ReportInfo, fotos: FotoMedi
 
   const pageWidth = 210
   const pageHeight = 297
-  const marginX = 14
-  const marginY = 12
+  const marginX = 10
+  const marginY = 8
   const contentWidth = pageWidth - marginX * 2
 
   const headerH = 46
   const sectionTitleH = 8
-  const captionH = 6
-  const photoRowH = 56
-  const rowGap = 4
-  const colGap = 4
+  const captionH = 8
+  const photoRowH = 80
+  const rowGap = 6
+  const colGap = 6
+
+  // Load logo
+  let logoData: string | null = null
+  try {
+    const resp = await fetch('/logo-rd.png')
+    const blob = await resp.blob()
+    logoData = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(r.result as string); r.readAsDataURL(blob) })
+  } catch {}
 
   const imgDataList = await Promise.all(fotos.map(f => toDataURL(f.base64)))
 
@@ -156,7 +170,7 @@ async function generateRelatorioFotograficoPDF(info: ReportInfo, fotos: FotoMedi
   const photoColW = (contentWidth - colGap) / 2
 
   const drawPageHeader = () => {
-    drawHeader(doc, info, pageWidth, marginX, currentY)
+    drawHeader(doc, info, pageWidth, marginX, currentY, logoData)
     currentY += headerH + 2
     drawSectionTitle(doc, marginX, pageWidth, currentY)
     currentY += sectionTitleH + 4
@@ -196,20 +210,15 @@ async function generateRelatorioFotograficoPDF(info: ReportInfo, fotos: FotoMedi
           doc.rect(cellX + 0.5, rowY + 0.5, photoColW - 1, photoRowH - 1, 'F')
         }
 
-        const capY = rowY + photoRowH
-        doc.setFillColor(250, 250, 250)
-        doc.rect(cellX, capY, photoColW, captionH, 'F')
-        doc.setDrawColor(180, 180, 180)
-        doc.rect(cellX, capY, photoColW, captionH)
-
+        const capY = rowY + photoRowH + 1
         const captionText = foto.legenda
           ? `Figura ${figNum}: ${foto.legenda}`
           : `Figura ${figNum}`
 
         doc.setFont('helvetica', 'normal')
-        doc.setFontSize(6.5)
-        doc.setTextColor(60, 60, 60)
-        doc.text(captionText, cellX + photoColW / 2, capY + captionH / 2 + 1.5, { align: 'center' })
+        doc.setFontSize(7)
+        doc.setTextColor(80, 80, 80)
+        doc.text(captionText, cellX + photoColW / 2, capY + 3, { align: 'center' })
 
         photoIndex++
       }
