@@ -110,7 +110,21 @@ export function MarioPapisPage() {
     setLoading(false)
   }
 
-  const listaExibida = isAdmin ? ranking : ranking.slice(0, 3)
+  // Para engenheiro: Top 1, Top 2, e ele próprio com sua posição real
+  const listaExibida = (() => {
+    if (isAdmin) return ranking
+    if (ranking.length <= 3) return ranking
+    const myId = perfilAtual?.id
+    const myIdx = ranking.findIndex(r => r.id === myId)
+    // Se já está no top 2, mostra top 3 normal
+    if (myIdx >= 0 && myIdx <= 1) return ranking.slice(0, 3)
+    // Se é o 3º, mostra top 3 normal
+    if (myIdx === 2) return ranking.slice(0, 3)
+    // Senão: top 2 + ele na posição real
+    const top2 = ranking.slice(0, 2)
+    if (myIdx >= 0) return [...top2, ranking[myIdx]]
+    return top2
+  })()
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
@@ -136,7 +150,7 @@ export function MarioPapisPage() {
       <div className="mb-5 px-4 py-2 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg">
         <p className="text-xs text-purple-700 dark:text-purple-300">
           Ciclo: <strong>{new Date(periodoIni + 'T12:00:00').toLocaleDateString('pt-BR')}</strong> a <strong>{new Date(periodoFim + 'T12:00:00').toLocaleDateString('pt-BR')}</strong>
-          {!isAdmin && <span className="ml-3 text-purple-500">(exibindo top 3)</span>}
+          {!isAdmin && <span className="ml-3 text-purple-500">(top 2 + sua posição)</span>}
         </p>
       </div>
 
@@ -150,20 +164,33 @@ export function MarioPapisPage() {
       ) : (
         <div className="space-y-3">
           {listaExibida.map((eng, idx) => {
-            const posicao = idx + 1
+            const posicao = ranking.indexOf(eng) + 1
             const isTop1 = posicao === 1
             const isNegativo = eng.margemGlobal < 0
             const isExpanded = expandido === eng.id
+            const isMe = !isAdmin && eng.id === perfilAtual?.id
+            const isGap = !isAdmin && idx === 2 && posicao > 3
 
             return (
-              <div key={eng.id} className={`rounded-xl overflow-hidden transition-all ${
+              <div key={eng.id}>
+                {/* Separador "..." quando engenheiro não está no top 3 */}
+                {isGap && (
+                  <div className="flex items-center gap-3 py-2 px-4 mb-3">
+                    <div className="flex-1 border-t border-dashed border-slate-200 dark:border-slate-600"/>
+                    <span className="text-[10px] text-slate-400">sua posição</span>
+                    <div className="flex-1 border-t border-dashed border-slate-200 dark:border-slate-600"/>
+                  </div>
+                )}
+              <div className={`rounded-xl overflow-hidden transition-all ${
                 isTop1 ? 'border-2 border-amber-300 dark:border-amber-600 shadow-lg shadow-amber-100/50 dark:shadow-amber-900/20' :
+                isMe ? 'border-2 border-primary-300 dark:border-primary-600 shadow-md shadow-primary-100/50 dark:shadow-primary-900/20' :
                 isNegativo ? 'border border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-900/10' :
                 'border border-slate-200 dark:border-slate-700'
               }`}>
                 {/* Card principal */}
                 <div className={`px-5 py-4 flex items-center gap-4 cursor-pointer ${
-                  isTop1 ? 'bg-amber-50 dark:bg-amber-900/20' : ''
+                  isTop1 ? 'bg-amber-50 dark:bg-amber-900/20' :
+                  isMe ? 'bg-primary-50 dark:bg-primary-900/20' : ''
                 }`} onClick={() => isAdmin ? setExpandido(isExpanded ? null : eng.id) : null}>
 
                   {/* Posição */}
@@ -171,6 +198,7 @@ export function MarioPapisPage() {
                     posicao === 1 ? 'bg-amber-400 text-amber-900' :
                     posicao === 2 ? 'bg-slate-300 dark:bg-slate-600 text-slate-700 dark:text-slate-200' :
                     posicao === 3 ? 'bg-orange-300 text-orange-800' :
+                    isMe ? 'bg-primary-200 dark:bg-primary-700 text-primary-800 dark:text-primary-200' :
                     isNegativo ? 'bg-red-200 text-red-700' :
                     'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
                   }`}>
@@ -180,8 +208,8 @@ export function MarioPapisPage() {
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className={`font-bold text-sm ${isTop1 ? 'text-amber-900 dark:text-amber-300' : isNegativo ? 'text-red-700 dark:text-red-400' : 'text-slate-800 dark:text-white'}`}>
-                        {eng.nome}
+                      <p className={`font-bold text-sm ${isTop1 ? 'text-amber-900 dark:text-amber-300' : isMe ? 'text-primary-700 dark:text-primary-300' : isNegativo ? 'text-red-700 dark:text-red-400' : 'text-slate-800 dark:text-white'}`}>
+                        {eng.nome} {isMe && <span className="text-[10px] font-medium text-primary-500 ml-1">(você)</span>}
                       </p>
                       {posicao === 1 && <span className="text-[10px] px-2 py-0.5 bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 rounded-full font-bold">+10% bônus</span>}
                       {posicao === 2 && <span className="text-[10px] px-2 py-0.5 bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200 rounded-full font-bold">+5% bônus</span>}
@@ -263,12 +291,13 @@ export function MarioPapisPage() {
                   </div>
                 )}
               </div>
+              </div>
             )
           })}
 
           {!isAdmin && ranking.length > 3 && (
-            <div className="text-center py-4">
-              <p className="text-xs text-slate-400">Ranking completo visível apenas para administradores</p>
+            <div className="text-center py-3">
+              <p className="text-[10px] text-slate-400">Ranking completo visível apenas para administradores</p>
             </div>
           )}
         </div>
