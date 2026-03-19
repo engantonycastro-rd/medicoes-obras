@@ -19,11 +19,13 @@ interface OrcRevisao {
   id: string; created_at: string; updated_at: string; titulo: string; descricao: string | null
   prazo_retorno: string; urgencia: string; status: string; ordem_atendimento: number
   solicitante_id: string; obra_id: string | null; contrato_id: string | null
+  tipo: string
   arquivo_original_url: string | null; arquivo_original_nome: string | null; arquivo_original_size: number | null
   arquivo_revisado_url: string | null; arquivo_revisado_nome: string | null; arquivo_revisado_size: number | null
   revisor_id: string | null; data_inicio_revisao: string | null; data_conclusao: string | null
   observacoes_revisor: string | null; comparativo_resumo: any[]
   arquivos_complementares: { nome: string; path: string; size: number }[]
+  arquivos_projeto: { nome: string; path: string; size: number }[] | null
   valor_original: number; valor_revisado: number; diferenca_valor: number; diferenca_percentual: number
   qtd_alteracoes: number
   arquivo_fiscal_url: string | null; arquivo_fiscal_nome: string | null
@@ -472,6 +474,9 @@ export function OrcamentosSetorPage() {
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <h3 className="font-bold text-slate-800 text-sm">{orc.titulo}</h3>
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${urg.color}`}>{urg.label}</span>
+                          {orc.tipo === 'PROJETO' && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-blue-100 text-blue-700 border border-blue-200">Projeto</span>
+                          )}
                           {orc.status !== 'CONCLUIDO' && (
                             <span className={`text-[10px] font-bold flex items-center gap-1 ${dias < 0 ? 'text-red-600' : dias <= 1 ? 'text-red-500' : dias <= 3 ? 'text-primary-600' : 'text-slate-400'}`}>
                               <Calendar size={10}/> {dias < 0 ? `${Math.abs(dias)}d ATRASADO` : dias === 0 ? 'VENCE HOJE' : `${dias}d`}
@@ -504,6 +509,22 @@ export function OrcamentosSetorPage() {
                             </div>
                           ) : null
                         })()}
+
+                        {/* Arquivos do Projeto (PDF, DWG, RVT) */}
+                        {orc.arquivos_projeto && orc.arquivos_projeto.length > 0 && (
+                          <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+                            <p className="text-[10px] text-blue-700 font-bold mb-1.5">📐 Arquivos do Projeto ({orc.arquivos_projeto.length})</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {orc.arquivos_projeto.map((ac: any, i: number) => (
+                                <button key={i} onClick={() => downloadArquivo(ac.path, ac.nome)}
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-blue-200 hover:border-blue-400 hover:bg-blue-100 rounded-lg text-[11px] text-blue-700 font-medium transition-colors shadow-sm">
+                                  <Download size={10} className="text-blue-500"/> {ac.nome}
+                                  <span className="text-[9px] text-blue-400">({(ac.size / 1024).toFixed(0)}KB)</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Concluído — comparativo visual */}
                         {orc.status === 'CONCLUIDO' && (
