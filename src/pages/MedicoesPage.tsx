@@ -27,6 +27,7 @@ export function MedicoesPage() {
   const { perfilAtual } = usePerfilStore()
   const isAdmin = perfilAtual?.role === 'ADMIN'
   const isGestor = perfilAtual?.role === 'GESTOR'
+  const isEngenheiro = perfilAtual?.role === 'ENGENHEIRO'
   const [medicoes, setMedicoes] = useState<Medicao[]>([])
   const [carregando, setCarregando] = useState(false)
   const [confirmModal, setConfirmModal] = useState<{ tipo: 'efetivar'|'proxima'|'deletar'; medicao: Medicao } | null>(null)
@@ -227,7 +228,7 @@ export function MedicoesPage() {
             className="flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-600 font-medium rounded-lg text-sm hover:bg-slate-50">
             Ver Serviços
           </button>
-          {(isAdmin || isGestor) && medicoes.length === 0 && (
+          {(isAdmin || isGestor || isEngenheiro) && medicoes.length === 0 && (
             <>
               <button onClick={() => importFileRef.current?.click()}
                 className="flex items-center gap-2 px-4 py-2 border border-purple-200 text-purple-600 font-medium rounded-lg text-sm hover:bg-purple-50">
