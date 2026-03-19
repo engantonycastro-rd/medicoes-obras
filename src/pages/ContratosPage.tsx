@@ -19,6 +19,7 @@ export function ContratosPage() {
           obras, fetchObras, setObraAtiva, deletarObra, atualizarObra, moverObra, loading } = useStore()
   const { perfilAtual } = usePerfilStore()
   const isAdmin = perfilAtual?.role === 'ADMIN'
+  const isGestor = perfilAtual?.role === 'GESTOR'
   const [busca, setBusca] = useState('')
   const [estadoFiltro, setEstadoFiltro] = useState('todos')
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set())
@@ -313,12 +314,14 @@ export function ContratosPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    {isAdmin && <>
+                    {(isAdmin || isGestor) && (
                       <button onClick={e => { e.stopPropagation(); setEditandoContrato(contrato); setModalContrato(true) }}
                         className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50"><Pencil size={15}/></button>
+                    )}
+                    {isAdmin && (
                       <button onClick={e => handleDeletarContrato(e, contrato.id)}
                         className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50"><Trash2 size={15}/></button>
-                    </>}
+                    )}
                     {expandido ? <ChevronDown size={18} className="text-primary-500 ml-1"/> : <ChevronRight size={18} className="text-slate-400 ml-1"/>}
                   </div>
                 </div>
