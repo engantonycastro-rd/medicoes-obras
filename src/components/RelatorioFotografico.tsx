@@ -32,6 +32,23 @@ async function toDataURL(src: string): Promise<string> {
   })
 }
 
+async function toDataURLWithDims(src: string): Promise<{ data: string; w: number; h: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0)
+      resolve({ data: canvas.toDataURL('image/jpeg', 0.85), w: img.naturalWidth, h: img.naturalHeight })
+    }
+    img.onerror = reject
+    img.src = src
+  })
+}
+
 function drawHeader(doc: jsPDF, info: ReportInfo, pageWidth: number, marginX: number, headerY: number, _logoData?: string | null) {
   const contentW = pageWidth - marginX * 2
   const logoW = 30
@@ -153,7 +170,7 @@ async function generateRelatorioFotograficoPDF(info: ReportInfo, fotos: FotoMedi
   const rowGap = 6
   const colGap = 6
 
-  const imgDataList = await Promise.all(fotos.map(f => toDataURL(f.base64)))
+  const imgDataList = await Promise.all(fotos.map(f => toDataURLWithDims(f.base64)))
 
   let currentY = marginY
   let photoIndex = 0
@@ -187,16 +204,31 @@ async function generateRelatorioFotograficoPDF(info: ReportInfo, fotos: FotoMedi
 
       for (let col = 0; col < 2 && photoIndex < fotos.length; col++) {
         const foto = fotos[photoIndex]
-        const imgData = imgDataList[photoIndex]
+        const imgInfo = imgDataList[photoIndex]
         const figNum = photoIndex + 1
         const cellX = marginX + col * (photoColW + colGap)
 
+        // Cell background + border
+        doc.setFillColor(245, 245, 245)
+        doc.rect(cellX, rowY, photoColW, photoRowH, 'F')
         doc.setDrawColor(180, 180, 180)
         doc.setLineWidth(0.3)
         doc.rect(cellX, rowY, photoColW, photoRowH)
 
         try {
-          doc.addImage(imgData, 'JPEG', cellX + 0.5, rowY + 0.5, photoColW - 1, photoRowH - 1, undefined, 'FAST')
+          // Fit proporcional dentro da célula (contain)
+          const cellW = photoColW - 2, cellH = photoRowH - 2
+          const imgRatio = imgInfo.w / imgInfo.h
+          const cellRatio = cellW / cellH
+          let drawW: number, drawH: number
+          if (imgRatio > cellRatio) {
+            drawW = cellW; drawH = cellW / imgRatio
+          } else {
+            drawH = cellH; drawW = cellH * imgRatio
+          }
+          const drawX = cellX + 1 + (cellW - drawW) / 2
+          const drawY = rowY + 1 + (cellH - drawH) / 2
+          doc.addImage(imgInfo.data, 'JPEG', drawX, drawY, drawW, drawH, undefined, 'FAST')
         } catch {
           doc.setFillColor(220, 220, 220)
           doc.rect(cellX + 0.5, rowY + 0.5, photoColW - 1, photoRowH - 1, 'F')

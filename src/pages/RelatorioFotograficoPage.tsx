@@ -187,19 +187,39 @@ export function RelatorioFotograficoPage() {
         for (let j = 0; j < 4 && i + j < fotosSel.length; j++) {
           const foto = fotosSel[i + j]
           const pos = positions[j]
+
+          // Border/background da célula
+          doc.setFillColor(245, 245, 245); doc.rect(pos.x, pos.y, photoW, photoH, 'F')
+          doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3)
+          doc.rect(pos.x, pos.y, photoW, photoH)
+
           try {
             const resp = await fetch(getFotoUrl(foto))
             const blob = await resp.blob()
             const base64 = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(r.result as string); r.readAsDataURL(blob) })
-            doc.addImage(base64, 'JPEG', pos.x, pos.y, photoW, photoH)
+            // Obter dimensões reais da imagem para manter proporção
+            const dims = await new Promise<{w:number,h:number}>((res) => {
+              const img = new Image()
+              img.onload = () => res({ w: img.naturalWidth, h: img.naturalHeight })
+              img.onerror = () => res({ w: 4, h: 3 })
+              img.src = base64
+            })
+            const cellW = photoW - 2, cellH = photoH - 2
+            const imgRatio = dims.w / dims.h
+            const cellRatio = cellW / cellH
+            let drawW: number, drawH: number
+            if (imgRatio > cellRatio) {
+              drawW = cellW; drawH = cellW / imgRatio
+            } else {
+              drawH = cellH; drawW = cellH * imgRatio
+            }
+            const drawX = pos.x + 1 + (cellW - drawW) / 2
+            const drawY = pos.y + 1 + (cellH - drawH) / 2
+            doc.addImage(base64, 'JPEG', drawX, drawY, drawW, drawH)
           } catch {
-            doc.setFillColor(240, 240, 240); doc.rect(pos.x, pos.y, photoW, photoH, 'F')
             doc.setFontSize(8); doc.setTextColor(150); doc.text('Foto indisponível', pos.x + photoW / 2, pos.y + photoH / 2, { align: 'center' })
             doc.setTextColor(0)
           }
-          // Border around photo
-          doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3)
-          doc.rect(pos.x, pos.y, photoW, photoH)
 
           // Caption
           doc.setFontSize(7); doc.setTextColor(80, 80, 80)
