@@ -95,18 +95,36 @@ export function OrcamentosSolicitarPage() {
       const { error: upErr } = await supabase.storage.from('orcamentos').upload(path, fArquivo)
       if (upErr) throw upErr
       const complementares: { nome: string; path: string; size: number }[] = []
+      const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB limite Supabase
+      let compErros: string[] = []
       for (const fc of fComplementares) {
+        if (fc.size > MAX_FILE_SIZE) {
+          compErros.push(`${fc.name} (${(fc.size / 1024 / 1024).toFixed(0)}MB) excede o limite de 50MB`)
+          continue
+        }
         const cPath = `complementares/${Date.now()}_${sanitizeFileName(fc.name)}`
         const { error: cErr } = await supabase.storage.from('orcamentos').upload(cPath, fc)
-        if (!cErr) complementares.push({ nome: fc.name, path: cPath, size: fc.size })
+        if (cErr) {
+          compErros.push(`${fc.name}: ${cErr.message}`)
+        } else {
+          complementares.push({ nome: fc.name, path: cPath, size: fc.size })
+        }
+      }
+      if (compErros.length > 0) {
+        toast.error(`Erro em ${compErros.length} arquivo(s) complementar(es):\n${compErros.join('\n')}`, { duration: 8000 })
       }
       // Upload arquivos de projeto (se PROJETO)
       const arquivosProjeto: { nome: string; path: string; size: number }[] = []
       if (fTipo === 'PROJETO') {
         for (const fp of fArquivosProjeto) {
+          if (fp.size > MAX_FILE_SIZE) {
+            toast.error(`${fp.name} (${(fp.size / 1024 / 1024).toFixed(0)}MB) excede o limite de 50MB`)
+            continue
+          }
           const pPath = `projetos/${Date.now()}_${sanitizeFileName(fp.name)}`
           const { error: pErr } = await supabase.storage.from('orcamentos').upload(pPath, fp)
-          if (!pErr) arquivosProjeto.push({ nome: fp.name, path: pPath, size: fp.size })
+          if (pErr) toast.error(`Erro no projeto ${fp.name}: ${pErr.message}`)
+          else arquivosProjeto.push({ nome: fp.name, path: pPath, size: fp.size })
         }
       }
       const { error } = await supabase.from('orcamentos_revisao').insert({
@@ -266,8 +284,16 @@ export function OrcamentosSolicitarPage() {
               {fArquivo && <p className="text-[10px] text-slate-500 mt-1">{fArquivo.name} ({(fArquivo.size/1024).toFixed(0)} KB)</p>}
             </div>
             <div className="col-span-2"><label className="text-xs font-semibold text-slate-600 block mb-1">Arquivos complementares (memoriais, plantas)</label>
-              <input type="file" multiple accept=".xlsx,.xls,.pdf,.ods,.dwg,.dxf,.doc,.docx,.png,.jpg,.jpeg,.zip" onChange={e => setFComplementares(e.target.files ? [...e.target.files] : [])} className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-white"/>
-              {fComplementares.length > 0 && <div className="mt-1">{fComplementares.map((f, i) => <p key={i} className="text-[10px] text-slate-500">📎 {f.name}</p>)}</div>}
+              <input type="file" multiple accept=".xlsx,.xls,.pdf,.ods,.dwg,.dxf,.doc,.docx,.png,.jpg,.jpeg,.zip,.rar" onChange={e => setFComplementares(e.target.files ? [...e.target.files] : [])} className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-white"/>
+              {fComplementares.length > 0 && <div className="mt-1">{fComplementares.map((f, i) => {
+                const sizeMB = f.size / 1024 / 1024
+                const excede = sizeMB > 50
+                return <p key={i} className={`text-[10px] ${excede ? 'text-red-600 font-bold' : 'text-slate-500'}`}>
+                  📎 {f.name} ({sizeMB < 1 ? `${(f.size/1024).toFixed(0)} KB` : `${sizeMB.toFixed(1)} MB`})
+                  {excede && ' ⚠️ Excede limite de 50MB! Divida o arquivo em partes menores.'}
+                </p>
+              })}</div>}
+              <p className="text-[9px] text-slate-400 mt-0.5">Limite: 50MB por arquivo. Arquivos maiores devem ser divididos em partes.</p>
             </div>
             {fTipo === 'PROJETO' && (
               <div className="col-span-2 border-2 border-dashed border-blue-300 rounded-xl p-4 bg-blue-50/50">
