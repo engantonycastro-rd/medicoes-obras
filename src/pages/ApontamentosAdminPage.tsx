@@ -1,9 +1,10 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ClipboardList, RefreshCw, Filter, Search, ChevronDown, ChevronUp, MapPin,
   Sun, Cloud, CloudRain, CloudDrizzle, Users, Camera, AlertTriangle, CheckCircle2,
   XCircle, Clock, Download, Eye, Calendar, User, HardHat, FileDown, X, Smartphone,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ExcelJS from 'exceljs'
@@ -39,7 +40,7 @@ export function ApontamentosAdminPage() {
   const [detalhesMO, setDetalhesMO] = useState<Record<string, AptMaoObra[]>>({})
   const [detalhesFoto, setDetalhesFoto] = useState<Record<string, AptFoto[]>>({})
   const [detalhesPQE, setDetalhesPQE] = useState<Record<string, AptPQE[]>>({})
-  const [lightbox, setLightbox] = useState<string | null>(null)
+  const [lightbox, setLightbox] = useState<{ fotos: AptFoto[]; idx: number } | null>(null)
 
   // Filtros
   const [filtroObra, setFiltroObra] = useState('todas')
@@ -100,6 +101,18 @@ export function ApontamentosAdminPage() {
   }
 
   const obrasLista = useMemo(() => Object.values(obras).sort((a, b) => a.nome_obra.localeCompare(b.nome_obra)), [obras])
+
+  // Keyboard navigation for lightbox
+  useEffect(() => {
+    if (!lightbox) return
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setLightbox(null)
+      else if (e.key === 'ArrowLeft' && lightbox!.idx > 0) setLightbox(lb => lb ? { ...lb, idx: lb.idx - 1 } : null)
+      else if (e.key === 'ArrowRight' && lightbox!.idx < lightbox!.fotos.length - 1) setLightbox(lb => lb ? { ...lb, idx: lb.idx + 1 } : null)
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [lightbox])
 
   const filtrados = useMemo(() => {
     let list = apontamentos
@@ -296,10 +309,10 @@ export function ApontamentosAdminPage() {
                       <div>
                         <p className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1"><Camera size={12}/> Fotos ({fotos.length})</p>
                         <div className="grid grid-cols-4 gap-2">
-                          {fotos.map(f => {
+                          {fotos.map((f, fIdx) => {
                             const imgUrl = f.signedUrl || supabase.storage.from('apontamentos').getPublicUrl(f.path).data.publicUrl
                             return (
-                              <div key={f.id} className="relative rounded-lg overflow-hidden border border-slate-200 cursor-pointer group" onClick={() => setLightbox(imgUrl)}>
+                              <div key={f.id} className="relative rounded-lg overflow-hidden border border-slate-200 cursor-pointer group" onClick={() => setLightbox({ fotos, idx: fIdx })}>
                                 <img src={imgUrl} alt={f.legenda || f.nome || ''} className="w-full h-24 object-cover"/>
                                 {f.legenda && <p className="text-[9px] text-slate-500 px-2 py-1 bg-white truncate">{f.legenda}</p>}
                               </div>
@@ -325,13 +338,50 @@ export function ApontamentosAdminPage() {
         </div>
       )}
 
-      {/* Lightbox */}
-      {lightbox && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setLightbox(null)}>
-          <button onClick={() => setLightbox(null)} className="absolute top-4 right-4 p-2 bg-white/20 rounded-full text-white hover:bg-white/40"><X size={20}/></button>
-          <img src={lightbox} className="max-w-full max-h-full object-contain rounded-lg"/>
-        </div>
-      )}
+      {/* Lightbox Gallery */}
+      {lightbox && (() => {
+        const foto = lightbox.fotos[lightbox.idx]
+        const imgUrl = foto?.signedUrl || supabase.storage.from('apontamentos').getPublicUrl(foto?.path || '').data.publicUrl
+        const hasPrev = lightbox.idx > 0
+        const hasNext = lightbox.idx < lightbox.fotos.length - 1
+        return (
+          <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center" onClick={() => setLightbox(null)}>
+            {/* Close */}
+            <button onClick={() => setLightbox(null)} className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/25 rounded-full text-white z-10 transition-colors"><X size={22}/></button>
+
+            {/* Counter */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/50 rounded-full text-white text-xs font-medium">
+              {lightbox.idx + 1} / {lightbox.fotos.length}
+            </div>
+
+            {/* Prev */}
+            {hasPrev && (
+              <button onClick={e => { e.stopPropagation(); setLightbox({ ...lightbox, idx: lightbox.idx - 1 }) }}
+                className="absolute left-3 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/25 rounded-full text-white transition-colors z-10">
+                <ChevronLeft size={28}/>
+              </button>
+            )}
+
+            {/* Image */}
+            <img src={imgUrl} className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg select-none" onClick={e => e.stopPropagation()}/>
+
+            {/* Next */}
+            {hasNext && (
+              <button onClick={e => { e.stopPropagation(); setLightbox({ ...lightbox, idx: lightbox.idx + 1 }) }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/25 rounded-full text-white transition-colors z-10">
+                <ChevronRight size={28}/>
+              </button>
+            )}
+
+            {/* Caption */}
+            {foto?.legenda && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/60 rounded-lg text-white text-xs max-w-md text-center">
+                {foto.legenda}
+              </div>
+            )}
+          </div>
+        )
+      })()}
     </div>
   )
 }
