@@ -88,83 +88,86 @@ export function RelatorioFotograficoPage() {
       const pw = 210, marginX = 10
       const contentW = pw - marginX * 2
 
-      // Load logo
-      let logoData: string | null = null
-      try {
-        const resp = await fetch('/logo-rd.png')
-        const blob = await resp.blob()
-        logoData = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(r.result as string); r.readAsDataURL(blob) })
-      } catch {}
-
-      function drawHeader(pageNum: number) {
+      function drawHeader(_pageNum: number) {
         const hY = 8
-        // Logo area
-        const logoW = 28
+        const logoW = 30
+        const companyH = 26
+
+        // Outer border for company section
         doc.setDrawColor(60, 60, 60)
         doc.setLineWidth(0.5)
-        doc.rect(marginX, hY, contentW, 46)
+        doc.rect(marginX, hY, contentW, companyH)
 
-        // Logo
-        if (logoData) {
-          doc.addImage(logoData, 'PNG', marginX + 2, hY + 4, 24, 24)
-        } else {
-          doc.setFillColor(232, 80, 10)
-          doc.rect(marginX, hY, logoW, 24, 'F')
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255)
-          doc.text('RD', marginX + logoW / 2, hY + 15, { align: 'center' })
-        }
+        // Logo box - orange/red
+        doc.setFillColor(207, 67, 18)
+        doc.rect(marginX, hY, logoW, companyH, 'F')
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(255, 255, 255)
+        doc.text('RD', marginX + logoW / 2, hY + 12, { align: 'center' })
+        doc.setFontSize(5)
+        doc.text('CONSTRUTORA', marginX + logoW / 2, hY + 18, { align: 'center' })
+
+        // Vertical separator
         doc.setDrawColor(60, 60, 60)
-        doc.line(marginX + logoW, hY, marginX + logoW, hY + 24)
+        doc.line(marginX + logoW, hY, marginX + logoW, hY + companyH)
 
         // Company info
+        const centerX = marginX + logoW + (contentW - logoW) / 2
         doc.setTextColor(30, 30, 30)
         doc.setFont('helvetica', 'bold'); doc.setFontSize(11)
-        doc.text(empresa, marginX + logoW + (contentW - logoW) / 2, hY + 7, { align: 'center' })
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(7)
-        doc.text('CNPJ: 43.357.757/0001-40', marginX + logoW + (contentW - logoW) / 2, hY + 12, { align: 'center' })
-        doc.text('RUA BELA VISTA, 874, JARDINS, SÃO GONÇALO DO AMARANTE/RN – CEP: 59293-576', marginX + logoW + (contentW - logoW) / 2, hY + 16.5, { align: 'center' })
-        doc.text('email: rd_solucoes@outlook.com / tel.: (84) 99641-6124', marginX + logoW + (contentW - logoW) / 2, hY + 21, { align: 'center' })
+        doc.text(empresa, centerX, hY + 7, { align: 'center' })
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(6.5)
+        doc.text('CNPJ: 43.357.757/0001-40', centerX, hY + 12, { align: 'center' })
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5)
+        doc.text('RUA BELA VISTA, 874, JARDINS, SÃO GONÇALO DO AMARANTE/RN – CEP: 59293-576', centerX, hY + 16.5, { align: 'center' })
+        doc.text('email: rd_solucoes@outlook.com / tel.: (84) 99641-6124', centerX, hY + 21, { align: 'center' })
 
-        // Info table row 1: OBRA / LOCAL
-        const tY = hY + 25
-        const tH = 10
-        doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.3)
-        doc.rect(marginX, tY, contentW, tH)
-        doc.line(marginX, tY + tH / 2, marginX + contentW, tY + tH / 2)
+        // Info table - Row 1: OBRA | LOCAL
+        const tY = hY + companyH
+        const rowH = 6
+        doc.setDrawColor(100, 100, 100); doc.setLineWidth(0.3)
+        doc.rect(marginX, tY, contentW, rowH)
+        const localW = 40, obraLblW = 16
+        doc.line(marginX + obraLblW, tY, marginX + obraLblW, tY + rowH)
+        doc.line(marginX + contentW - localW, tY, marginX + contentW - localW, tY + rowH)
+        doc.line(marginX + contentW - localW + 16, tY, marginX + contentW - localW + 16, tY + rowH)
 
-        // Row 1
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5)
-        doc.text('OBRA:', marginX + 2, tY + 3.5)
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(30, 30, 30)
+        doc.text('OBRA:', marginX + 2, tY + 4)
         doc.setFont('helvetica', 'normal')
-        const obraT = doc.splitTextToSize(obraNome, contentW - 55)
-        doc.text(obraT[0] || '', marginX + 16, tY + 3.5)
-        doc.line(marginX + contentW - 38, tY, marginX + contentW - 38, tY + tH / 2)
+        const obraT = doc.splitTextToSize(obraNome, contentW - obraLblW - localW - 4)
+        doc.text(obraT[0] || '', marginX + obraLblW + 2, tY + 4)
         doc.setFont('helvetica', 'bold')
-        doc.text('LOCAL:', marginX + contentW - 37, tY + 3.5)
+        doc.text('LOCAL:', marginX + contentW - localW + 2, tY + 4)
         doc.setFont('helvetica', 'normal')
-        doc.text(obraLocal, marginX + contentW - 24, tY + 3.5)
+        doc.text(obraLocal, marginX + contentW - localW + 18, tY + 4)
 
-        // Row 2: EMPRESA EXECUTORA / DATA
-        doc.setFont('helvetica', 'bold')
-        doc.text('EMPRESA EXECUTORA', marginX + 2, tY + tH / 2 + 3.5)
-        doc.line(marginX + 32, tY + tH / 2, marginX + 32, tY + tH)
-        doc.setFont('helvetica', 'normal')
-        doc.text(empresa, marginX + 34, tY + tH / 2 + 3.5)
-        doc.line(marginX + contentW - 38, tY + tH / 2, marginX + contentW - 38, tY + tH)
-        doc.setFont('helvetica', 'bold')
-        doc.text('DATA:', marginX + contentW - 37, tY + tH / 2 + 3.5)
-        doc.setFont('helvetica', 'normal')
-        doc.text(dataHoje, marginX + contentW - 24, tY + tH / 2 + 3.5)
+        // Row 2: EMPRESA EXECUTORA | DATA
+        const t2Y = tY + rowH
+        doc.rect(marginX, t2Y, contentW, rowH)
+        const exeLblW = 34, dataLblW = 14, dataValW = 22
+        const exeValW = contentW - exeLblW - dataLblW - dataValW
+        doc.line(marginX + exeLblW, t2Y, marginX + exeLblW, t2Y + rowH)
+        doc.line(marginX + exeLblW + exeValW, t2Y, marginX + exeLblW + exeValW, t2Y + rowH)
+        doc.line(marginX + contentW - dataValW, t2Y, marginX + contentW - dataValW, t2Y + rowH)
 
-        // Section title banner
-        const bY = tY + tH + 2
+        doc.setFont('helvetica', 'bold')
+        doc.text('EMPRESA EXECUTORA', marginX + 2, t2Y + 4)
+        doc.setFont('helvetica', 'normal')
+        doc.text(empresa, marginX + exeLblW + 2, t2Y + 4)
+        doc.setFont('helvetica', 'bold')
+        doc.text('DATA:', marginX + exeLblW + exeValW + 2, t2Y + 4)
+        doc.setFont('helvetica', 'normal')
+        doc.text(dataHoje, marginX + contentW - dataValW + 2, t2Y + 4)
+
+        // Orange banner
+        const bY = t2Y + rowH + 2
         doc.setFillColor(232, 80, 10)
         doc.rect(marginX, bY, contentW, 7, 'F')
         doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255)
         doc.text('REGISTRO FOTOGRÁFICO DOS SERVIÇOS EXECUTADOS:', pw / 2, bY + 5, { align: 'center' })
         doc.setTextColor(0, 0, 0)
 
-        return bY + 9 // yStart for photos
+        return bY + 9
       }
 
       // Generate pages with 4 photos each (2x2 grid)
