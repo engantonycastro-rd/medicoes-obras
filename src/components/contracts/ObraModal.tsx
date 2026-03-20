@@ -30,6 +30,8 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
 
   const [engenheiros, setEngenheiros] = useState<PerfilResumo[]>([])
   const [engenheiroSel, setEngenheiroSel] = useState<string>('')
+  const [latitude, setLatitude] = useState<string>('')
+  const [longitude, setLongitude] = useState<string>('')
   const isGestorOrAdmin = perfilAtual?.role === 'ADMIN' || perfilAtual?.role === 'GESTOR' || perfilAtual?.role === 'SUPERADMIN'
 
   useEffect(() => {
@@ -46,6 +48,8 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
         centro_custo: obra.centro_custo || '',
       })
       setEngenheiroSel(obra.engenheiro_responsavel_id || '')
+      setLatitude((obra as any).latitude ? String((obra as any).latitude) : '')
+      setLongitude((obra as any).longitude ? String((obra as any).longitude) : '')
     }
     // Busca engenheiros da empresa
     supabase.from('perfis').select('id, nome, role').eq('ativo', true)
@@ -67,6 +71,8 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
         status: data.status,
         centro_custo: data.centro_custo?.trim() || null,
         engenheiro_responsavel_id: engenheiroSel || null,
+        latitude: latitude ? Number(latitude) : null,
+        longitude: longitude ? Number(longitude) : null,
       }
       let salva: Obra
       if (obra) {
@@ -137,6 +143,15 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
               <label className="text-xs font-semibold text-slate-600 mb-1 block">Centro de Custo (TOTVS RM)</label>
               <input {...register('centro_custo')} placeholder="Ex: 4.15.004" className={field} />
               <p className="text-[10px] text-slate-400 mt-0.5">Código do centro de custo no TOTVS RM — usado para importação automática de custos</p>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-600 mb-1 block">Latitude</label>
+              <input type="number" step="any" value={latitude} onChange={e => setLatitude(e.target.value)} placeholder="Ex: -5.7945" className={field} />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-600 mb-1 block">Longitude</label>
+              <input type="number" step="any" value={longitude} onChange={e => setLongitude(e.target.value)} placeholder="Ex: -35.2110" className={field} />
+              <p className="text-[10px] text-slate-400 mt-0.5">Abra o Google Maps, clique com botão direito no local e copie as coordenadas</p>
             </div>
             {isGestorOrAdmin && (
               <div className="col-span-2">

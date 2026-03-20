@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, LayoutDashboard, DollarSign, History, Moon, Sun, Wallet, FileSpreadsheet, KanbanSquare, HelpCircle, BookOpen, GitBranch, Shield, Briefcase, BarChart3, Camera, ScrollText, TrendingUp, Trophy } from 'lucide-react'
+import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, LayoutDashboard, DollarSign, History, Moon, Sun, Wallet, FileSpreadsheet, KanbanSquare, HelpCircle, BookOpen, GitBranch, Shield, Briefcase, BarChart3, Camera, ScrollText, TrendingUp, Trophy, MapPin } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { usePerfilStore } from '../../lib/perfilStore'
 import { useStore } from '../../lib/store'
@@ -76,6 +76,7 @@ export function AppLayout() {
       { to: '/orcamentos', icon: FileSpreadsheet, label: 'Orçamentos' },
       { to: '/producao',   icon: TrendingUp,      label: 'Produção' },
       { to: '/mario-papis', icon: Trophy,          label: 'MARIO PAPIS' },
+      { to: '/mapa-obras',  icon: MapPin,          label: 'Mapa de Obras' },
       { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
       { to: '/configuracoes', icon: Settings,     label: 'Config.' },
     ],
@@ -92,6 +93,7 @@ export function AppLayout() {
       { to: '/checklist-nr18', icon: Shield,      label: 'Checklist NR-18' },
       { to: '/custos-obra', icon: Wallet,         label: 'Custos Obras' },
       { to: '/orcamentos', icon: FileSpreadsheet, label: 'Orçamentos' },
+      { to: '/mapa-obras',  icon: MapPin,          label: 'Mapa de Obras' },
       { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
       { to: '/configuracoes', icon: Settings,     label: 'Config.' },
     ],
@@ -111,6 +113,7 @@ export function AppLayout() {
       { to: '/setor-orcamentos', icon: FileSpreadsheet, label: 'Setor Orçamentos' },
       { to: '/producao',   icon: TrendingUp,      label: 'Produção' },
       { to: '/mario-papis', icon: Trophy,          label: 'MARIO PAPIS' },
+      { to: '/mapa-obras',  icon: MapPin,          label: 'Mapa de Obras' },
       { to: '/apontamentos', icon: ClipboardList, label: 'Apontamentos' },
       { to: '/subempreiteiros', icon: Briefcase,  label: 'Subempreiteiros' },
       { to: '/setor-licitacao', icon: Briefcase, label: 'Licitações' },
