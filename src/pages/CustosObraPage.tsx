@@ -85,7 +85,7 @@ export function CustosObraPage() {
   }
 
   const filtrados = useMemo(() => {
-    let list = custos
+    let list = custos.filter(c => c.status_pagamento !== 'CANCELADO')
     if (obraFiltro !== 'todas') list = list.filter(c => c.obra_id === obraFiltro)
     if (tipoFiltro !== 'todos') list = list.filter(c => c.tipo_lancamento === tipoFiltro)
     if (dataInicio) list = list.filter(c => c.data_emissao && c.data_emissao >= dataInicio)
@@ -104,10 +104,10 @@ export function CustosObraPage() {
     }
   }, [filtrados])
 
-  // Resumo por obra
+  // Resumo por obra — usa filtrados (reage a filtro de data e exclui cancelados)
   const porObra = useMemo(() => {
     const map = new Map<string, { nome: string; pagar: number; receber: number; qtd: number }>()
-    for (const c of custos) {
+    for (const c of filtrados) {
       const o = minhasObras.find(x => x.id === c.obra_id)
       if (!o) continue
       const entry = map.get(c.obra_id) || { nome: o.nome_obra, pagar: 0, receber: 0, qtd: 0 }
@@ -117,7 +117,7 @@ export function CustosObraPage() {
       map.set(c.obra_id, entry)
     }
     return [...map.entries()].sort((a, b) => b[1].pagar - a[1].pagar)
-  }, [custos, minhasObras])
+  }, [filtrados, minhasObras])
 
   return (
     <div className="p-6 max-w-7xl overflow-y-auto" style={{ height: '100%' }}>
