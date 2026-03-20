@@ -149,22 +149,29 @@ export function ProducaoPage() {
       .select('obra_id, tipo_lancamento, valor_liquido')
       .in('obra_id', obraIds).gte('data_emissao', periodoIni).lte('data_emissao', periodoFim)
 
-    const engTotals: Record<string, { custo: number; fat: number }> = {}
-    for (const e of engs as any[]) engTotals[e.id] = { custo: 0, fat: 0 }
-    const obraEngMap: Record<string, string> = {}
-    for (const o of obrasAll as any[]) obraEngMap[o.id] = o.engenheiro_responsavel_id
+    // Acumula custo/fat por OBRA
+    const obraFin: Record<string, { custo: number; fat: number; engId: string }> = {}
+    for (const o of obrasAll as any[]) obraFin[o.id] = { custo: 0, fat: 0, engId: o.engenheiro_responsavel_id }
     if (custosAll) {
       for (const r of custosAll as any[]) {
-        const engId = obraEngMap[r.obra_id]
-        if (!engId || !engTotals[engId]) continue
-        if (r.tipo_lancamento === 'A_RECEBER') engTotals[engId].fat += Number(r.valor_liquido) || 0
-        else engTotals[engId].custo += Number(r.valor_liquido) || 0
+        if (!obraFin[r.obra_id]) continue
+        if (r.tipo_lancamento === 'A_RECEBER') obraFin[r.obra_id].fat += Number(r.valor_liquido) || 0
+        else obraFin[r.obra_id].custo += Number(r.valor_liquido) || 0
       }
     }
 
-    const ranked = Object.entries(engTotals)
-      .filter(([_, v]) => v.fat > 0)
-      .map(([id, v]) => ({ id, margem: (1 - v.custo / v.fat) * 100 }))
+    // Calcula média das margens individuais por engenheiro
+    const engMargens: Record<string, number[]> = {}
+    for (const e of engs as any[]) engMargens[e.id] = []
+    for (const [_, of_] of Object.entries(obraFin)) {
+      if (of_.fat > 0 && engMargens[of_.engId]) {
+        engMargens[of_.engId].push((1 - of_.custo / of_.fat) * 100)
+      }
+    }
+
+    const ranked = Object.entries(engMargens)
+      .filter(([_, ms]) => ms.length > 0)
+      .map(([id, ms]) => ({ id, margem: ms.reduce((a, b) => a + b, 0) / ms.length }))
       .sort((a, b) => b.margem - a.margem)
 
     const pos = ranked.findIndex(r => r.id === engenheiroId)
@@ -215,26 +222,39 @@ export function ProducaoPage() {
         .select('obra_id, tipo_lancamento, valor_liquido')
         .in('obra_id', obraIds).gte('data_emissao', periodoIni).lte('data_emissao', periodoFim)
 
-      const engTotals: Record<string, { custo: number; fat: number; qtdObras: number }> = {}
-      for (const e of engs as any[]) engTotals[e.id] = { custo: 0, fat: 0, qtdObras: 0 }
-      const obraEngMap: Record<string, string> = {}
+      const engTotals: Record<string, { qtdObras: number }> = {}
+      for (const e of engs as any[]) engTotals[e.id] = { qtdObras: 0 }
+      // Acumula custo/fat por OBRA
+      const obraFin: Record<string, { custo: number; fat: number; engId: string }> = {}
       for (const o of (obrasAll || []) as any[]) {
-        obraEngMap[o.id] = o.engenheiro_responsavel_id
+        obraFin[o.id] = { custo: 0, fat: 0, engId: o.engenheiro_responsavel_id }
         if (engTotals[o.engenheiro_responsavel_id]) engTotals[o.engenheiro_responsavel_id].qtdObras++
       }
       if (custosAll) {
         for (const r of custosAll as any[]) {
-          const engId = obraEngMap[r.obra_id]
-          if (!engId || !engTotals[engId]) continue
-          if (r.tipo_lancamento === 'A_RECEBER') engTotals[engId].fat += Number(r.valor_liquido) || 0
-          else engTotals[engId].custo += Number(r.valor_liquido) || 0
+          if (!obraFin[r.obra_id]) continue
+          if (r.tipo_lancamento === 'A_RECEBER') obraFin[r.obra_id].fat += Number(r.valor_liquido) || 0
+          else obraFin[r.obra_id].custo += Number(r.valor_liquido) || 0
+        }
+      }
+
+      // Calcula média das margens individuais por engenheiro
+      const engMargens: Record<string, number[]> = {}
+      for (const e of engs as any[]) engMargens[e.id] = []
+      for (const [_, of_] of Object.entries(obraFin)) {
+        if (of_.fat > 0 && engMargens[of_.engId]) {
+          engMargens[of_.engId].push((1 - of_.custo / of_.fat) * 100)
         }
       }
 
       // Ranking
       const ranked = Object.entries(engTotals)
         .filter(([_, v]) => v.qtdObras > 0)
-        .map(([id, v]) => ({ id, margem: v.fat > 0 ? (1 - v.custo / v.fat) * 100 : 0, ...v }))
+        .map(([id, v]) => {
+          const ms = engMargens[id] || []
+          const margem = ms.length > 0 ? ms.reduce((a, b) => a + b, 0) / ms.length : 0
+          return { id, margem, ...v }
+        })
         .sort((a, b) => b.margem - a.margem)
 
       // Serviços diversos por engenheiro

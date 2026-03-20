@@ -94,12 +94,13 @@ export function MarioPapisPage() {
         engMap[engId].totalFaturamento += fin.faturamento
       }
 
-      // 5. Calcula margem global e ordena
+      // 5. Calcula margem global = média das margens individuais de cada obra
       const list = Object.values(engMap).filter(e => e.obras.length > 0)
       for (const eng of list) {
-        if (eng.totalFaturamento > 0) {
-          const indice = eng.totalCusto / eng.totalFaturamento
-          eng.margemGlobal = (1 - indice) * 100
+        const obrasComMargem = eng.obras.filter(o => o.faturamento > 0)
+        if (obrasComMargem.length > 0) {
+          const somaMargens = obrasComMargem.reduce((acc, o) => acc + (1 - o.custo / o.faturamento) * 100, 0)
+          eng.margemGlobal = somaMargens / obrasComMargem.length
         } else {
           eng.margemGlobal = 0
         }
