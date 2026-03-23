@@ -455,7 +455,20 @@ export function CustosERPPage() {
                     <td className="px-3 py-2 text-slate-500">{c.data_emissao ? formatDate(c.data_emissao) : '—'}</td>
                     <td className="px-3 py-2 text-right font-bold text-slate-800">{formatCurrency(c.valor_liquido)}</td>
                     <td className="px-3 py-2">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${st.color}`}>{st.label}</span>
+                      {isAdmin ? (
+                        <select value={c.status_pagamento}
+                          onChange={async (e) => {
+                            const novoStatus = e.target.value
+                            await supabase.from('custos_erp').update({ status_pagamento: novoStatus }).eq('id', c.id)
+                            setCustos(p => p.map(x => x.id === c.id ? { ...x, status_pagamento: novoStatus } : x))
+                            toast.success(`Status → ${STATUS_LABEL[novoStatus]?.label || novoStatus}`)
+                          }}
+                          className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium cursor-pointer ${st.color}`}>
+                          {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                        </select>
+                      ) : (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${st.color}`}>{st.label}</span>
+                      )}
                     </td>
                     <td className="px-3 py-2">
                       {isAdmin && (

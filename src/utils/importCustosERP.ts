@@ -24,6 +24,15 @@ export interface CustoERP {
 
 const STATUS_MAP: Record<string, CustoERP['status_pagamento']> = {
   '3': 'PAGO', '40': 'VENCIDO', '29': 'VENCENDO', '18': 'CANCELADO', '15': 'PARCIAL', '56': 'PENDENTE',
+  // Códigos adicionais TOTVS RM para cancelamento
+  '4': 'CANCELADO', '7': 'CANCELADO', '8': 'CANCELADO', '9': 'CANCELADO',
+  '19': 'CANCELADO', '20': 'CANCELADO', '28': 'CANCELADO',
+}
+
+// Detecta cancelamento por palavras-chave no histórico/descrição
+function isCancelado(hist: string | null, nome: string | null): boolean {
+  const t = ((hist || '') + ' ' + (nome || '')).toLowerCase()
+  return /cancelad[oa]|estorno|estornad|anulad[oa]|cancel\b/.test(t)
 }
 
 export async function importarCustosERP(file: File): Promise<CustoERP[]> {
@@ -99,6 +108,9 @@ function parseCustos(ws: ExcelJS.Worksheet): CustoERP[] {
     const natCode = String(getStr(row, cm.natureza)||'2').trim()
     const hist = getStr(row, cm.historico)
     const vDesc = getNum(row, cm.valor_desc) ?? 0
+    // Detecta status: primeiro pelo código de imagem, depois por palavra-chave
+    let statusPag: CustoERP['status_pagamento'] = STATUS_MAP[stCode] || 'PENDENTE'
+    if (statusPag !== 'CANCELADO' && isCancelado(hist, nome)) statusPag = 'CANCELADO'
     custos.push({
       tipo_lancamento: natCode === '1' ? 'A_RECEBER' : 'A_PAGAR',
       tipo_documento: 'OUTROS',
@@ -116,7 +128,7 @@ function parseCustos(ws: ExcelJS.Worksheet): CustoERP[] {
       conta_contabil: null,
       categoria: categorizar(hist, nome),
       descricao: hist || nome,
-      status_pagamento: STATUS_MAP[stCode] || 'PENDENTE',
+      status_pagamento: statusPag,
       id_erp: getStr(row, cm.ref_lanc) || null,
       ref_lancamento: getStr(row, cm.ref_lanc) || null,
     })
