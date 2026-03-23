@@ -23,10 +23,11 @@ const ESTADOS = [
 interface FormData {
   nome_obra: string; numero_contrato: string; tipo: 'ESTADO' | 'PREFEITURA'
   orgao_nome: string; orgao_subdivisao: string; empresa_executora: string
-  data_base_planilha: string; data_ordem_servico: string
-  prazo_execucao_dias: number; status: string
+  status: string
   estado: string; cidade: string
   valor_contrato: string; data_validade: string
+  bdi_percentual: string; desconto_percentual: string
+  centro_custo: string
 }
 
 export function ContratoModal({ contrato, onClose }: Props) {
@@ -53,14 +54,14 @@ export function ContratoModal({ contrato, onClose }: Props) {
         orgao_nome: contrato.orgao_nome,
         orgao_subdivisao: contrato.orgao_subdivisao || '',
         empresa_executora: contrato.empresa_executora,
-        data_base_planilha: contrato.data_base_planilha || '',
-        data_ordem_servico: contrato.data_ordem_servico || '',
-        prazo_execucao_dias: contrato.prazo_execucao_dias || 120,
         status: contrato.status,
         estado: contrato.estado || '',
         cidade: contrato.cidade || '',
         valor_contrato: contrato.valor_contrato ? String(contrato.valor_contrato) : '',
         data_validade: contrato.data_validade || '',
+        bdi_percentual: contrato.bdi_percentual ? String(contrato.bdi_percentual * 100) : '25',
+        desconto_percentual: contrato.desconto_percentual ? String(contrato.desconto_percentual * 100) : '0',
+        centro_custo: (contrato as any).centro_custo || '',
       })
       // Carrega gestores atribuídos
       supabase.from('contrato_gestores').select('gestor_id').eq('contrato_id', contrato.id)
@@ -74,10 +75,11 @@ export function ContratoModal({ contrato, onClose }: Props) {
         tipo: 'ESTADO', status: 'ATIVO',
         orgao_nome: 'SECRETARIA DE ESTADO DA EDUCAÇÃO, DA CULTURA, DO ESPORTE E DO LAZER - SEEC',
         orgao_subdivisao: 'SUBCOORDENADORIA DE MANUTENÇÃO E CONSTRUÇÃO ESCOLAR',
-        prazo_execucao_dias: 120, estado: 'RN', cidade: '',
+        estado: 'RN', cidade: '',
         empresa_executora: '', nome_obra: '', numero_contrato: '',
-        data_base_planilha: '', data_ordem_servico: '',
         valor_contrato: '', data_validade: '',
+        bdi_percentual: '25', desconto_percentual: '0',
+        centro_custo: '',
       })
       setGestoresSelecionados([])
       setGestoresAtuais([])
@@ -93,17 +95,15 @@ export function ContratoModal({ contrato, onClose }: Props) {
       const payload = {
         ...data,
         local_obra: data.cidade ? `${data.cidade}/${data.estado}` : data.estado || '',
-        desconto_percentual: contrato?.desconto_percentual ?? 0,
-        bdi_percentual: contrato?.bdi_percentual ?? 0,
-        prazo_execucao_dias: Number(data.prazo_execucao_dias),
+        desconto_percentual: Number(data.desconto_percentual) / 100,
+        bdi_percentual: Number(data.bdi_percentual) / 100,
         numero_contrato: data.numero_contrato || null,
         orgao_subdivisao: data.orgao_subdivisao || null,
-        data_base_planilha: data.data_base_planilha || null,
-        data_ordem_servico: data.data_ordem_servico || null,
         estado: data.estado || null,
         cidade: data.cidade || null,
         valor_contrato: Number(String(data.valor_contrato).replace(/[^\d.,]/g, '').replace(',', '.')) || 0,
         data_validade: data.data_validade || null,
+        centro_custo: data.centro_custo?.trim() || null,
       }
 
       let contratoId: string
@@ -223,16 +223,18 @@ export function ContratoModal({ contrato, onClose }: Props) {
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Data Base Planilha</label>
-              <input {...register('data_base_planilha')} placeholder="SINAPI 01/2025" className={cls}/>
+              <label className="block text-xs font-medium text-slate-600 mb-1">BDI (%)</label>
+              <input type="number" step="0.01" {...register('bdi_percentual')} placeholder="25" className={cls}/>
+              <p className="text-[10px] text-slate-400 mt-0.5">Usado na importação SEM BDI</p>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Data O.S.</label>
-              <input type="date" {...register('data_ordem_servico')} className={cls}/>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Desconto (%)</label>
+              <input type="number" step="0.01" {...register('desconto_percentual')} placeholder="0" className={cls}/>
+              <p className="text-[10px] text-slate-400 mt-0.5">Usado na importação SEM BDI</p>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Prazo (dias)</label>
-              <input type="number" {...register('prazo_execucao_dias')} className={cls}/>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Centro de Custo</label>
+              <input {...register('centro_custo')} placeholder="Ex: 4.15.004" className={cls}/>
             </div>
           </div>
 

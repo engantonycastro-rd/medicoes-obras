@@ -105,7 +105,7 @@ export function ProducaoPage() {
         const obraIds = obrasAtivas.map(o => o.id)
         for (const o of obrasAtivas) finMap[o.id] = { obra_id: o.id, custo: 0, faturamento: 0 }
         const { data: custosData } = await supabase.from('custos_erp')
-          .select('obra_id, tipo_lancamento, valor_liquido')
+          .select('obra_id, tipo_lancamento, valor_liquido').neq('status_pagamento', 'CANCELADO')
           .in('obra_id', obraIds)
           .gte('data_emissao', periodoIni).lte('data_emissao', periodoFim)
         if (custosData) {
@@ -146,7 +146,7 @@ export function ProducaoPage() {
     if (!obrasAll || obrasAll.length === 0) return
     const obraIds = obrasAll.map((o: any) => o.id)
     const { data: custosAll } = await supabase.from('custos_erp')
-      .select('obra_id, tipo_lancamento, valor_liquido')
+      .select('obra_id, tipo_lancamento, valor_liquido').neq('status_pagamento', 'CANCELADO')
       .in('obra_id', obraIds).gte('data_emissao', periodoIni).lte('data_emissao', periodoFim)
 
     // Acumula custo/fat por OBRA
@@ -219,7 +219,7 @@ export function ProducaoPage() {
 
       // Custos
       const { data: custosAll } = await supabase.from('custos_erp')
-        .select('obra_id, tipo_lancamento, valor_liquido')
+        .select('obra_id, tipo_lancamento, valor_liquido').neq('status_pagamento', 'CANCELADO')
         .in('obra_id', obraIds).gte('data_emissao', periodoIni).lte('data_emissao', periodoFim)
 
       const engTotals: Record<string, { qtdObras: number }> = {}

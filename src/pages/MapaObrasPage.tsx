@@ -105,6 +105,7 @@ export function MapaObrasPage() {
         const { data: custosData } = await supabase.from('custos_erp')
           .select('obra_id, tipo_lancamento, valor_liquido')
           .in('obra_id', obraIds)
+          .neq('status_pagamento', 'CANCELADO')
         if (custosData) {
           const finMap: Record<string, { custo: number; faturamento: number }> = {}
           for (const r of custosData as any[]) {
