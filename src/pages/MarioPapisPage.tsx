@@ -63,7 +63,7 @@ export function MarioPapisPage() {
       let custosMap: Record<string, { custo: number; faturamento: number }> = {}
       if (obraIds.length > 0) {
         const { data: custosData } = await supabase.from('custos_erp')
-          .select('obra_id, tipo_lancamento, valor_liquido')
+          .select('obra_id, tipo_lancamento, valor_liquido, status_pagamento')
           .in('obra_id', obraIds)
           .neq('status_pagamento', 'CANCELADO')
           .gte('data_emissao', periodoIni)

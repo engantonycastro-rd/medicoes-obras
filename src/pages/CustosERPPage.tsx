@@ -250,8 +250,9 @@ export function CustosERPPage() {
   }, [custos, obraFiltro, tipoFiltro, statusFiltro, dataInicio, dataFim, ccMaeFiltro, ccFilhoFiltro, todasObras])
 
   const stats = useMemo(() => {
-    const aPagar = custosFiltrados.filter(c => c.tipo_lancamento === 'A_PAGAR')
-    const aReceber = custosFiltrados.filter(c => c.tipo_lancamento === 'A_RECEBER')
+    const ativos = custosFiltrados.filter(c => c.status_pagamento !== 'CANCELADO')
+    const aPagar = ativos.filter(c => c.tipo_lancamento === 'A_PAGAR')
+    const aReceber = ativos.filter(c => c.tipo_lancamento === 'A_RECEBER')
     return {
       totalPagar: aPagar.reduce((s, c) => s + c.valor_liquido, 0),
       totalReceber: aReceber.reduce((s, c) => s + c.valor_liquido, 0),
@@ -259,7 +260,7 @@ export function CustosERPPage() {
       pagoReceber: aReceber.filter(c => c.status_pagamento === 'PAGO').reduce((s, c) => s + c.valor_liquido, 0),
       pendentePagar: aPagar.filter(c => ['PENDENTE','VENCENDO'].includes(c.status_pagamento)).reduce((s, c) => s + c.valor_liquido, 0),
       vencido: aPagar.filter(c => c.status_pagamento === 'VENCIDO').reduce((s, c) => s + c.valor_liquido, 0),
-      qtd: custosFiltrados.length,
+      qtd: ativos.length,
     }
   }, [custosFiltrados])
 

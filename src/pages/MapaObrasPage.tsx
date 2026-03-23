@@ -103,7 +103,7 @@ export function MapaObrasPage() {
       const obraIds = allObras.map(o => o.id)
       if (obraIds.length > 0) {
         const { data: custosData } = await supabase.from('custos_erp')
-          .select('obra_id, tipo_lancamento, valor_liquido')
+          .select('obra_id, tipo_lancamento, valor_liquido, status_pagamento')
           .in('obra_id', obraIds)
           .neq('status_pagamento', 'CANCELADO')
         if (custosData) {
