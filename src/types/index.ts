@@ -32,6 +32,7 @@ export interface Contrato {
   empresa_id: string | null
   valor_contrato: number
   data_validade: string | null
+  centro_custo: string | null
 }
 
 export interface Obra {

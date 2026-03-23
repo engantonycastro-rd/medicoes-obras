@@ -37,6 +37,8 @@ export function CustosObraPage() {
   const [tipoFiltro, setTipoFiltro] = useState('todos')
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
+  const [ccMaeFiltro, setCcMaeFiltro] = useState('todos')
+  const [ccFilhoFiltro, setCcFilhoFiltro] = useState('todos')
 
   useEffect(() => {
     fetchContratos().then(async () => {
@@ -84,14 +86,30 @@ export function CustosObraPage() {
     setLoading(false)
   }
 
+  // CC Mãe: centros de custo dos contratos
+  const ccMaeOptions = useMemo(() => {
+    return contratos.filter(c => (c as any).centro_custo).map(c => ({ cc: (c as any).centro_custo as string, nome: c.nome_obra }))
+  }, [contratos])
+
+  // CC Filhos: obras cujo centro_custo começa com o ccMãe
+  const ccFilhoOptions = useMemo(() => {
+    if (ccMaeFiltro === 'todos') return []
+    return minhasObras.filter(o => o.centro_custo && o.centro_custo.startsWith(ccMaeFiltro))
+  }, [ccMaeFiltro, minhasObras])
+
   const filtrados = useMemo(() => {
     let list = custos.filter(c => c.status_pagamento !== 'CANCELADO')
+    if (ccMaeFiltro !== 'todos') {
+      const obraIdsCC = minhasObras.filter(o => o.centro_custo && o.centro_custo.startsWith(ccMaeFiltro)).map(o => o.id)
+      list = list.filter(c => obraIdsCC.includes(c.obra_id))
+    }
+    if (ccFilhoFiltro !== 'todos') list = list.filter(c => c.obra_id === ccFilhoFiltro)
     if (obraFiltro !== 'todas') list = list.filter(c => c.obra_id === obraFiltro)
     if (tipoFiltro !== 'todos') list = list.filter(c => c.tipo_lancamento === tipoFiltro)
     if (dataInicio) list = list.filter(c => c.data_emissao && c.data_emissao >= dataInicio)
     if (dataFim) list = list.filter(c => c.data_emissao && c.data_emissao <= dataFim)
     return list
-  }, [custos, obraFiltro, tipoFiltro, dataInicio, dataFim])
+  }, [custos, obraFiltro, tipoFiltro, dataInicio, dataFim, ccMaeFiltro, ccFilhoFiltro, minhasObras])
 
   const stats = useMemo(() => {
     const aPagar = filtrados.filter(c => c.tipo_lancamento === 'A_PAGAR')
@@ -165,11 +183,28 @@ export function CustosObraPage() {
       )}
 
       {/* Filtros */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
         <Filter size={14} className="text-slate-400"/>
-        <select value={obraFiltro} onChange={e => setObraFiltro(e.target.value)} className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs bg-white">
+        {ccMaeOptions.length > 0 && (
+          <>
+            <select value={ccMaeFiltro} onChange={e => { setCcMaeFiltro(e.target.value); setCcFilhoFiltro('todos'); if (e.target.value !== 'todos') setObraFiltro('todas') }}
+              className="border border-blue-200 rounded-lg px-3 py-1.5 text-xs bg-blue-50 text-blue-700 font-medium">
+              <option value="todos">CC Mãe (todos)</option>
+              {ccMaeOptions.map(c => <option key={c.cc} value={c.cc}>{c.cc} — {c.nome}</option>)}
+            </select>
+            {ccMaeFiltro !== 'todos' && ccFilhoOptions.length > 0 && (
+              <select value={ccFilhoFiltro} onChange={e => setCcFilhoFiltro(e.target.value)}
+                className="border border-purple-200 rounded-lg px-3 py-1.5 text-xs bg-purple-50 text-purple-700 font-medium">
+                <option value="todos">CC Filho (todos de {ccMaeFiltro})</option>
+                {ccFilhoOptions.map(o => <option key={o.id} value={o.id}>{o.centro_custo} — {o.nome_obra}</option>)}
+              </select>
+            )}
+          </>
+        )}
+        <select value={obraFiltro} onChange={e => { setObraFiltro(e.target.value); if (e.target.value !== 'todas') { setCcMaeFiltro('todos'); setCcFilhoFiltro('todos') } }}
+          className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs bg-white">
           <option value="todas">Todas as obras</option>
-          {minhasObras.map(o => <option key={o.id} value={o.id}>{o.nome_obra}</option>)}
+          {minhasObras.map(o => <option key={o.id} value={o.id}>{o.nome_obra}{o.centro_custo ? ` (${o.centro_custo})` : ''}</option>)}
         </select>
         <select value={tipoFiltro} onChange={e => setTipoFiltro(e.target.value)} className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs bg-white">
           <option value="todos">Pagar + Receber</option>
