@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, LayoutDashboard, DollarSign, History, Moon, Sun, Wallet, FileSpreadsheet, KanbanSquare, HelpCircle, BookOpen, GitBranch, Shield, Briefcase, BarChart3, Camera, ScrollText, TrendingUp, Trophy, MapPin } from 'lucide-react'
+import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, LayoutDashboard, DollarSign, History, Moon, Sun, Wallet, FileSpreadsheet, KanbanSquare, HelpCircle, BookOpen, Shield, Briefcase, BarChart3, Camera, ScrollText, TrendingUp, Trophy, MapPin } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { usePerfilStore } from '../../lib/perfilStore'
 import { useStore } from '../../lib/store'
@@ -71,7 +71,6 @@ export function AppLayout() {
       { to: '/kanban',    icon: KanbanSquare,     label: 'Planejamento' },
       { to: '/diario-obra', icon: BookOpen,       label: 'Diário de Obra' },
       { to: '/rdo',       icon: ScrollText,       label: 'RDO' },
-      { to: '/checklist-nr18', icon: Shield,      label: 'Checklist NR-18' },
       { to: '/custos-obra', icon: Wallet,         label: 'Custos Obras' },
       { to: '/orcamentos', icon: FileSpreadsheet, label: 'Orçamentos' },
       { to: '/producao',   icon: TrendingUp,      label: 'Produção' },
@@ -88,9 +87,6 @@ export function AppLayout() {
       { to: '/kanban',    icon: KanbanSquare,     label: 'Planejamento' },
       { to: '/diario-obra', icon: BookOpen,       label: 'Diário de Obra' },
       { to: '/rdo',       icon: ScrollText,       label: 'RDO' },
-      { to: '/cronograma', icon: GitBranch,       label: 'Cronograma' },
-      { to: '/aditivos',  icon: FileText,         label: 'Aditivos' },
-      { to: '/checklist-nr18', icon: Shield,      label: 'Checklist NR-18' },
       { to: '/custos-obra', icon: Wallet,         label: 'Custos Obras' },
       { to: '/orcamentos', icon: FileSpreadsheet, label: 'Orçamentos' },
       { to: '/mapa-obras',  icon: MapPin,          label: 'Mapa de Obras' },
@@ -106,9 +102,6 @@ export function AppLayout() {
       { to: '/kanban',    icon: KanbanSquare,     label: 'Planejamento' },
       { to: '/diario-obra', icon: BookOpen,       label: 'Diário de Obra' },
       { to: '/rdo',       icon: ScrollText,       label: 'RDO' },
-      { to: '/cronograma', icon: GitBranch,       label: 'Cronograma' },
-      { to: '/aditivos',  icon: FileText,         label: 'Aditivos' },
-      { to: '/checklist-nr18', icon: Shield,      label: 'Checklist NR-18' },
       { to: '/custos-erp', icon: DollarSign,      label: 'Custos ERP' },
       { to: '/setor-orcamentos', icon: FileSpreadsheet, label: 'Setor Orçamentos' },
       { to: '/producao',   icon: TrendingUp,      label: 'Produção' },
@@ -132,9 +125,6 @@ export function AppLayout() {
       { to: '/kanban',    icon: KanbanSquare,     label: 'Planejamento' },
       { to: '/diario-obra', icon: BookOpen,       label: 'Diário de Obra' },
       { to: '/rdo',       icon: ScrollText,       label: 'RDO' },
-      { to: '/cronograma', icon: GitBranch,       label: 'Cronograma' },
-      { to: '/aditivos',  icon: FileText,         label: 'Aditivos' },
-      { to: '/checklist-nr18', icon: Shield,      label: 'Checklist NR-18' },
       { to: '/custos-erp', icon: DollarSign,      label: 'Custos ERP' },
       { to: '/setor-orcamentos', icon: FileSpreadsheet, label: 'Setor Orçamentos' },
       { to: '/setor-licitacao', icon: Briefcase,  label: 'Licitações' },
