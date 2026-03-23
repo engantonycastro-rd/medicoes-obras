@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import {
   FileSpreadsheet, Clock, Eye, CheckCircle2, Download, RefreshCw, Play, X,
   Loader2, User, Calendar, Send, Plus, Minus, Edit3, Trash2, TrendingDown,
-  TrendingUp, BarChart3, FileDown, Filter, Scissors, RotateCcw,
+  TrendingUp, BarChart3, FileDown, Filter, Scissors, RotateCcw, Forward,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ExcelJS from 'exceljs'
@@ -61,6 +61,12 @@ export function OrcamentosSetorPage() {
   const [relDataInicio, setRelDataInicio] = useState(''); const [relDataFim, setRelDataFim] = useState('')
   const [relOrcFiltro, setRelOrcFiltro] = useState('todos')
 
+  // Encaminhar revisão
+  const [encaminhandoId, setEncaminhandoId] = useState<string | null>(null)
+  const [encaminharPara, setEncaminharPara] = useState('')
+  const [encaminharObs, setEncaminharObs] = useState('')
+  const [membrosSetor, setMembrosSetor] = useState<{ id: string; nome: string }[]>([])
+
   useEffect(() => { fetchAll() }, [])
 
   async function fetchAll() {
@@ -74,6 +80,9 @@ export function OrcamentosSetorPage() {
         if (pData) { const m: Record<string, Perfil> = {}; pData.forEach((p: any) => { m[p.id] = p }); setPerfis(m) }
       }
     }
+    // Busca membros do setor (ADMIN + ORCAMENTISTA) para encaminhamento
+    const { data: mData } = await supabase.from('perfis').select('id, nome').in('role', ['ADMIN', 'ORCAMENTISTA', 'SUPERADMIN']).eq('ativo', true)
+    if (mData) setMembrosSetor(mData.filter((m: any) => m.id !== perfilAtual?.id) as { id: string; nome: string }[])
     setLoading(false)
   }
 
@@ -82,6 +91,29 @@ export function OrcamentosSetorPage() {
     if (error) { toast.error(error.message); return }
     try { await supabase.rpc('criar_notificacao', { p_user_id: orc.solicitante_id, p_tipo: 'info', p_titulo: `Orçamento em revisão: ${orc.titulo}`, p_mensagem: `${perfilAtual!.nome || 'Setor de orçamentos'} iniciou a revisão.`, p_link: '/orcamentos' }) } catch {}
     toast.success('Em revisão!'); fetchAll()
+  }
+
+  async function encaminharRevisao() {
+    if (!encaminhandoId || !encaminharPara) { toast.error('Selecione um membro'); return }
+    const orc = orcamentos.find(o => o.id === encaminhandoId)
+    if (!orc) return
+    const { error } = await supabase.from('orcamentos_revisao').update({
+      revisor_id: encaminharPara,
+      data_inicio_revisao: new Date().toISOString(),
+    }).eq('id', encaminhandoId)
+    if (error) { toast.error(error.message); return }
+    const destNome = membrosSetor.find(m => m.id === encaminharPara)?.nome || 'Membro'
+    try {
+      await supabase.rpc('criar_notificacao', {
+        p_user_id: encaminharPara, p_tipo: 'info',
+        p_titulo: `Revisão encaminhada: ${orc.titulo}`,
+        p_mensagem: `${perfilAtual!.nome || 'Colega'} encaminhou esta revisão para você.${encaminharObs ? ' Obs: ' + encaminharObs : ''}`,
+        p_link: '/setor-orcamentos',
+      })
+    } catch {}
+    toast.success(`Encaminhado para ${destNome}!`)
+    setEncaminhandoId(null); setEncaminharPara(''); setEncaminharObs('')
+    fetchAll()
   }
 
   async function handleArquivoRevisado(file: File) {
@@ -606,8 +638,16 @@ export function OrcamentosSetorPage() {
                           <button onClick={() => pegarParaRevisao(orc)} className="flex items-center gap-1.5 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg"><Play size={12}/> Pegar</button>
                         )}
                         {orc.status === 'EM_REVISAO' && meuRevisor && (
-                          <button onClick={() => { setConcluindoId(orc.id); setCObs(''); setCArquivo(null); setCComparativo(['']); setAutoComp(null); setCValorOrig(orc.valor_original > 0 ? String(orc.valor_original) : ''); setCValorRev(orc.valor_revisado > 0 ? String(orc.valor_revisado) : '') }}
-                            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg"><CheckCircle2 size={12}/> Concluir</button>
+                          <>
+                            <button onClick={() => { setEncaminhandoId(orc.id); setEncaminharPara(''); setEncaminharObs('') }}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-lg"><Forward size={12}/> Encaminhar</button>
+                            <button onClick={() => { setConcluindoId(orc.id); setCObs(''); setCArquivo(null); setCComparativo(['']); setAutoComp(null); setCValorOrig(orc.valor_original > 0 ? String(orc.valor_original) : ''); setCValorRev(orc.valor_revisado > 0 ? String(orc.valor_revisado) : '') }}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg"><CheckCircle2 size={12}/> Concluir</button>
+                          </>
+                        )}
+                        {orc.status === 'EM_REVISAO' && !meuRevisor && (perfilAtual?.role === 'ADMIN' || perfilAtual?.role === 'SUPERADMIN') && (
+                          <button onClick={() => { setEncaminhandoId(orc.id); setEncaminharPara(''); setEncaminharObs('') }}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-lg"><Forward size={12}/> Redirecionar</button>
                         )}
                         {orc.status === 'CONCLUIDO' && (
                           <button onClick={() => reabrirRevisao(orc)}
@@ -698,6 +738,45 @@ export function OrcamentosSetorPage() {
               <button onClick={concluirRevisao} disabled={enviando} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-sm disabled:opacity-50">
                 {enviando ? <Loader2 size={14} className="animate-spin"/> : <Send size={14}/>} Entregar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ MODAL ENCAMINHAR ═══ */}
+      {encaminhandoId && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setEncaminhandoId(null)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-slate-100 dark:border-slate-700">
+              <h2 className="font-bold text-slate-800 dark:text-white flex items-center gap-2"><Forward size={18} className="text-amber-500"/> Encaminhar Revisão</h2>
+              <p className="text-xs text-slate-500 mt-1">{orcamentos.find(o => o.id === encaminhandoId)?.titulo}</p>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">Encaminhar para *</label>
+                <select value={encaminharPara} onChange={e => setEncaminharPara(e.target.value)}
+                  className="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-sm">
+                  <option value="">— Selecione um membro —</option>
+                  {membrosSetor.filter(m => {
+                    const orc = orcamentos.find(o => o.id === encaminhandoId)
+                    return m.id !== orc?.revisor_id
+                  }).map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 block mb-1">Observação (opcional)</label>
+                <textarea value={encaminharObs} onChange={e => setEncaminharObs(e.target.value)}
+                  placeholder="Ex: Não consegui revisar a tempo, favor dar continuidade..."
+                  rows={3} className="w-full border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg px-3 py-2 text-sm resize-none"/>
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setEncaminhandoId(null)}
+                  className="flex-1 px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">Cancelar</button>
+                <button onClick={encaminharRevisao} disabled={!encaminharPara}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold disabled:opacity-40">
+                  <Forward size={14}/> Encaminhar
+                </button>
+              </div>
             </div>
           </div>
         </div>
