@@ -11,8 +11,7 @@ interface Props { contratoId: string; obra?: Obra | null; onClose: () => void; o
 
 interface FormData {
   nome_obra: string; local_obra: string; numero_contrato: string; orgao_subdivisao: string
-  desconto_percentual: number; bdi_percentual: number; data_base_planilha: string
-  prazo_execucao_dias: number; status: Obra['status']; centro_custo: string
+  status: Obra['status']; centro_custo: string
 }
 
 interface PerfilResumo { id: string; nome: string; role: string }
@@ -23,8 +22,7 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     defaultValues: {
       nome_obra: '', local_obra: '', numero_contrato: '', orgao_subdivisao: '',
-      desconto_percentual: 0, bdi_percentual: 25, data_base_planilha: '',
-      prazo_execucao_dias: 120, status: 'ATIVA', centro_custo: '',
+      status: 'ATIVA', centro_custo: '',
     }
   })
 
@@ -40,10 +38,6 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
         nome_obra: obra.nome_obra, local_obra: obra.local_obra,
         numero_contrato: obra.numero_contrato || '',
         orgao_subdivisao: obra.orgao_subdivisao || '',
-        desconto_percentual: obra.desconto_percentual * 100,
-        bdi_percentual: obra.bdi_percentual * 100,
-        data_base_planilha: obra.data_base_planilha || '',
-        prazo_execucao_dias: obra.prazo_execucao_dias || 120,
         status: obra.status,
         centro_custo: obra.centro_custo || '',
       })
@@ -64,10 +58,6 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
         local_obra: data.local_obra,
         numero_contrato: data.numero_contrato || null,
         orgao_subdivisao: data.orgao_subdivisao || null,
-        desconto_percentual: Number(data.desconto_percentual) / 100,
-        bdi_percentual: Number(data.bdi_percentual) / 100,
-        data_base_planilha: data.data_base_planilha || null,
-        prazo_execucao_dias: Number(data.prazo_execucao_dias),
         status: data.status,
         centro_custo: data.centro_custo?.trim() || null,
         engenheiro_responsavel_id: engenheiroSel || null,
@@ -114,22 +104,6 @@ export function ObraModal({ contratoId, obra, onClose, onSaved }: Props) {
             <div>
               <label className="text-xs font-semibold text-slate-600 mb-1 block">Nº do Contrato/OS</label>
               <input {...register('numero_contrato')} placeholder="Ex: 04/2025" className={field} />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-600 mb-1 block">Desconto (%)</label>
-              <input type="number" step="0.01" {...register('desconto_percentual')} className={field} />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-600 mb-1 block">BDI (%)</label>
-              <input type="number" step="0.01" {...register('bdi_percentual')} className={field} />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-600 mb-1 block">Data Base Planilha</label>
-              <input {...register('data_base_planilha')} placeholder="Ex: SINAPI 01/2025" className={field} />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-600 mb-1 block">Prazo (dias)</label>
-              <input type="number" {...register('prazo_execucao_dias')} className={field} />
             </div>
             <div>
               <label className="text-xs font-semibold text-slate-600 mb-1 block">Status</label>
