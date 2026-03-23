@@ -164,8 +164,8 @@ export function ProducaoPage() {
     const engMargens: Record<string, number[]> = {}
     for (const e of engs as any[]) engMargens[e.id] = []
     for (const [_, of_] of Object.entries(obraFin)) {
-      if (of_.fat > 0 && engMargens[of_.engId]) {
-        engMargens[of_.engId].push((1 - of_.custo / of_.fat) * 100)
+      if ((of_.fat > 0 || of_.custo > 0) && engMargens[of_.engId]) {
+        engMargens[of_.engId].push(of_.fat > 0 ? (1 - of_.custo / of_.fat) * 100 : 0)
       }
     }
 
@@ -242,8 +242,8 @@ export function ProducaoPage() {
       const engMargens: Record<string, number[]> = {}
       for (const e of engs as any[]) engMargens[e.id] = []
       for (const [_, of_] of Object.entries(obraFin)) {
-        if (of_.fat > 0 && engMargens[of_.engId]) {
-          engMargens[of_.engId].push((1 - of_.custo / of_.fat) * 100)
+        if ((of_.fat > 0 || of_.custo > 0) && engMargens[of_.engId]) {
+          engMargens[of_.engId].push(of_.fat > 0 ? (1 - of_.custo / of_.fat) * 100 : 0)
         }
       }
 

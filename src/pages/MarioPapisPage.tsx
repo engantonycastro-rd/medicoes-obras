@@ -98,10 +98,13 @@ export function MarioPapisPage() {
       // 5. Calcula margem global = média das margens individuais de cada obra
       const list = Object.values(engMap).filter(e => e.obras.length > 0)
       for (const eng of list) {
-        const obrasComMargem = eng.obras.filter(o => o.faturamento > 0)
-        if (obrasComMargem.length > 0) {
-          const somaMargens = obrasComMargem.reduce((acc, o) => acc + (1 - o.custo / o.faturamento) * 100, 0)
-          eng.margemGlobal = somaMargens / obrasComMargem.length
+        const obrasComMovimento = eng.obras.filter(o => o.faturamento > 0 || o.custo > 0)
+        if (obrasComMovimento.length > 0) {
+          const somaMargens = obrasComMovimento.reduce((acc, o) => {
+            if (o.faturamento > 0) return acc + (1 - o.custo / o.faturamento) * 100
+            return acc // sem faturamento = 0% margem (soma 0)
+          }, 0)
+          eng.margemGlobal = somaMargens / obrasComMovimento.length
         } else {
           eng.margemGlobal = 0
         }
@@ -268,8 +271,8 @@ export function MarioPapisPage() {
                                 <td className={`py-2 px-3 text-right font-bold ${lucro >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                   {obra.faturamento > 0 || obra.custo > 0 ? formatCurrency(lucro) : '—'}
                                 </td>
-                                <td className={`py-2 px-3 text-right font-bold ${margem >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                  {obra.faturamento > 0 ? `${margem.toFixed(0)}%` : '—'}
+                                <td className={`py-2 px-3 text-right font-bold ${margem > 0 ? 'text-emerald-600' : margem < 0 ? 'text-red-600' : 'text-slate-400'}`}>
+                                  {obra.faturamento > 0 || obra.custo > 0 ? `${margem.toFixed(0)}%` : '—'}
                                 </td>
                               </tr>
                             )
