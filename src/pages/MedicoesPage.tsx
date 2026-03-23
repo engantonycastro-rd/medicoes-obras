@@ -15,6 +15,7 @@ import { ModeloExportModal } from '../components/ModeloExportModal'
 import type { ModeloPlanilha } from '../lib/modeloStore'
 import { useModeloStore } from '../lib/modeloStore'
 import { importarMedicaoAnterior, MedicaoAnteriorItem } from '../utils/importMedicaoAnterior'
+import { ObraSelectorBar } from '../components/ObraSelectorBar'
 
 export function MedicoesPage() {
   const {
@@ -198,13 +199,9 @@ export function MedicoesPage() {
   if (!obraAtiva || !contratoAtivo) {
     return (
       <div className="p-8">
-        <div className="bg-primary-50 border border-primary-200 rounded-xl p-6 flex items-center gap-4">
-          <AlertCircle size={24} className="text-primary-500 shrink-0" />
-          <div>
-            <p className="font-semibold text-primary-800">Nenhuma obra selecionada</p>
-            <p className="text-sm text-primary-600 mt-1">Vá em <strong>Contratos</strong>, expanda um contrato e clique em uma obra.</p>
-          </div>
-        </div>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Medições</h1>
+        <p className="text-sm text-slate-500 mb-4">Selecione a obra para realizar a medição</p>
+        <ObraSelectorBar />
       </div>
     )
   }
@@ -213,6 +210,7 @@ export function MedicoesPage() {
 
   return (
     <div className="p-8">
+      <ObraSelectorBar />
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div>
