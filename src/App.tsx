@@ -26,7 +26,6 @@ import { FAQPage } from './pages/FAQPage'
 import { ApontamentosAdminPage } from './pages/ApontamentosAdminPage'
 import { DiarioObraPage } from './pages/DiarioObraPage'
 import { MapaObrasPage } from './pages/MapaObrasPage'
-import { SubempreiteirosPage } from './pages/SubempreiteirosPage'
 import { DashboardExecutivoPage } from './pages/DashboardExecutivoPage'
 import { RDOPage } from './pages/RDOPage'
 import { RelatorioFotograficoPage } from './pages/RelatorioFotograficoPage'
@@ -103,7 +102,7 @@ const ROTAS_POR_ROLE: Record<string, string[]> = {
   ORCAMENTISTA: ['/dashboard', '/', '/servicos', '/medicoes', '/memoria', '/setor-orcamentos', '/configuracoes', '/ajuda'],
   DIRETOR: ['/dashboard-executivo'],
   ENGENHEIRO: ['/dashboard', '/', '/servicos', '/medicoes', '/memoria', '/kanban', '/diario-obra', '/rdo', '/custos-obra', '/orcamentos', '/producao', '/mario-papis', '/mapa-obras', '/relatorio-fotos', '/configuracoes', '/ajuda'],
-  GESTOR: ['/dashboard', '/', '/servicos', '/medicoes', '/memoria', '/kanban', '/diario-obra', '/rdo', '/custos-obra', '/orcamentos', '/mapa-obras', '/relatorio-fotos', '/subempreiteiros', '/configuracoes', '/ajuda'],
+  GESTOR: ['/dashboard', '/', '/servicos', '/medicoes', '/memoria', '/kanban', '/diario-obra', '/rdo', '/custos-obra', '/orcamentos', '/mapa-obras', '/relatorio-fotos', '/configuracoes', '/ajuda'],
   ADMIN: ['*'],
   SUPERADMIN: ['*'],
   LICITANTE: ['/dashboard', '/setor-licitacao', '/configuracoes', '/ajuda'],
@@ -170,7 +169,6 @@ export default function App() {
           <Route path="ajuda"              element={<FAQPage />} />
           <Route path="apontamentos"       element={<RoleGuard path="/apontamentos"><ApontamentosAdminPage /></RoleGuard>} />
           <Route path="diario-obra"        element={<RoleGuard path="/diario-obra"><DiarioObraPage /></RoleGuard>} />
-          <Route path="subempreiteiros"    element={<RoleGuard path="/subempreiteiros"><SubempreiteirosPage /></RoleGuard>} />
           <Route path="rdo"                element={<RoleGuard path="/rdo"><RDOPage /></RoleGuard>} />
           <Route path="relatorio-fotos"    element={<RoleGuard path="/relatorio-fotos"><RelatorioFotograficoPage /></RoleGuard>} />
           <Route path="super-admin"         element={<RoleGuard path="/super-admin"><SuperAdminPage /></RoleGuard>} />

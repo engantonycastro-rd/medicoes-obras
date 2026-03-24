@@ -40,7 +40,6 @@ export const MODULO_ROTAS: Record<string, string[]> = {
   setor_orcamentos: ['/orcamentos', '/setor-orcamentos'],
   apontamento: ['/apontamentos', '/app'],
   diario_rdo: ['/diario-obra', '/rdo'],
-  subempreiteiros: ['/subempreiteiros'],
   relatorio_fotos: ['/relatorio-fotos'],
   dashboard_executivo: ['/dashboard-executivo'],
   custos_erp: ['/custos-erp', '/custos-obra'],
@@ -59,7 +58,6 @@ export const MODULO_LABELS: Record<string, string> = {
   setor_orcamentos: 'Setor de orçamentos',
   apontamento: 'Apontamento de obra (PWA)',
   diario_rdo: 'Diário de obra + RDO',
-  subempreiteiros: 'Subempreiteiros',
   relatorio_fotos: 'Relatório fotográfico',
   dashboard_executivo: 'Dashboard executivo',
   custos_erp: 'Custos ERP (TOTVS)',
@@ -75,7 +73,7 @@ export const MODULO_LABELS: Record<string, string> = {
 export const MODULOS_POR_PLANO: Record<string, string[]> = {
   CORE: ['contratos_obras', 'servicos_medicoes', 'exportacao'],
   PRO: ['planejamento', 'setor_orcamentos', 'apontamento', 'diario_rdo', 'producao', 'mario_papis', 'mapa_obras'],
-  ENTERPRISE: ['subempreiteiros', 'relatorio_fotos', 'dashboard_executivo', 'custos_erp', 'setor_licitacao'],
+  ENTERPRISE: ['relatorio_fotos', 'dashboard_executivo', 'custos_erp', 'setor_licitacao'],
   BETA: ['medicao_rapida', 'reserva_veiculos'],
 }
 
