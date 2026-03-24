@@ -10,7 +10,7 @@ import { formatCurrency, formatNumber, calcPrecoComBDI, getPrecoTotalServico, ca
 import { ObraSelectorBar } from '../components/ObraSelectorBar'
 
 export function ServicosPage() {
-  const { contratoAtivo, obraAtiva, servicos, fetchServicos, salvarServicos, atualizarObra } = useStore()
+  const { contratoAtivo, obraAtiva, servicos, fetchServicos, salvarServicos } = useStore()
   const [preview, setPreview] = useState<ServicoImportado[]>([])
   const [importing, setImporting] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -117,13 +117,9 @@ export function ServicosPage() {
     setSaving(true)
     try {
       await salvarServicos(obraAtiva.id, contratoAtivo.id, preview)
-      // Se importou COM BDI, zera o BDI da obra (preço já inclui BDI)
-      if (modoImport === 'COM_BDI') {
-        await atualizarObra(obraAtiva.id, { bdi_percentual: 0 })
-        toast.success('Orçamento salvo! BDI da obra zerado (já incluso no preço).')
-      } else {
-        toast.success('Orçamento salvo com sucesso!')
-      }
+      toast.success(modoImport === 'COM_BDI'
+        ? 'Orçamento salvo! Preços fixos da planilha (sem recálculo de BDI/desconto).'
+        : 'Orçamento salvo com sucesso!')
       setPreview([])
     } catch (err: any) {
       const msg = err?.message || 'Erro desconhecido ao salvar'
@@ -167,11 +163,11 @@ export function ServicosPage() {
   const totalFinal = lista.filter(s => !s.is_grupo).reduce((sum, s) => {
     const ptFixo = (s as any).preco_total_fixo
     if (ptFixo != null && ptFixo > 0) return sum + ptFixo
-    return sum + calcTotalServicoBDI(s.quantidade, s.preco_unitario, obraAtiva.bdi_percentual)
+    return sum + calcTotalServicoBDI(s.quantidade, s.preco_unitario, contratoAtivo.bdi_percentual)
   }, 0)
   // Se nenhum item é fixo, aplica desconto no total; se todos são fixos, já está pronto
   const temFixo = lista.some(s => (s as any).preco_total_fixo > 0)
-  const totalOrc = temFixo ? totalFinal : Math.round(totalFinal * (1 - obraAtiva.desconto_percentual) * 100 + 1e-10) / 100
+  const totalOrc = temFixo ? totalFinal : Math.round(totalFinal * (1 - contratoAtivo.desconto_percentual) * 100 + 1e-10) / 100
 
   return (
     <div className="p-8">
@@ -279,10 +275,11 @@ export function ServicosPage() {
               <tbody>
                 {lista.map((s, i) => {
                   const ptFixo = (s as any).preco_total_fixo
-                  const pb = calcPrecoComBDI(s.preco_unitario, obraAtiva.bdi_percentual)
-                  const pt = (ptFixo != null && ptFixo > 0) ? ptFixo : calcTotalServicoBDI(s.quantidade, s.preco_unitario, obraAtiva.bdi_percentual)
+                  const temFixo = ptFixo != null && ptFixo > 0
+                  const pb = temFixo ? 0 : calcPrecoComBDI(s.preco_unitario, contratoAtivo.bdi_percentual)
+                  const pt = temFixo ? ptFixo : calcTotalServicoBDI(s.quantidade, s.preco_unitario, contratoAtivo.bdi_percentual)
                   return (
-                    <tr key={i} className={s.is_grupo ? 'bg-slate-800 text-white font-semibold' : i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                    <tr key={i} className={s.is_grupo ? 'bg-slate-800 text-white font-semibold' : i % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50 dark:bg-slate-800'}>
                       <td className="px-3 py-2 font-mono text-xs">{s.item}</td>
                       <td className="px-3 py-2 text-xs text-slate-500">{s.is_grupo ? '' : s.fonte}</td>
                       <td className="px-3 py-2 text-xs text-slate-500">{s.is_grupo ? '' : s.codigo}</td>
@@ -290,9 +287,12 @@ export function ServicosPage() {
                       <td className="px-3 py-2 text-center text-xs">{s.is_grupo ? '' : s.unidade}</td>
                       <td className="px-3 py-2 text-right">{s.is_grupo ? '' : formatNumber(s.quantidade)}</td>
                       <td className="px-3 py-2 text-right">{s.is_grupo ? '' : formatCurrency(s.preco_unitario)}</td>
-                      <td className="px-3 py-2 text-right">{s.is_grupo ? '' : formatCurrency(pb)}</td>
-                      <td className="px-3 py-2 text-right">{s.is_grupo ? '' : formatCurrency(pt)}</td>
-                      <td className="px-3 py-2 text-right font-semibold">{s.is_grupo ? '' : formatCurrency(pt)}</td>
+                      <td className="px-3 py-2 text-right">{s.is_grupo ? '' : temFixo ? <span className="text-slate-300">—</span> : formatCurrency(pb)}</td>
+                      <td className="px-3 py-2 text-right">{s.is_grupo ? '' : temFixo ? <span className="text-slate-300">—</span> : formatCurrency(pt)}</td>
+                      <td className="px-3 py-2 text-right font-semibold">
+                        {s.is_grupo ? '' : formatCurrency(pt)}
+                        {temFixo && !s.is_grupo ? <span className="text-[8px] ml-1 text-emerald-500 font-bold">FIXO</span> : ''}
+                      </td>
                     </tr>
                   )
                 })}
@@ -339,7 +339,7 @@ export function ServicosPage() {
                 </div>
                 <div>
                   <p className="font-bold text-slate-800 dark:text-white text-sm">Planilha COM BDI e Desconto</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Preço unitário já inclui BDI. O sistema lê a coluna "COM BDI" e aplica apenas o desconto no total. Valor 100% fiel à planilha.</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Preço total já inclui BDI e desconto — o sistema <strong>não faz nenhum cálculo</strong>. Usa o valor direto da coluna "Preço Total".</p>
                 </div>
               </button>
             </div>
