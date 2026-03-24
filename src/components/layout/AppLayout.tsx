@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, LayoutDashboard, DollarSign, History, Moon, Sun, Wallet, FileSpreadsheet, KanbanSquare, HelpCircle, BookOpen, Shield, Briefcase, BarChart3, Camera, ScrollText, TrendingUp, Trophy, MapPin } from 'lucide-react'
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, ChevronDown, LayoutDashboard, DollarSign, History, Moon, Sun, Wallet, FileSpreadsheet, KanbanSquare, HelpCircle, BookOpen, Shield, Briefcase, BarChart3, Camera, ScrollText, TrendingUp, Trophy, MapPin } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { usePerfilStore } from '../../lib/perfilStore'
 import { useStore } from '../../lib/store'
@@ -11,12 +11,21 @@ import toast from 'react-hot-toast'
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [configOpen, setConfigOpen] = useState(false)
   const { perfilAtual, fetchPerfilAtual } = usePerfilStore()
   const { contratoAtivo, obraAtiva } = useStore()
   const { temaEscuro, setTemaEscuro, corTema } = useModeloStore()
   const { empresa } = useEmpresaStore()
   const navigate = useNavigate()
+  const location = useLocation()
   const isAdmin = perfilAtual?.role === 'ADMIN' || perfilAtual?.role === 'SUPERADMIN'
+
+  // Auto-expand config submenu when on config routes
+  useEffect(() => {
+    if (['/configuracoes', '/usuarios', '/auditoria'].includes(location.pathname)) {
+      setConfigOpen(true)
+    }
+  }, [location.pathname])
 
   useEffect(() => { fetchPerfilAtual() }, [])
 
@@ -58,7 +67,6 @@ export function AppLayout() {
       { to: '/servicos',  icon: ClipboardList,    label: 'Planilha Orçam.' },
       { to: '/medicoes',  icon: FileText,         label: 'Medições' },
       { to: '/setor-orcamentos', icon: FileSpreadsheet, label: 'Setor Orçamentos' },
-      { to: '/configuracoes', icon: Settings, label: 'Config.' },
     ],
     DIRETOR: [
       { to: '/dashboard-executivo', icon: BarChart3, label: 'Painel Executivo' },
@@ -77,7 +85,6 @@ export function AppLayout() {
       { to: '/mario-papis', icon: Trophy,          label: 'MARIO PAPIS' },
       { to: '/mapa-obras',  icon: MapPin,          label: 'Mapa de Obras' },
       { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
-      { to: '/configuracoes', icon: Settings,     label: 'Config.' },
     ],
     GESTOR: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -91,7 +98,6 @@ export function AppLayout() {
       { to: '/orcamentos', icon: FileSpreadsheet, label: 'Orçamentos' },
       { to: '/mapa-obras',  icon: MapPin,          label: 'Mapa de Obras' },
       { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
-      { to: '/configuracoes', icon: Settings,     label: 'Config.' },
     ],
     ADMIN: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -110,9 +116,6 @@ export function AppLayout() {
       { to: '/apontamentos', icon: ClipboardList, label: 'Apontamentos' },
       { to: '/setor-licitacao', icon: Briefcase, label: 'Licitações' },
       { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
-      { to: '/auditoria', icon: History,          label: 'Auditoria' },
-      { to: '/usuarios',  icon: Users,            label: 'Usuários' },
-      { to: '/configuracoes', icon: Settings,     label: 'Config.' },
     ],
     SUPERADMIN: [
       { to: '/super-admin', icon: Shield,          label: 'SuperAdmin' },
@@ -129,14 +132,10 @@ export function AppLayout() {
       { to: '/setor-licitacao', icon: Briefcase,  label: 'Licitações' },
       { to: '/apontamentos', icon: ClipboardList, label: 'Apontamentos' },
       { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
-      { to: '/auditoria', icon: History,          label: 'Auditoria' },
-      { to: '/usuarios',  icon: Users,            label: 'Usuários' },
-      { to: '/configuracoes', icon: Settings,     label: 'Config.' },
     ],
     LICITANTE: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
       { to: '/setor-licitacao', icon: Briefcase, label: 'Licitações' },
-      { to: '/configuracoes', icon: Settings,    label: 'Config.' },
     ],
   }
   const nav = navMap[role || 'ENGENHEIRO'] || navMap.ENGENHEIRO
@@ -186,6 +185,47 @@ export function AppLayout() {
               {sidebarOpen && <span className="truncate">{label}</span>}
             </NavLink>
           ))}
+
+          {/* Config expandível */}
+          <div>
+            <button onClick={() => setConfigOpen(!configOpen)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                ['/configuracoes', '/usuarios', '/auditoria'].includes(location.pathname)
+                  ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+              }`}>
+              <Settings size={18} className="shrink-0"/>
+              {sidebarOpen && <>
+                <span className="truncate flex-1 text-left">Configurações</span>
+                <ChevronDown size={14} className={`shrink-0 transition-transform ${configOpen ? '' : '-rotate-90'}`}/>
+              </>}
+            </button>
+            {configOpen && sidebarOpen && (
+              <div className="ml-5 mt-1 space-y-0.5 border-l-2 border-slate-700 pl-3">
+                <NavLink to="/configuracoes"
+                  className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                    isActive ? 'bg-primary-500/20 text-primary-400' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
+                  }`}>
+                  <Settings size={14}/> Config. Geral
+                </NavLink>
+                {isAdmin && (
+                  <NavLink to="/usuarios"
+                    className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                      isActive ? 'bg-primary-500/20 text-primary-400' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
+                    }`}>
+                    <Users size={14}/> Usuários
+                  </NavLink>
+                )}
+                {isAdmin && (
+                  <NavLink to="/auditoria"
+                    className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                      isActive ? 'bg-primary-500/20 text-primary-400' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
+                    }`}>
+                    <History size={14}/> Auditoria
+                  </NavLink>
+                )}
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* Perfil */}
