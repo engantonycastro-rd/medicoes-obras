@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, ChevronDown, LayoutDashboard, DollarSign, History, Moon, Sun, Wallet, FileSpreadsheet, KanbanSquare, HelpCircle, BookOpen, Shield, Briefcase, BarChart3, Camera, ScrollText, TrendingUp, Trophy, MapPin } from 'lucide-react'
+import { Building2, FileText, ClipboardList, Settings, LogOut, Menu, X, HardHat, Users, Crown, ChevronRight, ChevronDown, LayoutDashboard, DollarSign, History, Moon, Sun, Wallet, FileSpreadsheet, KanbanSquare, HelpCircle, BookOpen, Shield, Briefcase, BarChart3, Camera, ScrollText, TrendingUp, Trophy, MapPin, FolderOpen } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { usePerfilStore } from '../../lib/perfilStore'
 import { useStore } from '../../lib/store'
@@ -85,6 +85,7 @@ export function AppLayout() {
       { to: '/mario-papis', icon: Trophy,          label: 'MARIO PAPIS' },
       { to: '/mapa-obras',  icon: MapPin,          label: 'Mapa de Obras' },
       { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
+      { to: '/repositorio', icon: FolderOpen,    label: 'Repositório' },
     ],
     GESTOR: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -98,6 +99,7 @@ export function AppLayout() {
       { to: '/orcamentos', icon: FileSpreadsheet, label: 'Orçamentos' },
       { to: '/mapa-obras',  icon: MapPin,          label: 'Mapa de Obras' },
       { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
+      { to: '/repositorio', icon: FolderOpen,    label: 'Repositório' },
     ],
     ADMIN: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -116,6 +118,7 @@ export function AppLayout() {
       { to: '/apontamentos', icon: ClipboardList, label: 'Apontamentos' },
       { to: '/setor-licitacao', icon: Briefcase, label: 'Licitações' },
       { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
+      { to: '/repositorio', icon: FolderOpen,    label: 'Repositório' },
     ],
     SUPERADMIN: [
       { to: '/super-admin', icon: Shield,          label: 'SuperAdmin' },
@@ -132,6 +135,7 @@ export function AppLayout() {
       { to: '/setor-licitacao', icon: Briefcase,  label: 'Licitações' },
       { to: '/apontamentos', icon: ClipboardList, label: 'Apontamentos' },
       { to: '/relatorio-fotos', icon: Camera,     label: 'Rel. Fotográfico' },
+      { to: '/repositorio', icon: FolderOpen,    label: 'Repositório' },
     ],
     LICITANTE: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
