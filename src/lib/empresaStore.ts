@@ -47,6 +47,7 @@ export const MODULO_ROTAS: Record<string, string[]> = {
   producao: ['/producao'],
   mario_papis: ['/mario-papis'],
   mapa_obras: ['/mapa-obras'],
+  repositorio: ['/repositorio'],
 }
 
 // Mapeamento módulo → label para exibição
@@ -65,6 +66,7 @@ export const MODULO_LABELS: Record<string, string> = {
   producao: 'Produção do engenheiro',
   mario_papis: 'MARIO PAPIS (ranking)',
   mapa_obras: 'Mapa de obras',
+  repositorio: 'Repositório de documentos',
   medicao_rapida: 'Medição rápida',
   reserva_veiculos: 'Reserva de veículos',
 }
@@ -72,7 +74,7 @@ export const MODULO_LABELS: Record<string, string> = {
 // Módulos por tier
 export const MODULOS_POR_PLANO: Record<string, string[]> = {
   CORE: ['contratos_obras', 'servicos_medicoes', 'exportacao'],
-  PRO: ['planejamento', 'setor_orcamentos', 'apontamento', 'diario_rdo', 'producao', 'mario_papis', 'mapa_obras'],
+  PRO: ['planejamento', 'setor_orcamentos', 'apontamento', 'diario_rdo', 'producao', 'mario_papis', 'mapa_obras', 'repositorio'],
   ENTERPRISE: ['relatorio_fotos', 'dashboard_executivo', 'custos_erp', 'setor_licitacao'],
   BETA: ['medicao_rapida', 'reserva_veiculos'],
 }
