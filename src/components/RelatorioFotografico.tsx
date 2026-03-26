@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import {
-  Camera, Trash2, X, Plus, ImageOff, FileDown,
+  Camera, Trash2, X, Plus, ImageOff, FileDown, FileSpreadsheet,
   ChevronUp, ChevronDown, GripVertical, RefreshCw, Eye, EyeOff, Crop
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useStore } from '../lib/store'
 import { FotoMedicao } from '../types'
 import jsPDF from 'jspdf'
+import ExcelJS from 'exceljs'
 
 interface Props {
   medicaoId: string
@@ -263,6 +264,184 @@ async function generateRelatorioFotograficoPDF(info: ReportInfo, fotos: FotoMedi
 
   const date = new Date().toISOString().slice(0, 10)
   doc.save(`Relatorio_Fotografico_Medicao${info.medicao}_${date}.pdf`)
+}
+
+// ─── Excel Generator ─────────────────────────────────────────────────────────
+
+async function generateRelatorioFotograficoExcel(info: ReportInfo, fotos: FotoMedicao[]) {
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet('Relatório Fotográfico', {
+    pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1 },
+    properties: { defaultColWidth: 14 },
+  })
+
+  // Setup columns (A-H for 2 photo columns with captions)
+  ws.columns = [
+    { width: 3 }, { width: 18 }, { width: 18 }, { width: 3 },
+    { width: 3 }, { width: 18 }, { width: 18 }, { width: 3 },
+  ]
+
+  const borderThin: Partial<ExcelJS.Borders> = {
+    top: { style: 'thin' }, bottom: { style: 'thin' },
+    left: { style: 'thin' }, right: { style: 'thin' },
+  }
+  const fontBold = (size: number, color = '000000'): Partial<ExcelJS.Font> => ({ bold: true, size, color: { argb: 'FF' + color } })
+  const fontNormal = (size: number, color = '333333'): Partial<ExcelJS.Font> => ({ size, color: { argb: 'FF' + color } })
+  const centerAlign: Partial<ExcelJS.Alignment> = { horizontal: 'center', vertical: 'middle', wrapText: true }
+  const leftAlign: Partial<ExcelJS.Alignment> = { horizontal: 'left', vertical: 'middle', wrapText: true }
+
+  let row = 1
+
+  // ── Company header (rows 1-4) ──
+  ws.mergeCells(row, 1, row + 3, 2) // Logo area
+  const logoCell = ws.getCell(row, 1)
+  logoCell.value = 'RD\nCONSTRUTORA'
+  logoCell.font = fontBold(14, 'FFFFFF')
+  logoCell.alignment = centerAlign
+  logoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCF4312' } }
+  logoCell.border = borderThin
+
+  ws.mergeCells(row, 3, row + 3, 8) // Company info
+  const compCell = ws.getCell(row, 3)
+  compCell.value = 'RD SOLUÇÕES LTDA\nCNPJ: 43.357.757/0001-40\nRUA BELA VISTA, 874, JARDINS, SÃO GONÇALO DO AMARANTE/RN – CEP: 59293-576\nemail: rd_solucoes@outlook.com / tel.: (84) 99641-6124'
+  compCell.font = fontNormal(9)
+  compCell.alignment = centerAlign
+  compCell.border = borderThin
+  ws.getRow(row).height = 16; ws.getRow(row + 1).height = 16
+  ws.getRow(row + 2).height = 16; ws.getRow(row + 3).height = 16
+  row += 4
+
+  // ── Info table: OBRA | LOCAL ──
+  ws.mergeCells(row, 1, row, 1)
+  ws.getCell(row, 1).value = 'OBRA:'
+  ws.getCell(row, 1).font = fontBold(8)
+  ws.getCell(row, 1).border = borderThin; ws.getCell(row, 1).alignment = leftAlign
+  ws.mergeCells(row, 2, row, 5)
+  ws.getCell(row, 2).value = info.obra
+  ws.getCell(row, 2).font = fontNormal(8)
+  ws.getCell(row, 2).border = borderThin; ws.getCell(row, 2).alignment = leftAlign
+  ws.mergeCells(row, 6, row, 6)
+  ws.getCell(row, 6).value = 'LOCAL:'
+  ws.getCell(row, 6).font = fontBold(8)
+  ws.getCell(row, 6).border = borderThin; ws.getCell(row, 6).alignment = leftAlign
+  ws.mergeCells(row, 7, row, 8)
+  ws.getCell(row, 7).value = info.local
+  ws.getCell(row, 7).font = fontNormal(8)
+  ws.getCell(row, 7).border = borderThin; ws.getCell(row, 7).alignment = leftAlign
+  ws.getRow(row).height = 18
+  row++
+
+  // ── Info table: MEDIÇÃO | EMPRESA EXECUTORA | DATA ──
+  ws.getCell(row, 1).value = 'MEDIÇÃO:'
+  ws.getCell(row, 1).font = fontBold(8); ws.getCell(row, 1).border = borderThin; ws.getCell(row, 1).alignment = leftAlign
+  ws.getCell(row, 2).value = info.medicao
+  ws.getCell(row, 2).font = fontNormal(8); ws.getCell(row, 2).border = borderThin; ws.getCell(row, 2).alignment = leftAlign
+  ws.mergeCells(row, 3, row, 3)
+  ws.getCell(row, 3).value = 'EMPRESA EXECUTORA'
+  ws.getCell(row, 3).font = fontBold(8); ws.getCell(row, 3).border = borderThin; ws.getCell(row, 3).alignment = leftAlign
+  ws.mergeCells(row, 4, row, 5)
+  ws.getCell(row, 4).value = 'RD SOLUÇÕES LTDA'
+  ws.getCell(row, 4).font = fontNormal(8); ws.getCell(row, 4).border = borderThin; ws.getCell(row, 4).alignment = leftAlign
+  ws.getCell(row, 6).value = 'DATA:'
+  ws.getCell(row, 6).font = fontBold(8); ws.getCell(row, 6).border = borderThin; ws.getCell(row, 6).alignment = leftAlign
+  ws.mergeCells(row, 7, row, 8)
+  ws.getCell(row, 7).value = info.data
+  ws.getCell(row, 7).font = fontNormal(8); ws.getCell(row, 7).border = borderThin; ws.getCell(row, 7).alignment = leftAlign
+  ws.getRow(row).height = 18
+  row++
+
+  // ── Orange section title ──
+  ws.mergeCells(row, 1, row, 8)
+  const titleCell = ws.getCell(row, 1)
+  titleCell.value = 'REGISTRO FOTOGRÁFICO DOS SERVIÇOS EXECUTADOS:'
+  titleCell.font = fontBold(9, 'FFFFFF')
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8500A' } }
+  titleCell.alignment = centerAlign
+  titleCell.border = borderThin
+  ws.getRow(row).height = 22
+  row++
+
+  // ── Photos grid (2 per row) ──
+  const photoHeight = 220 // pixels → row height
+  const captionHeight = 24
+
+  for (let i = 0; i < fotos.length; i += 2) {
+    // Photo row
+    ws.getRow(row).height = photoHeight * 0.75
+
+    // Left photo
+    const foto1 = fotos[i]
+    try {
+      const base64_1 = foto1.base64.includes(',') ? foto1.base64.split(',')[1] : foto1.base64
+      const imgId1 = wb.addImage({ base64: base64_1, extension: 'jpeg' })
+      ws.addImage(imgId1, {
+        tl: { col: 0.1, row: row - 1 + 0.05 } as any,
+        br: { col: 3.9, row: row - 1 + 0.95 } as any,
+        editAs: 'oneCell',
+      })
+    } catch {}
+
+    // Right photo (if exists)
+    if (i + 1 < fotos.length) {
+      const foto2 = fotos[i + 1]
+      try {
+        const base64_2 = foto2.base64.includes(',') ? foto2.base64.split(',')[1] : foto2.base64
+        const imgId2 = wb.addImage({ base64: base64_2, extension: 'jpeg' })
+        ws.addImage(imgId2, {
+          tl: { col: 4.1, row: row - 1 + 0.05 } as any,
+          br: { col: 7.9, row: row - 1 + 0.95 } as any,
+          editAs: 'oneCell',
+        })
+      } catch {}
+    }
+
+    // Gray background for photo cells
+    for (let c = 1; c <= 8; c++) {
+      ws.getCell(row, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F5F5' } }
+      ws.getCell(row, c).border = borderThin
+    }
+    row++
+
+    // Caption row
+    ws.getRow(row).height = captionHeight
+    ws.mergeCells(row, 1, row, 4)
+    const cap1 = ws.getCell(row, 1)
+    cap1.value = foto1.legenda ? `Figura ${i + 1}: ${foto1.legenda}` : `Figura ${i + 1}`
+    cap1.font = fontNormal(7, '555555')
+    cap1.alignment = centerAlign
+    cap1.border = borderThin
+
+    ws.mergeCells(row, 5, row, 8)
+    const cap2 = ws.getCell(row, 5)
+    if (i + 1 < fotos.length) {
+      const foto2 = fotos[i + 1]
+      cap2.value = foto2.legenda ? `Figura ${i + 2}: ${foto2.legenda}` : `Figura ${i + 2}`
+    } else {
+      cap2.value = ''
+    }
+    cap2.font = fontNormal(7, '555555')
+    cap2.alignment = centerAlign
+    cap2.border = borderThin
+    row++
+  }
+
+  // ── Footer ──
+  row++
+  ws.mergeCells(row, 1, row, 8)
+  ws.getCell(row, 1).value = 'RD Soluções Ltda – CNPJ 43.357.757/0001-40'
+  ws.getCell(row, 1).font = fontNormal(7, '999999')
+  ws.getCell(row, 1).alignment = centerAlign
+
+  // Download
+  const buffer = await wb.xlsx.writeBuffer()
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  a.download = `Relatorio_Fotografico_Medicao${info.medicao}_${date}.xlsx`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 // ─── ImageCropper Modal ───────────────────────────────────────────────────────
@@ -632,6 +811,7 @@ export function RelatorioFotografico({ medicaoId, isAprovada }: Props) {
   const { fotos, fetchFotos, adicionarFoto, atualizarFoto, deletarFoto, contratoAtivo, obraAtiva, medicaoAtiva } = useStore()
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [generatingXlsx, setGeneratingXlsx] = useState(false)
   const [preview, setPreview] = useState<{ base64: string; legenda: string } | null>(null)
   const [mostraPrevia, setMostraPrevia] = useState(false)
   const [dragging, setDragging] = useState<string | null>(null)
@@ -790,6 +970,26 @@ export function RelatorioFotografico({ medicaoId, isAprovada }: Props) {
     }
   }
 
+  async function handleGerarExcel() {
+    if (localFotos.length === 0) { toast.error('Adicione ao menos uma foto!'); return }
+    setGeneratingXlsx(true)
+    try {
+      const info: ReportInfo = {
+        obra: obraAtiva?.nome_obra || contratoAtivo?.nome_obra || 'Obra',
+        local: obraAtiva?.local_obra || contratoAtivo?.local_obra || '',
+        medicao: medicaoAtiva?.numero?.toString() || '1',
+        data: new Date().toLocaleDateString('pt-BR'),
+      }
+      await generateRelatorioFotograficoExcel(info, localFotos)
+      toast.success('Relatório Excel gerado!')
+    } catch (e) {
+      console.error(e)
+      toast.error('Erro ao gerar Excel')
+    } finally {
+      setGeneratingXlsx(false)
+    }
+  }
+
   return (
     <div className="bg-primary-50 border border-primary-200 rounded-xl p-5 mb-4">
       {/* Header */}
@@ -828,6 +1028,20 @@ export function RelatorioFotografico({ medicaoId, isAprovada }: Props) {
               {generating
                 ? <><RefreshCw size={13} className="animate-spin"/> Gerando…</>
                 : <><FileDown size={13}/> Gerar PDF</>
+              }
+            </button>
+          )}
+
+          {/* Gerar Excel */}
+          {localFotos.length > 0 && (
+            <button
+              onClick={handleGerarExcel}
+              disabled={generatingXlsx}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg transition-all disabled:opacity-50"
+            >
+              {generatingXlsx
+                ? <><RefreshCw size={13} className="animate-spin"/> Gerando…</>
+                : <><FileSpreadsheet size={13}/> Gerar Excel</>
               }
             </button>
           )}

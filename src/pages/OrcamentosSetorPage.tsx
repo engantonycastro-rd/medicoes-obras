@@ -29,6 +29,7 @@ interface OrcRevisao {
   valor_original: number; valor_revisado: number; diferenca_valor: number; diferenca_percentual: number
   qtd_alteracoes: number
   arquivo_fiscal_url: string | null; arquivo_fiscal_nome: string | null
+  relatorio_revisao_url: string | null; relatorio_revisao_nome: string | null
   valor_aprovado_fiscal: number; valor_glosado: number; glosas_resumo: any[]
   obs_fiscal: string | null; data_retorno_fiscal: string | null
 }
@@ -51,6 +52,7 @@ export function OrcamentosSetorPage() {
 
   const [concluindoId, setConcluindoId] = useState<string | null>(null)
   const [cObs, setCObs] = useState(''); const [cArquivo, setCArquivo] = useState<File | null>(null)
+  const [cRelatorio, setCRelatorio] = useState<File | null>(null)
   const [cComparativo, setCComparativo] = useState<string[]>([''])
   const [cValorOrig, setCValorOrig] = useState(''); const [cValorRev, setCValorRev] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -145,22 +147,35 @@ export function OrcamentosSetorPage() {
       const path = `revisados/${Date.now()}_${sanitizeFileName(cArquivo.name)}`
       const { error: upErr } = await supabase.storage.from('orcamentos').upload(path, cArquivo)
       if (upErr) throw upErr
+
+      // Upload do relatório PDF (opcional)
+      let relatorioUrl: string | null = null
+      let relatorioNome: string | null = null
+      if (cRelatorio) {
+        const relPath = `relatorios/${Date.now()}_${sanitizeFileName(cRelatorio.name)}`
+        const { error: relErr } = await supabase.storage.from('orcamentos').upload(relPath, cRelatorio)
+        if (relErr) { console.warn('Erro ao enviar relatório:', relErr); toast('Relatório não enviado', { icon: '⚠️' }) }
+        else { relatorioUrl = relPath; relatorioNome = cRelatorio.name }
+      }
+
       const comparativo = cComparativo.filter(c => c.trim()).map(c => ({ descricao: c.trim() }))
       const parseBRL = (s: string) => Number(s.replace(/[^\d.,]/g, '').replace(/\./g, '').replace(',', '.')) || 0
       const vO = parseBRL(cValorOrig)
       const vR = parseBRL(cValorRev)
       const diff = vR - vO; const diffPct = vO > 0 ? (diff / vO) * 100 : 0
-      const { error } = await supabase.from('orcamentos_revisao').update({
+      const updatePayload: any = {
         status: 'CONCLUIDO', data_conclusao: new Date().toISOString(),
         arquivo_revisado_url: path, arquivo_revisado_nome: cArquivo.name, arquivo_revisado_size: cArquivo.size,
         observacoes_revisor: cObs || null, comparativo_resumo: comparativo,
         valor_original: vO, valor_revisado: vR, diferenca_valor: diff, diferenca_percentual: diffPct,
         qtd_alteracoes: comparativo.length,
-      }).eq('id', concluindoId)
+      }
+      if (relatorioUrl) { updatePayload.relatorio_revisao_url = relatorioUrl; updatePayload.relatorio_revisao_nome = relatorioNome }
+      const { error } = await supabase.from('orcamentos_revisao').update(updatePayload).eq('id', concluindoId)
       if (error) throw error
       try { await supabase.rpc('criar_notificacao', { p_user_id: orc.solicitante_id, p_tipo: 'sucesso', p_titulo: `Revisão concluída: ${orc.titulo}`, p_mensagem: `${comparativo.length} alteração(ões). ${vO > 0 ? `Valor: ${formatCurrency(vO)} → ${formatCurrency(vR)} (${diffPct > 0 ? '+' : ''}${diffPct.toFixed(1)}%)` : ''}`, p_link: '/orcamentos' }) } catch {}
       toast.success('Revisão concluída!')
-      setConcluindoId(null); setCObs(''); setCArquivo(null); setCComparativo(['']); setAutoComp(null); setCValorOrig(''); setCValorRev('')
+      setConcluindoId(null); setCObs(''); setCArquivo(null); setCRelatorio(null); setCComparativo(['']); setAutoComp(null); setCValorOrig(''); setCValorRev('')
       fetchAll()
     } catch (err: any) { toast.error(err.message) }
     setEnviando(false)
@@ -173,11 +188,15 @@ export function OrcamentosSetorPage() {
       if (orc.arquivo_revisado_url) {
         await supabase.storage.from('orcamentos').remove([orc.arquivo_revisado_url])
       }
+      if (orc.relatorio_revisao_url) {
+        await supabase.storage.from('orcamentos').remove([orc.relatorio_revisao_url])
+      }
       // Mantém valor_original (não muda), zera apenas revisado/comparativo
       const { error } = await supabase.from('orcamentos_revisao').update({
         status: 'EM_REVISAO',
         data_conclusao: null,
         arquivo_revisado_url: null, arquivo_revisado_nome: null, arquivo_revisado_size: null,
+        relatorio_revisao_url: null, relatorio_revisao_nome: null,
         observacoes_revisor: null, comparativo_resumo: [],
         valor_revisado: 0, diferenca_valor: 0, diferenca_percentual: 0, qtd_alteracoes: 0,
       }).eq('id', orc.id)
@@ -635,6 +654,9 @@ export function OrcamentosSetorPage() {
                         {orc.arquivo_fiscal_url && (
                           <button onClick={() => downloadArquivo(orc.arquivo_fiscal_url!, orc.arquivo_fiscal_nome || 'fiscal')} className="p-2 rounded-lg text-purple-400 hover:text-purple-600 hover:bg-purple-50" title="Versão Fiscal"><Download size={16}/></button>
                         )}
+                        {orc.relatorio_revisao_url && (
+                          <button onClick={() => downloadArquivo(orc.relatorio_revisao_url!, orc.relatorio_revisao_nome || 'relatorio.pdf')} className="p-2 rounded-lg text-amber-400 hover:text-amber-600 hover:bg-amber-50" title="Relatório PDF"><FileDown size={16}/></button>
+                        )}
                         {orc.status === 'PENDENTE' && (
                           <button onClick={() => pegarParaRevisao(orc)} className="flex items-center gap-1.5 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg"><Play size={12}/> Pegar</button>
                         )}
@@ -642,7 +664,7 @@ export function OrcamentosSetorPage() {
                           <>
                             <button onClick={() => { setEncaminhandoId(orc.id); setEncaminharPara(''); setEncaminharObs('') }}
                               className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-lg"><Forward size={12}/> Encaminhar</button>
-                            <button onClick={() => { setConcluindoId(orc.id); setCObs(''); setCArquivo(null); setCComparativo(['']); setAutoComp(null); setCValorOrig(orc.valor_original > 0 ? String(orc.valor_original) : ''); setCValorRev(orc.valor_revisado > 0 ? String(orc.valor_revisado) : '') }}
+                            <button onClick={() => { setConcluindoId(orc.id); setCObs(''); setCArquivo(null); setCRelatorio(null); setCComparativo(['']); setAutoComp(null); setCValorOrig(orc.valor_original > 0 ? String(orc.valor_original) : ''); setCValorRev(orc.valor_revisado > 0 ? String(orc.valor_revisado) : '') }}
                               className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg"><CheckCircle2 size={12}/> Concluir</button>
                           </>
                         )}
@@ -680,6 +702,11 @@ export function OrcamentosSetorPage() {
                 <input type="file" accept=".xlsx,.xls,.pdf,.ods" onChange={e => { const f = e.target.files?.[0]; if (f) handleArquivoRevisado(f) }} className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-white"/>
                 {cArquivo && <p className="text-[10px] text-slate-500 mt-1">{cArquivo.name} ({(cArquivo.size/1024).toFixed(0)} KB)</p>}
                 {comparando && <div className="flex items-center gap-2 mt-2 text-xs text-blue-600"><Loader2 size={12} className="animate-spin"/> Comparando...</div>}
+              </div>
+
+              <div><label className="text-xs font-semibold text-slate-600 block mb-1">Relatório da revisão (PDF) <span className="font-normal text-slate-400">— opcional</span></label>
+                <input type="file" accept=".pdf" onChange={e => { const f = e.target.files?.[0]; if (f) setCRelatorio(f) }} className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-white"/>
+                {cRelatorio && <p className="text-[10px] text-slate-500 mt-1">{cRelatorio.name} ({(cRelatorio.size/1024).toFixed(0)} KB)</p>}
               </div>
 
               {/* Valores do orçamento */}
