@@ -146,8 +146,9 @@ export function OrcamentosSetorPage() {
       const { error: upErr } = await supabase.storage.from('orcamentos').upload(path, cArquivo)
       if (upErr) throw upErr
       const comparativo = cComparativo.filter(c => c.trim()).map(c => ({ descricao: c.trim() }))
-      const vO = Number(cValorOrig.replace(/[^\d.,]/g, '').replace(',', '.')) || 0
-      const vR = Number(cValorRev.replace(/[^\d.,]/g, '').replace(',', '.')) || 0
+      const parseBRL = (s: string) => Number(s.replace(/[^\d.,]/g, '').replace(/\./g, '').replace(',', '.')) || 0
+      const vO = parseBRL(cValorOrig)
+      const vR = parseBRL(cValorRev)
       const diff = vR - vO; const diffPct = vO > 0 ? (diff / vO) * 100 : 0
       const { error } = await supabase.from('orcamentos_revisao').update({
         status: 'CONCLUIDO', data_conclusao: new Date().toISOString(),
@@ -693,8 +694,9 @@ export function OrcamentosSetorPage() {
                   </div>
                 </div>
                 {cValorOrig && cValorRev && (() => {
-                  const vO = Number(cValorOrig.replace(/[^\d.,]/g, '').replace(',', '.')) || 0
-                  const vR = Number(cValorRev.replace(/[^\d.,]/g, '').replace(',', '.')) || 0
+                  const parseBRL = (s: string) => Number(s.replace(/[^\d.,]/g, '').replace(/\./g, '').replace(',', '.')) || 0
+                  const vO = parseBRL(cValorOrig)
+                  const vR = parseBRL(cValorRev)
                   const d = vR - vO; const p = vO > 0 ? (d / vO * 100) : 0
                   return d !== 0 ? (
                     <p className={`text-xs font-bold mt-2 ${d < 0 ? 'text-emerald-600' : 'text-red-600'}`}>
