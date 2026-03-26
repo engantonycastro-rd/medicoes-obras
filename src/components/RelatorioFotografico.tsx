@@ -271,166 +271,148 @@ async function generateRelatorioFotograficoPDF(info: ReportInfo, fotos: FotoMedi
 async function generateRelatorioFotograficoExcel(info: ReportInfo, fotos: FotoMedicao[]) {
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Relatório Fotográfico', {
-    pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1 },
-    properties: { defaultColWidth: 14 },
+    pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, margins: { left: 0.3, right: 0.3, top: 0.3, bottom: 0.3, header: 0, footer: 0 } },
+    views: [{ showGridLines: false }],
   })
 
-  // Setup columns (A-H for 2 photo columns with captions)
+  // 6 columns: A=logo(12) B=info(28) C=info(20) D=info(12) E=info(20) F=info(12)
   ws.columns = [
-    { width: 3 }, { width: 18 }, { width: 18 }, { width: 3 },
-    { width: 3 }, { width: 18 }, { width: 18 }, { width: 3 },
+    { width: 12 }, { width: 28 }, { width: 20 }, { width: 12 }, { width: 20 }, { width: 12 },
   ]
 
-  const borderThin: Partial<ExcelJS.Borders> = {
-    top: { style: 'thin' }, bottom: { style: 'thin' },
-    left: { style: 'thin' }, right: { style: 'thin' },
-  }
-  const fontBold = (size: number, color = '000000'): Partial<ExcelJS.Font> => ({ bold: true, size, color: { argb: 'FF' + color } })
-  const fontNormal = (size: number, color = '333333'): Partial<ExcelJS.Font> => ({ size, color: { argb: 'FF' + color } })
-  const centerAlign: Partial<ExcelJS.Alignment> = { horizontal: 'center', vertical: 'middle', wrapText: true }
-  const leftAlign: Partial<ExcelJS.Alignment> = { horizontal: 'left', vertical: 'middle', wrapText: true }
+  const bdrOut: Partial<ExcelJS.Borders> = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } }
+  const bdrL: Partial<ExcelJS.Borders> = { left: { style: 'thin' }, top: { style: 'thin' }, bottom: { style: 'thin' } }
+  const bdrR: Partial<ExcelJS.Borders> = { right: { style: 'thin' }, top: { style: 'thin' }, bottom: { style: 'thin' } }
+  const bdrM: Partial<ExcelJS.Borders> = { top: { style: 'thin' }, bottom: { style: 'thin' } }
+  const bdrNone: Partial<ExcelJS.Borders> = {}
+  const fontB = (sz: number, c = '000000'): Partial<ExcelJS.Font> => ({ name: 'Arial', bold: true, size: sz, color: { argb: 'FF' + c } })
+  const fontN = (sz: number, c = '333333'): Partial<ExcelJS.Font> => ({ name: 'Arial', size: sz, color: { argb: 'FF' + c } })
+  const cAlign: Partial<ExcelJS.Alignment> = { horizontal: 'center', vertical: 'middle', wrapText: true }
+  const lAlign: Partial<ExcelJS.Alignment> = { horizontal: 'left', vertical: 'middle', wrapText: true }
 
-  let row = 1
+  let r = 1
 
-  // ── Company header (rows 1-4) ──
-  ws.mergeCells(row, 1, row + 3, 2) // Logo area
-  const logoCell = ws.getCell(row, 1)
-  logoCell.value = 'RD\nCONSTRUTORA'
-  logoCell.font = fontBold(14, 'FFFFFF')
-  logoCell.alignment = centerAlign
-  logoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCF4312' } }
-  logoCell.border = borderThin
+  // ── LOGO (A1:A3) ──
+  ws.mergeCells(r, 1, r + 2, 1)
+  const logo = ws.getCell(r, 1)
+  logo.value = 'RD\nCONSTRUTORA'
+  logo.font = fontB(13, 'FFFFFF')
+  logo.alignment = cAlign
+  logo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCF4312' } }
+  logo.border = bdrOut
 
-  ws.mergeCells(row, 3, row + 3, 8) // Company info
-  const compCell = ws.getCell(row, 3)
-  compCell.value = 'RD SOLUÇÕES LTDA\nCNPJ: 43.357.757/0001-40\nRUA BELA VISTA, 874, JARDINS, SÃO GONÇALO DO AMARANTE/RN – CEP: 59293-576\nemail: rd_solucoes@outlook.com / tel.: (84) 99641-6124'
-  compCell.font = fontNormal(9)
-  compCell.alignment = centerAlign
-  compCell.border = borderThin
-  ws.getRow(row).height = 16; ws.getRow(row + 1).height = 16
-  ws.getRow(row + 2).height = 16; ws.getRow(row + 3).height = 16
-  row += 4
+  // ── COMPANY INFO (B1:F3) ──
+  ws.mergeCells(r, 2, r + 2, 6)
+  const comp = ws.getCell(r, 2)
+  comp.value = 'RD SOLUÇÕES LTDA\nCNPJ: 43.357.757/0001-40\nRUA BELA VISTA, 874, JARDINS, SÃO GONÇALO DO AMARANTE/RN – CEP: 59293-576\nemail: rd_solucoes@outlook.com / tel.: (84) 99641-6124'
+  comp.font = fontN(9)
+  comp.alignment = cAlign
+  comp.border = bdrOut
+  ws.getRow(r).height = 18; ws.getRow(r + 1).height = 18; ws.getRow(r + 2).height = 18
+  r += 3
 
-  // ── Info table: OBRA | LOCAL ──
-  ws.mergeCells(row, 1, row, 1)
-  ws.getCell(row, 1).value = 'OBRA:'
-  ws.getCell(row, 1).font = fontBold(8)
-  ws.getCell(row, 1).border = borderThin; ws.getCell(row, 1).alignment = leftAlign
-  ws.mergeCells(row, 2, row, 5)
-  ws.getCell(row, 2).value = info.obra
-  ws.getCell(row, 2).font = fontNormal(8)
-  ws.getCell(row, 2).border = borderThin; ws.getCell(row, 2).alignment = leftAlign
-  ws.mergeCells(row, 6, row, 6)
-  ws.getCell(row, 6).value = 'LOCAL:'
-  ws.getCell(row, 6).font = fontBold(8)
-  ws.getCell(row, 6).border = borderThin; ws.getCell(row, 6).alignment = leftAlign
-  ws.mergeCells(row, 7, row, 8)
-  ws.getCell(row, 7).value = info.local
-  ws.getCell(row, 7).font = fontNormal(8)
-  ws.getCell(row, 7).border = borderThin; ws.getCell(row, 7).alignment = leftAlign
-  ws.getRow(row).height = 18
-  row++
+  // ── ROW: OBRA | LOCAL ──
+  ws.mergeCells(r, 1, r, 1)
+  ws.getCell(r, 1).value = 'OBRA:'
+  ws.getCell(r, 1).font = fontB(8); ws.getCell(r, 1).alignment = lAlign; ws.getCell(r, 1).border = bdrOut
+  ws.mergeCells(r, 2, r, 3)
+  ws.getCell(r, 2).value = info.obra
+  ws.getCell(r, 2).font = fontN(8); ws.getCell(r, 2).alignment = lAlign; ws.getCell(r, 2).border = bdrOut
+  ws.getCell(r, 4).value = 'LOCAL:'
+  ws.getCell(r, 4).font = fontB(8); ws.getCell(r, 4).alignment = lAlign; ws.getCell(r, 4).border = bdrOut
+  ws.mergeCells(r, 5, r, 6)
+  ws.getCell(r, 5).value = info.local
+  ws.getCell(r, 5).font = fontN(8); ws.getCell(r, 5).alignment = lAlign; ws.getCell(r, 5).border = bdrOut
+  ws.getRow(r).height = 20
+  r++
 
-  // ── Info table: MEDIÇÃO | EMPRESA EXECUTORA | DATA ──
-  ws.getCell(row, 1).value = 'MEDIÇÃO:'
-  ws.getCell(row, 1).font = fontBold(8); ws.getCell(row, 1).border = borderThin; ws.getCell(row, 1).alignment = leftAlign
-  ws.getCell(row, 2).value = info.medicao
-  ws.getCell(row, 2).font = fontNormal(8); ws.getCell(row, 2).border = borderThin; ws.getCell(row, 2).alignment = leftAlign
-  ws.mergeCells(row, 3, row, 3)
-  ws.getCell(row, 3).value = 'EMPRESA EXECUTORA'
-  ws.getCell(row, 3).font = fontBold(8); ws.getCell(row, 3).border = borderThin; ws.getCell(row, 3).alignment = leftAlign
-  ws.mergeCells(row, 4, row, 5)
-  ws.getCell(row, 4).value = 'RD SOLUÇÕES LTDA'
-  ws.getCell(row, 4).font = fontNormal(8); ws.getCell(row, 4).border = borderThin; ws.getCell(row, 4).alignment = leftAlign
-  ws.getCell(row, 6).value = 'DATA:'
-  ws.getCell(row, 6).font = fontBold(8); ws.getCell(row, 6).border = borderThin; ws.getCell(row, 6).alignment = leftAlign
-  ws.mergeCells(row, 7, row, 8)
-  ws.getCell(row, 7).value = info.data
-  ws.getCell(row, 7).font = fontNormal(8); ws.getCell(row, 7).border = borderThin; ws.getCell(row, 7).alignment = leftAlign
-  ws.getRow(row).height = 18
-  row++
+  // ── ROW: MEDIÇÃO | EMPRESA EXECUTORA | DATA ──
+  ws.getCell(r, 1).value = 'MEDIÇÃO:'
+  ws.getCell(r, 1).font = fontB(8); ws.getCell(r, 1).alignment = lAlign; ws.getCell(r, 1).border = bdrOut
+  ws.getCell(r, 2).value = info.medicao
+  ws.getCell(r, 2).font = fontN(8); ws.getCell(r, 2).alignment = lAlign; ws.getCell(r, 2).border = bdrOut
+  ws.getCell(r, 3).value = 'EMPRESA EXECUTORA:'
+  ws.getCell(r, 3).font = fontB(8); ws.getCell(r, 3).alignment = lAlign; ws.getCell(r, 3).border = bdrOut
+  ws.getCell(r, 4).value = 'RD SOLUÇÕES LTDA'
+  ws.getCell(r, 4).font = fontN(8); ws.getCell(r, 4).alignment = lAlign; ws.getCell(r, 4).border = bdrOut
+  ws.getCell(r, 5).value = 'DATA:'
+  ws.getCell(r, 5).font = fontB(8); ws.getCell(r, 5).alignment = lAlign; ws.getCell(r, 5).border = bdrOut
+  ws.getCell(r, 6).value = info.data
+  ws.getCell(r, 6).font = fontN(8); ws.getCell(r, 6).alignment = lAlign; ws.getCell(r, 6).border = bdrOut
+  ws.getRow(r).height = 20
+  r++
 
-  // ── Orange section title ──
-  ws.mergeCells(row, 1, row, 8)
-  const titleCell = ws.getCell(row, 1)
-  titleCell.value = 'REGISTRO FOTOGRÁFICO DOS SERVIÇOS EXECUTADOS:'
-  titleCell.font = fontBold(9, 'FFFFFF')
-  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8500A' } }
-  titleCell.alignment = centerAlign
-  titleCell.border = borderThin
-  ws.getRow(row).height = 22
-  row++
+  // ── ORANGE BANNER ──
+  ws.mergeCells(r, 1, r, 6)
+  const banner = ws.getCell(r, 1)
+  banner.value = 'REGISTRO FOTOGRÁFICO DOS SERVIÇOS EXECUTADOS:'
+  banner.font = fontB(9, 'FFFFFF')
+  banner.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8500A' } }
+  banner.alignment = cAlign
+  banner.border = bdrOut
+  ws.getRow(r).height = 24
+  r++
 
-  // ── Photos grid (2 per row) ──
-  const photoHeight = 220 // pixels → row height
-  const captionHeight = 24
-
+  // ── PHOTOS GRID (2 per row) ──
   for (let i = 0; i < fotos.length; i += 2) {
-    // Photo row
-    ws.getRow(row).height = photoHeight * 0.75
+    // Spacer row
+    ws.getRow(r).height = 6
+    r++
+
+    // Photo row — merge left (A:C) and right (D:F) into single large cells
+    ws.mergeCells(r, 1, r, 3)
+    ws.mergeCells(r, 4, r, 6)
+    ws.getRow(r).height = 200
+
+    // Light gray bg + outer border only (no internal grid)
+    const fillGray = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFF0F0F0' } }
+    ws.getCell(r, 1).fill = fillGray; ws.getCell(r, 1).border = bdrOut
+    ws.getCell(r, 4).fill = fillGray; ws.getCell(r, 4).border = bdrOut
 
     // Left photo
-    const foto1 = fotos[i]
     try {
-      const base64_1 = foto1.base64.includes(',') ? foto1.base64.split(',')[1] : foto1.base64
-      const imgId1 = wb.addImage({ base64: base64_1, extension: 'jpeg' })
-      ws.addImage(imgId1, {
-        tl: { col: 0.1, row: row - 1 + 0.05 } as any,
-        br: { col: 3.9, row: row - 1 + 0.95 } as any,
-        editAs: 'oneCell',
-      })
+      const b64_1 = fotos[i].base64.includes(',') ? fotos[i].base64.split(',')[1] : fotos[i].base64
+      const id1 = wb.addImage({ base64: b64_1, extension: 'jpeg' })
+      ws.addImage(id1, { tl: { col: 0.05, row: r - 1 + 0.03 } as any, br: { col: 2.95, row: r - 1 + 0.97 } as any })
     } catch {}
 
-    // Right photo (if exists)
+    // Right photo
     if (i + 1 < fotos.length) {
-      const foto2 = fotos[i + 1]
       try {
-        const base64_2 = foto2.base64.includes(',') ? foto2.base64.split(',')[1] : foto2.base64
-        const imgId2 = wb.addImage({ base64: base64_2, extension: 'jpeg' })
-        ws.addImage(imgId2, {
-          tl: { col: 4.1, row: row - 1 + 0.05 } as any,
-          br: { col: 7.9, row: row - 1 + 0.95 } as any,
-          editAs: 'oneCell',
-        })
+        const b64_2 = fotos[i + 1].base64.includes(',') ? fotos[i + 1].base64.split(',')[1] : fotos[i + 1].base64
+        const id2 = wb.addImage({ base64: b64_2, extension: 'jpeg' })
+        ws.addImage(id2, { tl: { col: 3.05, row: r - 1 + 0.03 } as any, br: { col: 5.95, row: r - 1 + 0.97 } as any })
       } catch {}
     }
-
-    // Gray background for photo cells
-    for (let c = 1; c <= 8; c++) {
-      ws.getCell(row, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F5F5' } }
-      ws.getCell(row, c).border = borderThin
-    }
-    row++
+    r++
 
     // Caption row
-    ws.getRow(row).height = captionHeight
-    ws.mergeCells(row, 1, row, 4)
-    const cap1 = ws.getCell(row, 1)
-    cap1.value = foto1.legenda ? `Figura ${i + 1}: ${foto1.legenda}` : `Figura ${i + 1}`
-    cap1.font = fontNormal(7, '555555')
-    cap1.alignment = centerAlign
-    cap1.border = borderThin
+    ws.mergeCells(r, 1, r, 3)
+    ws.mergeCells(r, 4, r, 6)
+    ws.getRow(r).height = 20
 
-    ws.mergeCells(row, 5, row, 8)
-    const cap2 = ws.getCell(row, 5)
+    const cap1 = ws.getCell(r, 1)
+    cap1.value = fotos[i].legenda ? `Figura ${i + 1}: ${fotos[i].legenda}` : `Figura ${i + 1}`
+    cap1.font = fontN(8, '555555')
+    cap1.alignment = cAlign
+    cap1.border = bdrNone
+
+    const cap2 = ws.getCell(r, 4)
     if (i + 1 < fotos.length) {
-      const foto2 = fotos[i + 1]
-      cap2.value = foto2.legenda ? `Figura ${i + 2}: ${foto2.legenda}` : `Figura ${i + 2}`
-    } else {
-      cap2.value = ''
+      cap2.value = fotos[i + 1].legenda ? `Figura ${i + 2}: ${fotos[i + 1].legenda}` : `Figura ${i + 2}`
     }
-    cap2.font = fontNormal(7, '555555')
-    cap2.alignment = centerAlign
-    cap2.border = borderThin
-    row++
+    cap2.font = fontN(8, '555555')
+    cap2.alignment = cAlign
+    cap2.border = bdrNone
+    r++
   }
 
-  // ── Footer ──
-  row++
-  ws.mergeCells(row, 1, row, 8)
-  ws.getCell(row, 1).value = 'RD Soluções Ltda – CNPJ 43.357.757/0001-40'
-  ws.getCell(row, 1).font = fontNormal(7, '999999')
-  ws.getCell(row, 1).alignment = centerAlign
+  // ── FOOTER ──
+  r++
+  ws.mergeCells(r, 1, r, 6)
+  ws.getCell(r, 1).value = 'RD Soluções Ltda – CNPJ 43.357.757/0001-40'
+  ws.getCell(r, 1).font = fontN(7, '999999')
+  ws.getCell(r, 1).alignment = cAlign
 
   // Download
   const buffer = await wb.xlsx.writeBuffer()
